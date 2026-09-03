@@ -8,14 +8,16 @@ import json
 import re
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
+from flask_cors import CORS
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import imis_core
 import quote_matcher
 import msc_matcher
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.config['JSON_AS_ASCII'] = False
+CORS(app)
 
 DATA_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data")
 PROJECTS_DIR = os.path.join(DATA_DIR, "projects")
@@ -82,6 +84,9 @@ def save_dossier_data(data):
 
 @app.route("/")
 def index():
+    dist_index = os.path.join(app.static_folder, "index.html")
+    if os.path.exists(dist_index):
+        return send_file(dist_index)
     return render_template("index.html")
 
 
@@ -98,6 +103,21 @@ def api_refresh_token():
     ok, msg = imis_core.refresh_imis_token()
     info = imis_core.get_token_status_info()
     return jsonify({"success": ok, "message": msg, "info": info})
+
+
+@app.route("/api/imis/login", methods=["POST"])
+def api_login_imis():
+    req_data = request.get_json() or {}
+    username = req_data.get("username", "").strip()
+    password = req_data.get("password", "")
+    remember = req_data.get("remember", True)
+    if not username or not password:
+        return jsonify({"success": False, "message": "Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu"}), 400
+    
+    ok, msg = imis_core.login_imis(username, password, remember)
+    info = imis_core.get_token_status_info()
+    return jsonify({"success": ok, "message": msg, "info": info})
+
 
 
 @app.route("/api/dossier", methods=["GET"])
@@ -406,7 +426,8 @@ def api_scan_quotes():
     """Quét thư mục chứa các file PDF báo giá của các nhà thầu."""
     req = request.get_json() or {}
     folder = req.get("folder_path") or quote_matcher.DEFAULT_QUOTES_DIR
-    res = quote_matcher.scan_quotation_folder(folder)
+    force_rescan = bool(req.get("force_rescan", False))
+    res = quote_matcher.scan_quotation_folder(folder, force_rescan=force_rescan)
     return jsonify(res)
 
 
@@ -462,12 +483,15 @@ def get_project_quote_overrides():
 
 
 @app.route("/api/quotes/save-edited-quote", methods=["POST"])
+@app.route("/api/quotes/save-override", methods=["POST"])
 def api_save_edited_quote():
     """Lưu dữ liệu báo giá đã được người dùng chỉnh sửa/bổ sung và tính lại thành tiền."""
     req = request.get_json() or {}
-    filename = req.get("filename")
-    items = req.get("items", [])
-    total_amount = float(req.get("total_amount", 0))
+    quote_obj = req.get("quote", {})
+    filename = req.get("filename") or quote_obj.get("filename")
+    items = req.get("items") or quote_obj.get("items") or []
+    total_amount = float(req.get("total_amount") or quote_obj.get("total_amount") or 0)
+    
     if not filename:
         return jsonify({"success": False, "message": "Thiếu tên file báo giá"}), 400
 
@@ -484,20 +508,36 @@ def api_save_edited_quote():
     with open(fpath, "w", encoding="utf-8") as f:
         json.dump(overrides, f, ensure_ascii=False, indent=2)
 
+    # Xóa cache để lượt quét tới áp dụng override mới ngay lập tức
+    quote_matcher.clear_quotes_cache()
+
     return jsonify({"success": True, "message": f"Đã lưu thành công {len(items)} dòng dữ liệu hiệu chỉnh cho báo giá [{filename}]!"})
 
 
-@app.route("/api/quotes/get-full-quote", methods=["POST"])
+@app.route("/api/quotes/get-full-quote", methods=["GET", "POST"])
+@app.route("/api/quotes/item-data", methods=["GET", "POST"])
 def api_get_full_quote():
     """Lấy dữ liệu đầy đủ tất cả các dòng đã pandas hóa của 1 file báo giá."""
-    req = request.get_json() or {}
-    filename = req.get("filename")
-    folder = req.get("folder_path") or quote_matcher.DEFAULT_QUOTES_DIR
+    req = request.get_json(silent=True) or {}
+    filename = req.get("filename") or request.args.get("filename")
+    folder = req.get("folder_path") or request.args.get("folder_path")
+    
+    if not folder:
+        p_dir = get_project_files_dir()
+        approved_file = os.path.join(p_dir, "bao_gia_project.json")
+        if os.path.exists(approved_file):
+            try:
+                with open(approved_file, "r", encoding="utf-8") as f:
+                    folder = json.load(f).get("folder_nguon")
+            except Exception:
+                pass
+                
+    folder = folder or quote_matcher.DEFAULT_QUOTES_DIR
     overrides = get_project_quote_overrides()
     scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides)
     for q in scanned.get("quotes", []):
         if q["filename"] == filename:
-            return jsonify({"success": True, "quote": q})
+            return jsonify({"success": True, "quote": q, "data": q})
     return jsonify({"success": False, "message": f"Không tìm thấy báo giá: {filename}"}), 404
 
 
@@ -559,12 +599,71 @@ def api_match_item_quote():
     """Đối chiếu đơn giá trình của 1 mục với các báo giá gốc trong thư mục."""
     req = request.get_json() or {}
     item = req.get("item", {})
-    folder = req.get("folder_path") or quote_matcher.DEFAULT_QUOTES_DIR
+    folder = req.get("folder_path")
+    
+    if not folder:
+        p_dir = get_project_files_dir()
+        approved_file = os.path.join(p_dir, "bao_gia_project.json")
+        if os.path.exists(approved_file):
+            try:
+                with open(approved_file, "r", encoding="utf-8") as f:
+                    folder = json.load(f).get("folder_nguon")
+            except Exception:
+                pass
+                
+    folder = folder or quote_matcher.DEFAULT_QUOTES_DIR
+    force_rescan = bool(req.get("force_rescan", False))
     
     overrides = get_project_quote_overrides()
-    scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides)
+    scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides, force_rescan=force_rescan)
     match_result = quote_matcher.match_item_in_quotes(item, scanned)
     return jsonify(match_result)
+
+
+@app.route("/api/quotes/browse-folders", methods=["GET", "POST"])
+def api_quotes_browse_folders():
+    """Duyệt danh sách thư mục con để hiển thị cây thư mục trên UI."""
+    req = request.get_json(silent=True) or {}
+    base_path = req.get("path", "").strip() or request.args.get("path", "").strip() or "D:\\"
+    if not os.path.exists(base_path):
+        base_path = os.path.dirname(base_path) if os.path.dirname(base_path) else "C:\\"
+    
+    subdirs = []
+    try:
+        if os.path.isdir(base_path):
+            for entry in os.listdir(base_path):
+                full_p = os.path.join(base_path, entry)
+                if os.path.isdir(full_p) and not entry.startswith('.') and not entry.startswith('$'):
+                    subdirs.append({"name": entry, "path": full_p})
+    except Exception:
+        pass
+    
+    parent_p = os.path.dirname(base_path) if os.path.dirname(base_path) != base_path else None
+    return jsonify({
+        "success": True,
+        "current_path": base_path,
+        "parent_path": parent_p,
+        "subdirs": subdirs[:40]
+    })
+
+
+@app.route("/api/quotes/native-browse-folder", methods=["GET", "POST"])
+def api_quotes_native_browse_folder():
+    """Mở cửa sổ Windows Explorer Native Folder Picker Dialog chuẩn của hệ điều hành."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        selected_dir = filedialog.askdirectory(title="Chọn thư mục chứa các file Báo Giá Gốc (PDF)")
+        root.destroy()
+        if selected_dir:
+            norm_path = os.path.normpath(selected_dir)
+            return jsonify({"success": True, "folder_path": norm_path})
+        return jsonify({"success": False, "message": "Người dùng đã hủy chọn thư mục"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi mở cửa sổ Windows: {str(e)}"})
 
 
 @app.route("/api/quotes/attach-matched-pdf", methods=["POST"])

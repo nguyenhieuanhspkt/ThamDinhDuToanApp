@@ -58,6 +58,9 @@
                 <button onclick="refreshToken()" title="Gia hạn Token 1s" class="ml-1 text-blue-200 hover:text-white transition flex items-center gap-1 font-semibold underline">
                     <i data-lucide="refresh-cw" class="w-3 h-3"></i> Gia hạn
                 </button>
+                <button onclick="openImisLoginModal()" title="Đăng nhập tài khoản EVN IMIS" class="ml-1.5 bg-amber-500/20 hover:bg-amber-500/40 text-amber-200 hover:text-white px-2 py-0.5 rounded border border-amber-400/40 transition flex items-center gap-1 font-semibold">
+                    <i data-lucide="key-round" class="w-3 h-3"></i> Đăng nhập
+                </button>
             </div>
         </div>
     </header>
@@ -276,8 +279,11 @@
                                 </span>
                             </div>
                             <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
-                                <button onclick="matchCurrentItemQuotes()" class="text-[11px] text-emerald-800 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-semibold flex items-center gap-1">
-                                    <i data-lucide="refresh-cw" class="w-3 h-3"></i> Đối chiếu
+                                <button onclick="matchCurrentItemQuotes(false)" class="text-[11px] text-emerald-800 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-semibold flex items-center gap-1" title="Đối chiếu mục hiện tại với bộ đệm báo giá">
+                                    <i data-lucide="check-circle-2" class="w-3 h-3"></i> Đối chiếu
+                                </button>
+                                <button onclick="matchCurrentItemQuotes(true)" class="text-[11px] text-gray-700 hover:text-emerald-800 hover:bg-emerald-50 px-1.5 py-0.5 rounded border border-gray-300 font-medium flex items-center gap-1" title="Ép buộc quét lại tất cả các file PDF báo giá từ ổ đĩa (Bỏ qua Cache)">
+                                    <i data-lucide="refresh-cw" class="w-3 h-3"></i> Quét lại PDF
                                 </button>
                                 <button onclick="changeQuotesFolder()" class="text-[11px] text-gray-500 hover:text-gray-800 p-0.5" title="Cài đặt thư mục PDF báo giá">
                                     <i data-lucide="folder" class="w-3.5 h-3.5"></i>
@@ -381,6 +387,9 @@
                             </div>
                             <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
                                 <span id="insp-imis-evidence-badge" class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono">Chưa lưu</span>
+                                <button onclick="openImisLoginModal()" class="text-[11px] text-amber-800 hover:bg-amber-50 px-2 py-0.5 rounded border border-amber-300 font-semibold flex items-center gap-1" title="Đăng nhập tài khoản EVN IMIS để nhận Token mới">
+                                    <i data-lucide="key-round" class="w-3 h-3"></i> Đăng nhập IMIS
+                                </button>
                                 <button onclick="loadImisOnly(true)" class="text-[11px] text-indigo-800 hover:bg-indigo-50 px-2 py-0.5 rounded border border-indigo-300 font-semibold flex items-center gap-1">
                                     <i data-lucide="refresh-cw" class="w-3 h-3"></i> Tra lại
                                 </button>
@@ -631,7 +640,9 @@
                     alert("🎉 Gia hạn Token thành công 120 phút!");
                     loadStatus();
                 } else {
-                    alert("⚠️ Lỗi gia hạn: " + data.message);
+                    if (confirm("⚠️ Lỗi gia hạn: " + data.message + "\n\nBạn có muốn mở ngay Modal Đăng nhập EVN IMIS để lấy Token mới không?")) {
+                        openImisLoginModal();
+                    }
                 }
             } catch (e) {
                 alert("Lỗi kết nối: " + e);
@@ -1756,7 +1767,7 @@
         let currentQuotationMatches = null;
         let quotationFolderPath = "D:\\onedrive_hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định";
 
-        async function matchCurrentItemQuotes() {
+        async function matchCurrentItemQuotes(forceRescan = false) {
             const it = currentDossier.items[currentInspectorIndex];
             if (!it) return;
 
@@ -1764,7 +1775,8 @@
             const tableContainer = document.getElementById('insp-quote-table-container');
             const actionsContainer = document.getElementById('insp-quote-actions');
 
-            badgeContainer.innerHTML = `<div class="p-2 bg-gray-50 rounded border text-[11px] text-gray-500 flex items-center gap-1.5"><i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Đang đối chiếu với các file PDF báo giá...</div>`;
+            const loadingText = forceRescan ? 'Đang ép buộc quét lại toàn bộ file PDF báo giá từ ổ đĩa...' : 'Đang đối chiếu với bộ đệm báo giá...';
+            badgeContainer.innerHTML = `<div class="p-2 bg-blue-50/80 rounded border border-blue-200 text-[11px] text-blue-900 flex items-center gap-1.5 font-medium"><i data-lucide="loader" class="w-3.5 h-3.5 animate-spin text-blue-600"></i> ${loadingText}</div>`;
             tableContainer.innerHTML = "";
             actionsContainer.classList.add('hidden');
             lucide.createIcons();
@@ -1773,7 +1785,7 @@
                 const res = await fetch('/api/quotes/match-item', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ item: it, folder_path: quotationFolderPath })
+                    body: JSON.stringify({ item: it, folder_path: quotationFolderPath, force_rescan: forceRescan })
                 });
                 const data = await res.json();
                 currentQuotationMatches = data;
@@ -1782,26 +1794,41 @@
                 if (data.status === "MATCH_MIN") {
                     const sup = data.matched_supplier ? data.matched_supplier.company : "Nhà thầu";
                     badgeContainer.innerHTML = `
-                        <div class="p-2 bg-emerald-50 border border-emerald-300 rounded text-[11px] text-emerald-950 font-semibold flex items-center gap-1.5 shadow-xs">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0"></span>
-                            <span>✅ HỢP LỆ: Khớp đơn giá thấp nhất của <strong>${sup}</strong></span>
+                        <div class="p-2.5 bg-emerald-50 border border-emerald-300 rounded text-[11px] text-emerald-950 font-semibold flex flex-col gap-1 shadow-xs">
+                            <div class="flex items-center gap-1.5 font-bold">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0"></span>
+                                <span>✅ HỢP LỆ: Khớp đơn giá thấp nhất của <strong>${sup}</strong></span>
+                            </div>
+                            ${data.summary_text ? `<div class="text-[10.5px] font-normal text-emerald-900 leading-snug mt-0.5 pl-2.5 border-l-2 border-emerald-400 bg-emerald-100/50 p-1.5 rounded-r">
+                                <strong>💡 Lý do đối chiếu:</strong> ${data.summary_text}
+                            </div>` : ''}
                         </div>
                     `;
                     actionsContainer.classList.remove('hidden');
                 } else if (data.status === "MATCH_HIGHER") {
                     const sup = data.matched_supplier ? data.matched_supplier.company : "Nhà thầu";
                     badgeContainer.innerHTML = `
-                        <div class="p-2 bg-amber-50 border border-amber-300 rounded text-[11px] text-amber-950 font-bold flex items-center gap-1.5 shadow-xs">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0"></span>
-                            <span>⚠️ CẢNH BÁO: Đơn giá trình (${formatMoney(it.don_gia_trinh)} đ) lấy của ${sup} nhưng KHÔNG PHẢI giá thấp nhất!</span>
+                        <div class="p-2.5 bg-amber-50 border border-amber-300 rounded text-[11px] text-amber-950 font-bold flex flex-col gap-1 shadow-xs">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0"></span>
+                                <span>⚠️ CẢNH BÁO: Đơn giá trình (${formatMoney(it.don_gia_trinh)} đ) lấy của ${sup} nhưng KHÔNG PHẢI giá thấp nhất!</span>
+                            </div>
+                            ${data.summary_text ? `<div class="text-[10.5px] font-normal text-amber-900 leading-snug mt-0.5 pl-2.5 border-l-2 border-amber-400 bg-amber-100/50 p-1.5 rounded-r">
+                                <strong>💡 Lý do & Cảnh báo:</strong> ${data.summary_text}
+                            </div>` : ''}
                         </div>
                     `;
                     actionsContainer.classList.remove('hidden');
                 } else {
                     badgeContainer.innerHTML = `
-                        <div class="p-2 bg-red-50 border border-red-200 rounded text-[11px] text-red-900 font-medium flex items-center gap-1.5">
-                            <span class="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"></span>
-                            <span>⚠️ Đơn giá trình chưa tìm thấy trong các file báo giá trong thư mục.</span>
+                        <div class="p-2.5 bg-red-50 border border-red-200 rounded text-[11px] text-red-900 font-medium flex flex-col gap-1">
+                            <div class="flex items-center gap-1.5 font-bold">
+                                <span class="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"></span>
+                                <span>⚠️ Đơn giá trình chưa tìm thấy trong các file báo giá trong thư mục.</span>
+                            </div>
+                            ${data.summary_text ? `<div class="text-[10.5px] font-normal text-red-800 leading-snug mt-0.5 pl-2.5 border-l-2 border-red-300 bg-red-100/40 p-1.5 rounded-r">
+                                <strong>💡 Lý do:</strong> ${data.summary_text}
+                            </div>` : ''}
                         </div>
                     `;
                 }
@@ -1817,21 +1844,37 @@
                             : `<span class="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px]">+${diffPct}%</span>`;
 
                         const rowDiv = document.createElement('div');
-                        rowDiv.className = `p-2 rounded border transition flex items-center justify-between ${isMatchTrinh ? 'bg-emerald-50/50 border-emerald-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`;
+                        rowDiv.className = `p-2 rounded border transition flex flex-col gap-1 ${isMatchTrinh ? 'bg-emerald-50/50 border-emerald-300' : 'bg-white border-gray-200 hover:bg-gray-50'}`;
                         rowDiv.innerHTML = `
-                            <div class="truncate mr-2">
-                                <div class="font-bold text-gray-900 text-xs truncate flex items-center gap-1.5">
-                                    <span>${m.company}</span> ${diffBadge}
+                            <div class="flex items-center justify-between">
+                                <div class="truncate mr-2 flex-1">
+                                    <div class="font-bold text-gray-900 text-xs truncate flex items-center gap-1.5">
+                                        <span class="truncate">${m.company}</span> ${diffBadge}
+                                    </div>
+                                    <div class="text-[10px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
+                                        <span>📄 ${m.filename} (Trang ${m.page}${m.stt ? `, STT ${m.stt}` : ''})</span>
+                                    </div>
                                 </div>
-                                <div class="text-[10px] text-gray-500 truncate flex items-center gap-2 mt-0.5">
-                                    <span>📄 ${m.filename} (Trang ${m.page})</span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="font-bold ${isMatchTrinh ? 'text-emerald-800 font-extrabold' : 'text-gray-800'} text-xs">${formatMoney(m.don_gia)} đ</span>
+                                    <button onclick="applyPriceToConsensus(${m.don_gia}, 'Theo Báo giá của ${m.company.replace(/'/g, "\\'")} (${m.filename.replace(/'/g, "\\'")})')" class="px-2 py-0.5 bg-white border border-gray-300 hover:bg-blue-50 text-blue-800 rounded text-[10px] font-semibold" title="Áp dụng giá này làm đơn giá thống nhất">
+                                        Chọn giá
+                                    </button>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="font-bold ${isMatchTrinh ? 'text-emerald-800 font-extrabold' : 'text-gray-800'} text-xs">${formatMoney(m.don_gia)} đ</span>
-                                <button onclick="applyPriceToConsensus(${m.don_gia}, 'Theo Báo giá của ${m.company} (${m.filename})')" class="px-2 py-0.5 bg-white border border-gray-300 hover:bg-blue-50 text-blue-800 rounded text-[10px] font-semibold" title="Áp dụng giá này làm đơn giá thống nhất">
-                                    Chọn giá
-                                </button>
+                            <div class="mt-1 pt-1.5 border-t border-gray-200/60 text-[10.5px] text-gray-600 flex flex-col gap-0.5 bg-gray-50/80 p-1.5 rounded">
+                                <div class="flex items-start gap-1 text-[10px] text-gray-800">
+                                    <span class="font-semibold shrink-0 text-emerald-800">🔍 PDF bóc tách:</span>
+                                    <span class="truncate font-medium text-gray-900" title="${m.quoted_name || ''}">${m.quoted_name || 'Không rõ tên'}</span>
+                                </div>
+                                ${m.quoted_tskt ? `<div class="flex items-start gap-1 text-[10px] text-gray-500 truncate">
+                                    <span class="shrink-0 font-medium">⚙️ TSKT:</span>
+                                    <span class="truncate" title="${m.quoted_tskt}">${m.quoted_tskt}</span>
+                                </div>` : ''}
+                                <div class="flex items-center justify-between text-[9.5px] text-gray-500 mt-0.5">
+                                    <span class="text-emerald-700 font-medium italic">💡 Căn cứ khớp: ${m.match_reason || 'Độ tương đồng cao'}</span>
+                                    <span class="bg-gray-200/80 text-gray-600 px-1 rounded font-mono">Score: ${m.score || 0}</span>
+                                </div>
                             </div>
                         `;
                         tableContainer.appendChild(rowDiv);
@@ -1945,16 +1988,21 @@
             items.forEach((it, idx) => {
                 const tr = document.createElement('tr');
                 tr.id = `quote-row-${idx}`;
-                tr.className = "hover:bg-blue-50/40 transition";
+                tr.className = "hover:bg-blue-50/60 cursor-pointer transition";
+                tr.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') {
+                        jumpToPdfPage(it.page || 1);
+                    }
+                };
                 tr.innerHTML = `
                     <td class="py-2 px-1 text-center text-gray-500 font-mono border-r">
                         <input type="text" id="quote-inp-stt-${idx}" value="${it.stt || (idx + 1)}" class="w-8 text-center text-xs font-mono p-1 border rounded bg-transparent focus:bg-white" onchange="syncRowData(${idx})">
                     </td>
                     <td class="py-1 px-2 border-r">
-                        <input type="text" id="quote-inp-name-${idx}" value="${escapeHtml(it.ten_vt || '')}" class="w-full text-xs font-medium p-1 border rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500" onchange="syncRowData(${idx})">
+                        <input type="text" id="quote-inp-name-${idx}" value="${escapeHtml(it.ten_vt || '')}" class="w-full text-xs font-medium p-1 border rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500" onchange="syncRowData(${idx})" onfocus="jumpToPdfPage(${it.page || 1})">
                     </td>
                     <td class="py-1 px-2 border-r">
-                        <input type="text" id="quote-inp-tskt-${idx}" value="${escapeHtml(it.tskt || '')}" class="w-full text-[11px] text-gray-600 p-1 border rounded bg-transparent focus:bg-white" onchange="syncRowData(${idx})">
+                        <input type="text" id="quote-inp-tskt-${idx}" value="${escapeHtml(it.tskt || '')}" class="w-full text-[11px] text-gray-600 p-1 border rounded bg-transparent focus:bg-white" onchange="syncRowData(${idx})" onfocus="jumpToPdfPage(${it.page || 1})">
                     </td>
                     <td class="py-1 px-1 text-center border-r">
                         <input type="text" id="quote-inp-dvt-${idx}" value="${escapeHtml(it.dvt || 'Cái')}" class="w-12 text-center text-xs p-1 border rounded bg-transparent focus:bg-white" onchange="syncRowData(${idx})">
@@ -1968,7 +2016,7 @@
                     <td class="py-1 px-2 text-right border-r bg-amber-50/40">
                         <input type="text" id="quote-inp-tt-${idx}" value="${formatMoney(it.thanh_tien)}" class="w-32 text-right font-mono font-bold text-red-700 text-xs p-1 border border-amber-200 rounded bg-white" oninput="handleQuoteTtDirectChange(${idx})">
                     </td>
-                    <td class="py-2 px-1 text-center text-gray-400 font-mono text-[10px] border-r">Tr.${it.page || 1}</td>
+                    <td class="py-2 px-1 text-center text-teal-700 font-mono text-[10px] font-bold border-r cursor-pointer hover:underline" onclick="jumpToPdfPage(${it.page || 1})" title="Bấm để nhảy đến Trang ${it.page || 1} của PDF">Tr.${it.page || 1}</td>
                     <td class="py-2 px-1 text-center">
                         <button onclick="deleteQuoteRow(${idx})" class="p-1 text-gray-400 hover:text-red-600 rounded transition" title="Xóa dòng này">
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -2229,12 +2277,17 @@
         }
 
         // ==========================================
-        // 13. DUYỆT SỐ HÓA FILE BÁO GIÁ (QUOTATION HUB)
+        // 13. DUYỆT SỐ HÓA FILE BÁO GIÁ (3-COLUMN WORKSPACE)
         // ==========================================
+        let currentQuotesFilter = 'all';
+        let currentDossierData = null;
+        let activeQuoteFilename = null;
+        let activeQuoteFilePath = null;
+
         function openModalDuyetSoHoa() {
             document.getElementById('modal-duyet-so-hoa').classList.remove('hidden');
             document.getElementById('sohoa-folder-path').textContent = quotationFolderPath;
-            loadQuotesDossier();
+            loadQuotesDossier(currentQuotesFilter, false);
             lucide.createIcons();
         }
 
@@ -2242,179 +2295,244 @@
             document.getElementById('modal-duyet-so-hoa').classList.add('hidden');
         }
 
-        async function loadQuotesDossier() {
+        function setQuotesDossierFilter(filterType) {
+            currentQuotesFilter = filterType;
+            const filterBtns = ['all', 'pending', 'approved', 'edited', 'docs'];
+            filterBtns.forEach(btn => {
+                const el = document.getElementById(`btn-filter-${btn}`);
+                if (el) {
+                    if (btn === filterType) {
+                        el.className = "w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between bg-teal-700 text-white font-bold shadow-xs";
+                    } else {
+                        el.className = "w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between text-gray-700 hover:bg-gray-100 font-semibold";
+                    }
+                }
+            });
+            if (currentDossierData) {
+                renderWorkspaceSidebarCards(currentDossierData);
+            } else {
+                loadQuotesDossier(currentQuotesFilter, false);
+            }
+        }
+
+        async function loadQuotesDossier(filterType = 'all', forceRescan = false) {
             const container = document.getElementById('sohoa-cards-container');
             const statsBadge = document.getElementById('sohoa-stats-badge');
             const approvalBanner = document.getElementById('sohoa-approval-banner');
             const approvalMsg = document.getElementById('sohoa-approval-msg');
-            const approvalTime = document.getElementById('sohoa-approval-time');
             const toolbarBadge = document.getElementById('badge-so-hoa-count');
 
-            container.innerHTML = `<div class="col-span-2 text-center py-12 text-gray-400"><i data-lucide="loader" class="w-6 h-6 mx-auto animate-spin mb-2"></i> Đang quét và bóc tách toàn bộ file trong thư mục báo giá...</div>`;
+            container.innerHTML = `<div class="text-center py-8 text-gray-400 text-xs"><i data-lucide="loader" class="w-5 h-5 mx-auto animate-spin mb-1 text-teal-600"></i> ${forceRescan ? 'Đang quét lại PDF từ đĩa...' : 'Đang tải CSDL báo giá...'}</div>`;
             lucide.createIcons();
 
             try {
                 const res = await fetch('/api/quotes/dossier', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ folder_path: quotationFolderPath })
+                    body: JSON.stringify({ folder_path: quotationFolderPath, force_rescan: forceRescan })
                 });
                 const data = await res.json();
                 if (!data.success) {
-                    container.innerHTML = `<div class="col-span-2 text-center py-8 text-red-500">${data.message}</div>`;
+                    container.innerHTML = `<div class="text-center py-6 text-red-500 text-xs">${data.message}</div>`;
                     return;
                 }
 
+                currentDossierData = data;
                 const quotes = data.quotes || [];
                 const scans = data.scans || [];
                 const docs = data.docs || [];
                 const totalFiles = data.total_files || (quotes.length + scans.length + docs.length);
 
-                statsBadge.textContent = `${totalFiles} file: ${quotes.length} Báo giá hợp lệ | ${scans.length} Bản scan | ${docs.length} Văn bản`;
+                statsBadge.textContent = `${totalFiles} file | ${quotes.length} Báo giá hợp lệ`;
                 if (toolbarBadge) toolbarBadge.textContent = `${quotes.length}`;
 
                 if (data.is_approved && data.approved_data) {
                     approvalBanner.classList.remove('hidden');
-                    approvalMsg.textContent = `CSDL Báo giá đã được phê duyệt (${data.approved_data.tong_so_nha_thau} nhà thầu, ${data.approved_data.tong_so_muc} dòng vật tư, tổng: ${formatMoney(data.approved_data.tong_gia_tri)} đ).`;
-                    approvalTime.textContent = `Duyệt lúc: ${data.approved_data.thoi_gian_duyet}`;
+                    approvalMsg.textContent = `Đã duyệt CSDL (${data.approved_data.tong_so_nha_thau} NT, ${data.approved_data.tong_so_muc} dòng, ${formatMoney(data.approved_data.tong_gia_tri)} đ)`;
                 } else {
                     approvalBanner.classList.add('hidden');
                 }
 
-                container.innerHTML = "";
+                renderWorkspaceSidebarCards(data);
 
-                const approvedFilenames = new Set(
-                    (data.approved_data && data.approved_data.danh_sach_bao_gia) 
-                        ? data.approved_data.danh_sach_bao_gia.map(x => x.filename) 
-                        : []
-                );
+                // Autoselect first quote if none active
+                if (!activeQuoteFilename && quotes.length > 0) {
+                    selectWorkspaceQuote(quotes[0].filename, quotes[0].file_path);
+                }
 
-                // 1. Render Parsed Quotes
-                quotes.forEach(q => {
-                    const isApproved = approvedFilenames.has(q.filename);
-                    const isEdited = (q.status === 'USER_EDITED');
-
-                    let badgeHtml = '';
-                    let cardBorderClass = '';
-                    let auditStatusHtml = '';
-
-                    if (isEdited) {
-                        badgeHtml = `
-                            <span class="bg-blue-100 text-blue-900 border border-blue-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
-                                <i data-lucide="edit-3" class="w-3 h-3 text-blue-600"></i> Đã Sửa & Lưu Thủ Công
-                            </span>
-                        `;
-                        cardBorderClass = "border-blue-300 bg-blue-50/20";
-                        auditStatusHtml = `<span class="text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 flex items-center gap-1"><i data-lucide="check" class="w-3 h-3 text-blue-600"></i> Đã hiệu chỉnh số dư</span>`;
-                    } else if (isApproved) {
-                        badgeHtml = `
-                            <span class="bg-emerald-100 text-emerald-950 border border-emerald-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
-                                <i data-lucide="check-circle-2" class="w-3 h-3 text-emerald-600"></i> ĐÃ LƯU CSDL DỰ ÁN
-                            </span>
-                        `;
-                        cardBorderClass = "border-emerald-300 bg-emerald-50/15";
-                        auditStatusHtml = `<span class="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1"><i data-lucide="shield-check" class="w-3 h-3 text-emerald-600"></i> Đã chốt trong CSDL</span>`;
-                    } else {
-                        badgeHtml = `
-                            <span class="bg-amber-100 text-amber-950 border border-amber-300 font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
-                                <i data-lucide="clock" class="w-3 h-3 text-amber-600"></i> Bóc Tách Thô - Chờ Kiểm Tra
-                            </span>
-                        `;
-                        cardBorderClass = "border-amber-200 bg-amber-50/10";
-                        auditStatusHtml = `<span class="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3 text-amber-600"></i> Chưa đối chiếu</span>`;
-                    }
-
-                    const card = document.createElement('div');
-                    card.className = `bg-white p-4 rounded-xl border ${cardBorderClass} shadow-sm hover:shadow-md transition flex flex-col justify-between`;
-                    card.innerHTML = `
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                ${badgeHtml}
-                                <span class="text-[11px] font-mono font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">${q.item_count} dòng</span>
-                            </div>
-                            <h4 class="font-bold text-gray-900 text-sm mb-1 leading-snug truncate" title="${q.company}">
-                                ${q.company}
-                            </h4>
-                            <p class="text-[11px] text-gray-500 truncate mb-2.5" title="${q.filename}">
-                                📄 ${q.filename}
-                            </p>
-                            <div class="bg-white p-2 rounded-lg border border-gray-200 mb-2.5 flex items-center justify-between">
-                                <span class="text-xs text-gray-600 font-medium">Tổng thành tiền:</span>
-                                <span class="text-sm font-black text-red-700 font-mono">${formatMoney(q.total_amount)} đ</span>
-                            </div>
-                            <div class="flex items-center justify-between text-[11px] mb-3 px-2.5 py-1.5 rounded bg-slate-50 border border-slate-200">
-                                <span class="text-gray-500 font-medium">Trạng thái CSDL:</span>
-                                ${auditStatusHtml}
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between pt-2 border-t gap-2">
-                            <button onclick="viewQuotePdfDirect('${(q.file_path || '').replace(/\\/g, '/')}', '${escapeHtml(q.filename)}')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold flex items-center gap-1">
-                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-red-600"></i> Xem PDF gốc
-                            </button>
-                            <button onclick="openQuoteDetails('${escapeHtml(q.filename)}', '${(q.file_path || '').replace(/\\/g, '/')}')" class="px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded-lg text-xs font-bold flex items-center gap-1 shadow-2xs">
-                                <i data-lucide="table" class="w-3.5 h-3.5 text-teal-700"></i> Xem & Kiểm Tra Số Dư
-                            </button>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-
-                // 2. Render Scans (Yellow Cards)
-                scans.forEach(s => {
-                    const card = document.createElement('div');
-                    card.className = "bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col justify-between";
-                    card.innerHTML = `
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="bg-amber-100 text-amber-900 font-bold text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Bản Scan Ảnh
-                                </span>
-                                <span class="text-[11px] font-mono text-amber-800">Cần OCR / Nhập tay</span>
-                            </div>
-                            <h4 class="font-bold text-gray-900 text-sm mb-1 leading-snug truncate" title="${s.filename}">
-                                ${s.filename}
-                            </h4>
-                            <p class="text-[11px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200 mb-3">
-                                💡 File PDF dạng hình ảnh scan (chưa có lớp chữ). Bạn có thể mở xem trực tiếp PDF để kiểm tra số dư.
-                            </p>
-                        </div>
-                        <div class="flex items-center justify-end pt-2 border-t">
-                            <button onclick="viewQuotePdfDirect('${(s.file_path || '').replace(/\\/g, '/')}', '${escapeHtml(s.filename)}')" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-semibold flex items-center gap-1">
-                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-red-600"></i> Mở xem bản scan PDF
-                            </button>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-
-                // 3. Render Docs (Gray Cards)
-                docs.forEach(d => {
-                    const card = document.createElement('div');
-                    card.className = "bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between opacity-80 hover:opacity-100 transition";
-                    card.innerHTML = `
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="bg-gray-100 text-gray-700 font-medium text-[10px] px-2 py-0.5 rounded-full">
-                                    ${d.doc_type}
-                                </span>
-                                <span class="text-[10px] text-gray-400 font-mono">Tài liệu phụ trợ</span>
-                            </div>
-                            <h4 class="font-bold text-gray-800 text-xs mb-2 leading-snug truncate" title="${d.filename}">
-                                📎 ${d.filename}
-                            </h4>
-                        </div>
-                        <div class="flex items-center justify-end pt-2 border-t">
-                            <button onclick="viewQuotePdfDirect('${(d.file_path || '').replace(/\\/g, '/')}', '${escapeHtml(d.filename)}')" class="px-2.5 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded text-xs flex items-center gap-1">
-                                <i data-lucide="file-text" class="w-3 h-3"></i> Xem tài liệu
-                            </button>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-
-                lucide.createIcons();
             } catch (e) {
-                container.innerHTML = `<div class="col-span-2 text-center py-8 text-red-500">Lỗi kết nối: ${e}</div>`;
+                container.innerHTML = `<div class="text-center py-6 text-red-500 text-xs">Lỗi kết nối: ${e}</div>`;
+            }
+        }
+
+        function renderWorkspaceSidebarCards(data) {
+            const container = document.getElementById('sohoa-cards-container');
+            if (!container || !data) return;
+
+            const quotes = data.quotes || [];
+            const scans = data.scans || [];
+            const docs = data.docs || [];
+
+            const approvedFilenames = new Set(
+                (data.approved_data && data.approved_data.danh_sach_bao_gia) 
+                    ? data.approved_data.danh_sach_bao_gia.map(x => x.filename) 
+                    : []
+            );
+
+            let cntPending = 0;
+            let cntApproved = 0;
+            let cntEdited = 0;
+
+            quotes.forEach(q => {
+                const isApproved = approvedFilenames.has(q.filename);
+                const isEdited = (q.status === 'USER_EDITED');
+                if (isEdited) cntEdited++;
+                else if (isApproved) cntApproved++;
+                else cntPending++;
+            });
+
+            // Update Counts in Filter Buttons
+            document.getElementById('cnt-filter-all').textContent = `${quotes.length + scans.length + docs.length}`;
+            document.getElementById('cnt-filter-pending').textContent = `${cntPending}`;
+            document.getElementById('cnt-filter-approved').textContent = `${cntApproved}`;
+            document.getElementById('cnt-filter-edited').textContent = `${cntEdited}`;
+            document.getElementById('cnt-filter-docs').textContent = `${scans.length + docs.length}`;
+
+            container.innerHTML = "";
+            let renderedCount = 0;
+
+            // 1. Render Quotes
+            quotes.forEach(q => {
+                const isApproved = approvedFilenames.has(q.filename);
+                const isEdited = (q.status === 'USER_EDITED');
+
+                if (currentQuotesFilter === 'pending' && (isApproved || isEdited)) return;
+                if (currentQuotesFilter === 'approved' && !isApproved) return;
+                if (currentQuotesFilter === 'edited' && !isEdited) return;
+                if (currentQuotesFilter === 'docs') return;
+
+                renderedCount++;
+                let badgeHtml = '';
+                let borderClass = 'border-gray-200 hover:border-teal-400 bg-white';
+                if (isEdited) {
+                    badgeHtml = `<span class="bg-blue-100 text-blue-900 text-[9.5px] px-1.5 py-0.2 rounded font-bold">🔵 Đã sửa</span>`;
+                    borderClass = 'border-blue-200 bg-blue-50/20 hover:border-blue-400';
+                } else if (isApproved) {
+                    badgeHtml = `<span class="bg-emerald-100 text-emerald-950 text-[9.5px] px-1.5 py-0.2 rounded font-bold">🟢 Đã duyệt</span>`;
+                    borderClass = 'border-emerald-200 bg-emerald-50/15 hover:border-emerald-400';
+                } else {
+                    badgeHtml = `<span class="bg-amber-100 text-amber-950 text-[9.5px] px-1.5 py-0.2 rounded font-bold">🟡 Cần duyệt</span>`;
+                    borderClass = 'border-amber-200 bg-amber-50/20 hover:border-amber-400';
+                }
+
+                const isActive = (q.filename === activeQuoteFilename);
+                if (isActive) borderClass = 'border-teal-600 bg-teal-50/60 ring-2 ring-teal-500/30';
+
+                const card = document.createElement('div');
+                card.className = `p-2.5 rounded-lg border ${borderClass} cursor-pointer transition shadow-2xs flex flex-col gap-1`;
+                card.onclick = () => selectWorkspaceQuote(q.filename, q.file_path);
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        ${badgeHtml}
+                        <span class="text-[10px] font-mono text-gray-500 font-semibold bg-gray-100 px-1 rounded">${q.item_count} dòng</span>
+                    </div>
+                    <h5 class="font-bold text-gray-900 text-xs truncate leading-snug" title="${q.company}">
+                        ${q.company}
+                    </h5>
+                    <p class="text-[10px] text-gray-500 truncate" title="${q.filename}">📄 ${q.filename}</p>
+                    <div class="flex items-center justify-between mt-0.5 pt-1 border-t border-gray-100">
+                        <span class="text-[10px] text-gray-500 font-medium">Tổng tiền:</span>
+                        <span class="text-xs font-black text-red-700 font-mono">${formatMoney(q.total_amount)} đ</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // 2. Render Scans & Docs if filter matches
+            if (currentQuotesFilter === 'all' || currentQuotesFilter === 'docs') {
+                scans.forEach(s => {
+                    renderedCount++;
+                    const isActive = (s.filename === activeQuoteFilename);
+                    const card = document.createElement('div');
+                    card.className = `p-2.5 rounded-lg border ${isActive ? 'border-amber-600 bg-amber-50' : 'border-amber-200 bg-white hover:bg-amber-50/50'} cursor-pointer transition shadow-2xs flex flex-col gap-1`;
+                    card.onclick = () => selectWorkspaceQuote(s.filename, s.file_path, true);
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="bg-amber-100 text-amber-900 text-[9.5px] px-1.5 py-0.2 rounded font-bold">Bản Scan Ảnh</span>
+                            <span class="text-[9.5px] font-mono text-amber-800">Cần OCR</span>
+                        </div>
+                        <h5 class="font-bold text-gray-900 text-xs truncate" title="${s.filename}">${s.filename}</h5>
+                        <p class="text-[10px] text-amber-800 truncate">💡 Mở xem trực tiếp PDF để bóc tay</p>
+                    `;
+                    container.appendChild(card);
+                });
+
+                docs.forEach(d => {
+                    renderedCount++;
+                    const isActive = (d.filename === activeQuoteFilename);
+                    const card = document.createElement('div');
+                    card.className = `p-2.5 rounded-lg border ${isActive ? 'border-gray-500 bg-gray-100' : 'border-gray-200 bg-white hover:bg-gray-50'} cursor-pointer transition shadow-2xs flex flex-col gap-1`;
+                    card.onclick = () => selectWorkspaceQuote(d.filename, d.file_path, true);
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <span class="bg-gray-100 text-gray-700 text-[9.5px] px-1.5 py-0.2 rounded font-medium">${d.doc_type}</span>
+                            <span class="text-[9.5px] text-gray-400">Phụ trợ</span>
+                        </div>
+                        <h5 class="font-bold text-gray-800 text-xs truncate" title="${d.filename}">📎 ${d.filename}</h5>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            document.getElementById('sohoa-active-count').textContent = `${renderedCount} file`;
+            if (renderedCount === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs italic">Không có file nào trong bộ lọc này.</div>`;
+            }
+            lucide.createIcons();
+        }
+
+        function selectWorkspaceQuote(filename, filePath, isDocOnly = false) {
+            activeQuoteFilename = filename;
+            activeQuoteFilePath = filePath;
+
+            // Update Left Sidebar selection ring
+            if (currentDossierData) renderWorkspaceSidebarCards(currentDossierData);
+
+            // Update Col 2 PDF Viewer
+            const pdfFilenameEl = document.getElementById('workspace-pdf-filename');
+            const pdfFrame = document.getElementById('workspace-pdf-frame');
+            const pageBadge = document.getElementById('workspace-pdf-page-badge');
+
+            if (pdfFilenameEl) pdfFilenameEl.textContent = filename;
+            if (pageBadge) pageBadge.textContent = 'Trang 1';
+
+            const cleanPath = (filePath || '').replace(/\\/g, '/');
+            if (pdfFrame) {
+                pdfFrame.src = `/api/quotes/view-pdf?path=${encodeURIComponent(cleanPath)}&filename=${encodeURIComponent(filename)}`;
+            }
+
+            // Update Col 3 Spreadsheet Grid
+            if (!isDocOnly) {
+                openQuoteDetails(filename, filePath);
+            } else {
+                document.getElementById('workspace-quote-title').textContent = `Tài Liệu: ${filename}`;
+                document.getElementById('workspace-quote-supplier').textContent = `File scan / Văn bản phụ trợ: ${filename}`;
+                document.getElementById('quote-details-table-body').innerHTML = `<tr><td colspan="9" class="text-center py-12 text-amber-800 text-xs bg-amber-50">📄 Đây là file Scan ảnh hoặc Văn bản phụ trợ. Bạn có thể xem PDF gốc ở khung giữa.</td></tr>`;
+            }
+        }
+
+        function jumpToPdfPage(page, filename, filePath) {
+            const pdfFrame = document.getElementById('workspace-pdf-frame');
+            const pageBadge = document.getElementById('workspace-pdf-page-badge');
+            const targetFn = filename || activeQuoteFilename;
+            const targetFp = filePath || activeQuoteFilePath;
+            const cleanPath = (targetFp || '').replace(/\\/g, '/');
+
+            if (pdfFrame && targetFn) {
+                pdfFrame.src = `/api/quotes/view-pdf?path=${encodeURIComponent(cleanPath)}&filename=${encodeURIComponent(targetFn)}#page=${page || 1}`;
+            }
+            if (pageBadge) {
+                pageBadge.textContent = `Tự chuyển -> Trang ${page || 1}`;
             }
         }
 
@@ -2675,6 +2793,52 @@
             }
         }
 
+        function openImisLoginModal() {
+            document.getElementById('modal-imis-login').classList.remove('hidden');
+            document.getElementById('imis-login-feedback').innerHTML = "";
+            lucide.createIcons();
+        }
+
+        function closeImisLoginModal() {
+            document.getElementById('modal-imis-login').classList.add('hidden');
+        }
+
+        async function submitImisLogin() {
+            const username = document.getElementById('imis-username-input').value.trim();
+            const password = document.getElementById('imis-password-input').value;
+            const fb = document.getElementById('imis-login-feedback');
+
+            if (!username || !password) {
+                fb.innerHTML = `<span class="text-red-600">Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!</span>`;
+                return;
+            }
+
+            fb.innerHTML = `<span class="text-gray-500"><i data-lucide="loader" class="w-3.5 h-3.5 inline animate-spin"></i> Đang xác thực với hệ thống EVN IMIS...</span>`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/imis/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fb.innerHTML = `<span class="text-emerald-700 font-bold">✅ Đăng nhập thành công! Đã lưu Token IMIS (${data.message || ''})</span>`;
+                    setTimeout(() => {
+                        closeImisLoginModal();
+                        if (typeof loadImisOnly === 'function') {
+                            loadImisOnly(true);
+                        }
+                    }, 1200);
+                } else {
+                    fb.innerHTML = `<span class="text-red-600 font-bold">❌ Đăng nhập thất bại: ${data.message || 'Sai tài khoản hoặc mật khẩu'}</span>`;
+                }
+            } catch (err) {
+                fb.innerHTML = `<span class="text-red-600 font-bold">❌ Lỗi kết nối máy chủ: ${err.message}</span>`;
+            }
+        }
+
         async function searchCurrentItemMsc(force = false) {
             const it = currentDossier.items[currentInspectorIndex];
             if (!it) return;
@@ -2870,199 +3034,167 @@
         </div>
     </div>
 
-    <!-- MODAL DUYỆT SỐ HÓA FILE BÁO GIÁ DỰ ÁN -->
-    <div id="modal-duyet-so-hoa" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full overflow-hidden border border-gray-200 flex flex-col max-h-[92vh]">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-[#003366] to-teal-900 text-white px-6 py-4 flex items-center justify-between shrink-0">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-teal-500/20 border border-teal-300/30 flex items-center justify-center">
-                        <i data-lucide="check-check" class="w-5 h-5 text-teal-300"></i>
+    <!-- CHẾ ĐỘ KHÔNG GIAN LÀM VIỆC 3 CỘT (3-COLUMN WORKSPACE: LEFT SIDEBAR + CENTER PDF + RIGHT SPREADSHEET) -->
+    <div id="modal-duyet-so-hoa" class="fixed inset-0 bg-slate-900 z-50 hidden flex flex-col w-screen h-screen overflow-hidden">
+        <!-- TOP HEADER (Full Width 100vw) -->
+        <div class="bg-gradient-to-r from-[#002244] to-teal-950 text-white px-5 py-2.5 flex items-center justify-between shrink-0 border-b border-teal-800/50">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-lg bg-teal-500/20 border border-teal-300/30 flex items-center justify-center">
+                    <i data-lucide="layers" class="w-4 h-4 text-teal-300"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold tracking-wide flex items-center gap-2">
+                        KHÔNG GIAN QUẢN LÝ & SỐ HÓA BÁO GIÁ DỰ ÁN
+                        <span id="sohoa-stats-badge" class="bg-teal-900/80 text-teal-200 border border-teal-600/50 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                            Đang tải...
+                        </span>
+                    </h3>
+                    <div class="flex items-center gap-2 text-[10.5px] text-teal-200">
+                        <span>📁 Thư mục: <code id="sohoa-folder-path" class="font-mono bg-black/30 px-1.5 py-0.5 rounded text-white">...</code></span>
+                        <button onclick="changeQuotesFolder()" class="text-teal-300 hover:underline">Đổi thư mục</button> |
+                        <button onclick="loadQuotesDossier(currentQuotesFilter, true)" class="text-teal-300 hover:underline flex items-center gap-0.5"><i data-lucide="refresh-cw" class="w-3 h-3"></i> Quét lại PDF</button>
                     </div>
-                    <div>
-                        <h3 class="text-sm font-bold tracking-wide">DUYỆT SỐ HÓA FILE BÁO GIÁ DỰ ÁN</h3>
-                        <p class="text-[11px] text-teal-200">Kiểm định đối soát dữ liệu Pandas & Phê duyệt vào CSDL Dự án</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="approveAllProjectQuotes()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i> Phê Duyệt Toàn Bộ Vào CSDL Dự Án
-                    </button>
-                    <button onclick="closeModalDuyetSoHoa()" class="text-teal-200 hover:text-white p-1 ml-2"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
             </div>
-
-            <!-- Top Stats & Folder Bar -->
-            <div class="bg-slate-50 border-b px-6 py-3 flex items-center justify-between text-xs shrink-0">
-                <div class="flex items-center gap-3">
-                    <span class="text-gray-500 flex items-center gap-1 font-medium">
-                        <i data-lucide="folder" class="w-3.5 h-3.5 text-amber-600"></i> Thư mục:
-                    </span>
-                    <code id="sohoa-folder-path" class="bg-white px-2.5 py-1 rounded border text-gray-700 font-mono text-[11px]">D:\...\Các Báo giá gửi Thẩm định</code>
-                    <button onclick="changeQuotesFolder()" class="text-[11px] text-blue-700 hover:underline font-semibold">Đổi thư mục</button>
-                    <button onclick="loadQuotesDossier()" class="text-[11px] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded font-semibold flex items-center gap-1 text-gray-700">
-                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> Quét lại
-                    </button>
+            <div class="flex items-center gap-2">
+                <div id="sohoa-approval-banner" class="hidden text-xs text-emerald-300 font-semibold flex items-center gap-1 bg-emerald-950/80 border border-emerald-700/60 px-3 py-1 rounded-lg">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                    <span id="sohoa-approval-msg">Đã phê duyệt CSDL</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span id="sohoa-stats-badge" class="bg-teal-50 text-teal-900 border border-teal-200 font-bold px-2.5 py-1 rounded-full text-xs">
-                        Đang quét...
-                    </span>
-                </div>
-            </div>
-
-            <!-- Approval Status Banner -->
-            <div id="sohoa-approval-banner" class="px-6 py-2 bg-emerald-50 border-b border-emerald-200 text-emerald-950 text-xs font-semibold flex items-center justify-between hidden">
-                <span class="flex items-center gap-1.5">
-                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
-                    <span id="sohoa-approval-msg">CSDL Báo giá đã được phê duyệt chính thức cho dự án này.</span>
-                </span>
-                <span id="sohoa-approval-time" class="text-[10px] text-emerald-700 font-mono"></span>
-            </div>
-
-            <!-- Body Cards Grid -->
-            <div class="p-6 flex-1 overflow-auto bg-gray-100/60">
-                <div class="mb-3 flex items-center justify-between">
-                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                        <i data-lucide="layers" class="w-3.5 h-3.5 text-teal-700"></i> Danh sách báo giá phát hiện & trạng thái số hóa:
-                    </h4>
-                    <span class="text-[11px] text-gray-500">Bấm <strong>Xem bóc tách</strong> để đối chiếu bảng số liệu với bản PDF gốc</span>
-                </div>
-
-                <div id="sohoa-cards-container" class="grid grid-cols-2 gap-4">
-                    <!-- Injected by JS -->
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="bg-white px-6 py-3 border-t flex items-center justify-between shrink-0">
-                <span class="text-xs text-gray-500">
-                    💡 Sau khi duyệt, CSDL báo giá này sẽ tự động cung cấp dữ liệu tức thì cho tất cả các mục dự toán.
-                </span>
-                <div class="flex items-center gap-2">
-                    <button onclick="closeModalDuyetSoHoa()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Đóng</button>
-                    <button onclick="approveAllProjectQuotes()" class="px-5 py-2 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 shadow flex items-center gap-1.5">
-                        <i data-lucide="check" class="w-4 h-4"></i> Phê Duyệt CSDL Báo Giá
-                    </button>
-                </div>
+                <button onclick="approveAllProjectQuotes()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i> Phê Duyệt CSDL Dự Án
+                </button>
+                <button onclick="closeModalDuyetSoHoa()" class="bg-slate-800 hover:bg-slate-700 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700 ml-2">
+                    <i data-lucide="x" class="w-4 h-4"></i> Đóng Workspace
+                </button>
             </div>
         </div>
-    </div>
 
-    <!-- MODAL QUOTE DETAILS (PANDAS / JSON BÓC TÁCH & ĐỐI CHIẾU PDF GỐC) -->
-    <div id="modal-quote-details" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full overflow-hidden border border-gray-200 flex flex-col max-h-[94vh]">
-            <!-- Header -->
-            <div class="bg-[#003366] text-white px-6 py-3.5 flex items-center justify-between shrink-0">
-                <div class="flex items-center gap-2.5 truncate mr-3">
-                    <i data-lucide="table-2" class="w-4 h-4 text-emerald-400"></i>
-                    <div>
-                        <h3 id="quote-details-title" class="text-xs font-bold truncate">Dữ Liệu Báo Giá Bóc Tách (Pandas)</h3>
-                        <p id="quote-details-supplier" class="text-[10px] text-blue-200 truncate"></p>
+        <!-- MAIN 3-COLUMN WORKSPACE BODY (100% Height & Width) -->
+        <div class="flex-1 flex overflow-hidden bg-slate-100">
+            
+            <!-- COLUMN 1: LEFT SIDEBAR (Menu, Quick Filter, File Cards) - 240px -->
+            <aside class="w-64 bg-white border-r flex flex-col shrink-0 overflow-hidden shadow-xs">
+                <!-- Quick Filter Bar -->
+                <div class="p-2.5 border-b bg-slate-50 shrink-0">
+                    <div class="text-[10.5px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <i data-lucide="filter" class="w-3 h-3 text-teal-700"></i> Bộ lọc nhanh:
                     </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button id="btn-view-quote-pdf" onclick="openQuotePdfTab()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1.5 shadow transition">
-                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i> 👁️ Xem Nhanh PDF Gốc
-                    </button>
-                    <button onclick="closeModalQuoteDetails()" class="text-blue-200 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
-                </div>
-            </div>
-
-            <!-- Stats & Reconciliation Bar (Auditing Toolbar) -->
-            <div class="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border-b border-amber-200 px-6 py-3 flex items-center justify-between text-xs shrink-0 shadow-2xs">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-gray-500">Số dòng:</span>
-                        <strong id="quote-details-count" class="text-gray-900 font-mono font-bold bg-white px-2 py-0.5 rounded border">0 mục</strong>
-                    </div>
-
-                    <div class="h-4 w-px bg-amber-300"></div>
-
-                    <!-- TỔNG TIỀN IN TRÊN PDF (CHO PHÉP CHỈNH/KHÓA SỐ CHUẨN) -->
-                    <div class="flex items-center gap-1.5 bg-blue-50/80 px-2.5 py-1 rounded-md border border-blue-200">
-                        <span class="text-blue-950 text-xs font-semibold flex items-center gap-1">
-                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-blue-700"></i> Tổng tiền in trên PDF:
-                        </span>
-                        <input type="text" id="quote-details-pdf-target-inp" oninput="handlePdfTargetInpChange()" class="w-36 font-mono font-bold text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-300 text-xs focus:ring-1 focus:ring-blue-600 text-right" placeholder="Số trên PDF...">
-                        <span class="text-xs text-blue-900 font-bold">đ</span>
-                        <button onclick="setTargetTotalToSum()" class="text-[10px] bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded font-medium shadow-2xs flex items-center gap-0.5 transition ml-1" title="Khóa số chuẩn bằng đúng tổng tiền tính lại của bảng">
-                            <i data-lucide="target" class="w-3 h-3"></i> Khóa theo bảng
+                    <div class="flex flex-col gap-1 text-xs font-semibold">
+                        <button onclick="setQuotesDossierFilter('all')" id="btn-filter-all" class="w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between bg-teal-100 text-teal-900 font-bold">
+                            <span>Tất cả hồ sơ</span> <span id="cnt-filter-all" class="bg-teal-200 text-teal-900 text-[10px] px-1.5 py-0.2 rounded font-mono">0</span>
+                        </button>
+                        <button onclick="setQuotesDossierFilter('pending')" id="btn-filter-pending" class="w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between text-amber-900 hover:bg-amber-50">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 🟡 Cần duyệt</span> <span id="cnt-filter-pending" class="bg-amber-100 text-amber-900 text-[10px] px-1.5 py-0.2 rounded font-mono">0</span>
+                        </button>
+                        <button onclick="setQuotesDossierFilter('approved')" id="btn-filter-approved" class="w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between text-emerald-900 hover:bg-emerald-50">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-600"></span> 🟢 Đã duyệt CSDL</span> <span id="cnt-filter-approved" class="bg-emerald-100 text-emerald-900 text-[10px] px-1.5 py-0.2 rounded font-mono">0</span>
+                        </button>
+                        <button onclick="setQuotesDossierFilter('edited')" id="btn-filter-edited" class="w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between text-blue-900 hover:bg-blue-50">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-600"></span> 🔵 Đã sửa thủ công</span> <span id="cnt-filter-edited" class="bg-blue-100 text-blue-900 text-[10px] px-1.5 py-0.2 rounded font-mono">0</span>
+                        </button>
+                        <button onclick="setQuotesDossierFilter('docs')" id="btn-filter-docs" class="w-full text-left px-2.5 py-1 rounded transition flex items-center justify-between text-gray-700 hover:bg-gray-100">
+                            <span class="flex items-center gap-1"><i data-lucide="file-text" class="w-3 h-3 text-gray-500"></i> 📄 Scan & Công văn</span> <span id="cnt-filter-docs" class="bg-gray-200 text-gray-700 text-[10px] px-1.5 py-0.2 rounded font-mono">0</span>
                         </button>
                     </div>
+                </div>
 
-                    <div class="h-4 w-px bg-amber-300"></div>
+                <!-- List of Supplier & Quote Cards -->
+                <div class="p-2 border-b bg-gray-50 text-[11px] font-bold text-gray-600 flex items-center justify-between shrink-0">
+                    <span>DANH SÁCH BÁO GIÁ:</span>
+                    <span id="sohoa-active-count" class="font-mono text-teal-800">0 file</span>
+                </div>
+                <div id="sohoa-cards-container" class="flex-1 overflow-y-auto p-2 space-y-2 text-xs">
+                    <!-- Injected by JS -->
+                </div>
+            </aside>
 
-                    <!-- RECALCULATED SUM -->
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-amber-950 text-xs">Tổng cộng tính lại:</span>
-                        <span id="quote-details-recalc-total" class="text-sm font-black text-emerald-800 font-mono bg-white px-2.5 py-0.5 rounded border border-amber-300">0 đ</span>
+            <!-- COLUMN 2: CENTER PDF VIEWER (40% Width) -->
+            <div class="w-[40%] border-r bg-slate-900 flex flex-col shrink-0 overflow-hidden">
+                <div class="bg-slate-950 text-slate-300 px-3 py-2 text-xs flex items-center justify-between shrink-0 border-b border-slate-800 font-medium">
+                    <span class="flex items-center gap-1.5 truncate">
+                        <i data-lucide="file-text" class="w-4 h-4 text-red-400 shrink-0"></i>
+                        <span class="text-gray-400">PDF Gốc:</span>
+                        <strong id="workspace-pdf-filename" class="text-white truncate font-mono">Chưa chọn báo giá nào</strong>
+                    </span>
+                    <span id="workspace-pdf-page-badge" class="bg-slate-800 text-teal-300 font-mono text-[10px] px-2 py-0.5 rounded border border-slate-700 shrink-0">
+                        Tự chuyển trang khi chọn dòng
+                    </span>
+                </div>
+                <div class="flex-1 relative bg-slate-800">
+                    <iframe id="workspace-pdf-frame" class="w-full h-full border-0 bg-white" src="about:blank"></iframe>
+                </div>
+            </div>
+
+            <!-- COLUMN 3: RIGHT SPREADSHEET GRID (Remaining ~45% Width) -->
+            <div class="flex-1 bg-white flex flex-col overflow-hidden">
+                <!-- Header Toolbar -->
+                <div class="bg-slate-50 border-b px-4 py-2.5 flex items-center justify-between shrink-0 text-xs">
+                    <div class="flex items-center gap-2 truncate">
+                        <i data-lucide="table-2" class="w-4 h-4 text-teal-700"></i>
+                        <div class="truncate">
+                            <h4 id="workspace-quote-title" class="font-bold text-gray-900 text-xs truncate">Bảng Bóc Tách Chi Tiết</h4>
+                            <p id="workspace-quote-supplier" class="text-[10.5px] text-gray-500 truncate">Vui lòng chọn 1 nhà thầu bên cột Sidebar trái để bóc tách</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div id="quote-details-reconcile-badge"></div>
+                        <button onclick="recalculateAllQuoteRows()" class="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-2xs">
+                            <i data-lucide="calculator" class="w-3.5 h-3.5 text-amber-700"></i> Cộng Lại
+                        </button>
+                        <button onclick="saveEditedQuoteContent()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1.5 shadow transition">
+                            <i data-lucide="save" class="w-3.5 h-3.5"></i> Lưu Số Dư Thủ Công
+                        </button>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2.5">
-                    <!-- RECONCILIATION BADGE -->
-                    <div id="quote-details-reconcile-badge">
-                        <!-- Injected via JS: 🟢 KHỚP 100% or 🔴 CHÊNH LỆCH -->
+                <!-- Reconcile Target Bar -->
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-4 py-2 flex items-center justify-between text-xs shrink-0">
+                    <div class="flex items-center gap-3">
+                        <span class="text-gray-600 font-medium">Số mục: <strong id="quote-details-count" class="font-mono text-gray-900">0</strong></span>
+                        <div class="h-3 w-px bg-amber-300"></div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-blue-900 font-semibold text-[11px]">Mốc PDF:</span>
+                            <input type="text" id="quote-details-pdf-target-inp" oninput="handlePdfTargetInpChange()" class="w-32 font-mono font-bold text-blue-900 bg-white px-1.5 py-0.5 rounded border border-blue-300 text-xs text-right" placeholder="Số trên PDF...">
+                            <button onclick="setTargetTotalToSum()" class="text-[9.5px] bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded font-medium shadow-2xs ml-0.5" title="Khóa số chuẩn bằng tổng tính lại">Khóa số</button>
+                        </div>
+                        <div class="h-3 w-px bg-amber-300"></div>
+                        <div class="flex items-center gap-1">
+                            <span class="font-bold text-amber-950 text-[11px]">Tổng tính lại:</span>
+                            <span id="quote-details-recalc-total" class="font-mono font-black text-emerald-800 text-xs bg-white px-2 py-0.5 rounded border border-amber-300">0 đ</span>
+                        </div>
                     </div>
-
-                    <!-- RECALCULATE ACTION BUTTON -->
-                    <button onclick="recalculateAllQuoteRows()" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-xs font-bold flex items-center gap-1 shadow-xs transition" title="Cộng lại tất cả thành tiền hiện có trên bảng để đối chiếu khớp">
-                        <i data-lucide="calculator" class="w-3.5 h-3.5"></i> 🔄 Cộng Lại Thành Tiền
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="relative w-48">
+                            <i data-lucide="search" class="w-3 h-3 text-gray-400 absolute left-2 top-2"></i>
+                            <input type="text" id="quote-details-filter" oninput="filterQuoteDetailsTable()" placeholder="Tìm tên/mã..." class="w-full pl-6 pr-2 py-0.5 text-xs border rounded bg-white">
+                        </div>
+                        <button onclick="addEmptyQuoteRow()" class="px-2 py-0.5 bg-white border border-gray-300 hover:bg-emerald-50 text-emerald-800 rounded text-xs font-semibold flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i> Thêm Dòng
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Search filter & Add Row Action -->
-            <div class="px-6 py-2.5 border-b bg-gray-50 flex items-center justify-between shrink-0">
-                <div class="relative w-80">
-                    <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5"></i>
-                    <input type="text" id="quote-details-filter" oninput="filterQuoteDetailsTable()" placeholder="Tìm nhanh theo tên, mã, quy cách..." class="w-full pl-8 pr-3 py-1.5 text-xs border rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-600">
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-[11px] text-gray-500 italic">💡 Bạn có thể sửa trực tiếp Số lượng / Đơn giá / Tên trên từng ô:</span>
-                    <button onclick="addEmptyQuoteRow()" class="px-2.5 py-1 bg-white border border-gray-300 hover:bg-emerald-50 hover:text-emerald-800 text-gray-700 rounded text-xs font-semibold flex items-center gap-1 shadow-2xs">
-                        <i data-lucide="plus" class="w-3.5 h-3.5 text-emerald-600"></i> Thêm Dòng Mới
-                    </button>
-                </div>
-            </div>
-
-            <!-- Table content (Editable) -->
-            <div class="p-4 flex-1 overflow-auto bg-gray-100/50">
-                <table class="w-full text-xs text-left border-collapse bg-white rounded-lg border shadow-2xs">
-                    <thead class="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10 border-b">
-                        <tr>
-                            <th class="py-2.5 px-2 text-center w-10 border-r">TT</th>
-                            <th class="py-2.5 px-3 min-w-[220px] border-r">Tên Hàng Hóa / Vật Tư <span class="text-gray-400 font-normal">(Sửa được)</span></th>
-                            <th class="py-2.5 px-3 min-w-[200px] border-r">Thông Số Kỹ Thuật</th>
-                            <th class="py-2.5 px-2 text-center w-16 border-r">ĐVT</th>
-                            <th class="py-2.5 px-2 text-center w-16 border-r">SL</th>
-                            <th class="py-2.5 px-3 text-right w-32 border-r">Đơn Giá (đ)</th>
-                            <th class="py-2.5 px-3 text-right w-36 border-r bg-amber-50 text-amber-950 font-bold">Thành Tiền (đ)</th>
-                            <th class="py-2.5 px-2 text-center w-12 border-r">Tr.</th>
-                            <th class="py-2.5 px-2 text-center w-10">Xóa</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quote-details-table-body" class="divide-y divide-gray-200">
-                        <!-- Injected via JS -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Footer Toolbar with Save Button -->
-            <div class="bg-white px-6 py-3 border-t flex items-center justify-between shrink-0">
-                <div class="text-[11px] text-gray-500 flex items-center gap-1.5">
-                    <i data-lucide="info" class="w-3.5 h-3.5 text-blue-600"></i>
-                    Sau khi sửa hoặc thêm dòng, bấm <strong>[Cộng Lại Thành Tiền]</strong> để kiểm tra lại, sau đó bấm <strong>[Lưu Dữ Liệu Đã Hiệu Chỉnh]</strong>.
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="closeModalQuoteDetails()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Đóng</button>
-                    <button onclick="recalculateAllQuoteRows()" class="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1">
-                        <i data-lucide="calculator" class="w-3.5 h-3.5"></i> Cộng Lại Thành Tiền
-                    </button>
-                    <button onclick="saveEditedQuoteContent()" class="px-5 py-2 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 shadow flex items-center gap-1.5">
-                        <i data-lucide="save" class="w-4 h-4 text-emerald-200"></i> Lưu Dữ Liệu Đã Hiệu Chỉnh
-                    </button>
+                <!-- Editable Table Body -->
+                <div class="flex-1 overflow-auto bg-gray-100/50 p-2">
+                    <table class="w-full text-xs text-left border-collapse bg-white rounded border shadow-2xs">
+                        <thead class="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10 border-b">
+                            <tr>
+                                <th class="py-2 px-1 text-center w-10 border-r">TT</th>
+                                <th class="py-2 px-2 min-w-[180px] border-r">Tên Hàng Hóa / Vật Tư <span class="text-gray-400 font-normal">(Sửa)</span></th>
+                                <th class="py-2 px-2 min-w-[160px] border-r">Thông Số Kỹ Thuật</th>
+                                <th class="py-2 px-1 text-center w-12 border-r">ĐVT</th>
+                                <th class="py-2 px-1 text-center w-14 border-r">SL</th>
+                                <th class="py-2 px-2 text-right w-28 border-r">Đơn Giá (đ)</th>
+                                <th class="py-2 px-2 text-right w-32 border-r bg-amber-50 text-amber-950 font-bold">Thành Tiền (đ)</th>
+                                <th class="py-2 px-1 text-center w-10 border-r">Tr.</th>
+                                <th class="py-2 px-1 text-center w-8">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="quote-details-table-body" class="divide-y divide-gray-200">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -3085,6 +3217,38 @@
                     <button onclick="closeModalMscCurl()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
                     <button onclick="submitMscCurl()" class="px-5 py-2 bg-purple-800 text-white rounded-lg text-xs font-bold hover:bg-purple-900 shadow flex items-center gap-1.5">
                         <i data-lucide="check" class="w-4 h-4"></i> Kiểm Tra & Kích Hoạt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL IMIS LOGIN -->
+    <div id="modal-imis-login" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-100">
+            <div class="bg-indigo-900 text-white px-5 py-3.5 flex items-center justify-between">
+                <h3 class="text-sm font-bold flex items-center gap-2">
+                    <i data-lucide="key-round" class="w-4 h-4"></i> Đăng Nhập Tài Khoản EVN IMIS
+                </h3>
+                <button onclick="closeImisLoginModal()" class="text-indigo-200 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <p class="text-xs text-gray-600 leading-relaxed bg-indigo-50/70 p-2.5 rounded border border-indigo-100">
+                    💡 <strong>Ghi chú:</strong> Nhập tài khoản và mật khẩu truy cập hệ thống EVN IMIS (<code>imis.evn.com.vn</code>). Token xác thực sẽ được lưu tự động vào máy local (<code>config/evn_imis_token.json</code>).
+                </p>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Tên đăng nhập <span class="text-red-500">*</span></label>
+                    <input type="text" id="imis-username-input" class="w-full text-xs p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-600 font-medium bg-gray-50" placeholder="Nhập tên đăng nhập IMIS...">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">Mật khẩu <span class="text-red-500">*</span></label>
+                    <input type="password" id="imis-password-input" class="w-full text-xs p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-600 font-medium bg-gray-50" placeholder="Nhập mật khẩu IMIS..." onkeyup="if(event.key==='Enter') submitImisLogin()">
+                </div>
+                <div id="imis-login-feedback" class="text-xs font-semibold"></div>
+                <div class="flex justify-end gap-2 pt-2 border-t">
+                    <button onclick="closeImisLoginModal()" class="px-4 py-2 border rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50">Hủy</button>
+                    <button onclick="submitImisLogin()" class="px-5 py-2 bg-indigo-800 text-white rounded-lg text-xs font-bold hover:bg-indigo-900 shadow flex items-center gap-1.5">
+                        <i data-lucide="log-in" class="w-4 h-4"></i> Đăng Nhập & Lưu Session
                     </button>
                 </div>
             </div>

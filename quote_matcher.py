@@ -64,13 +64,69 @@ def extract_supplier_info(first_page_text, filename):
     return company_name
 
 
-def scan_quotation_folder(folder_path=None, overrides=None):
+_MEMORY_CACHE = {}
+
+
+def get_folder_signature(folder, overrides=None):
+    """Tính signature của folder báo giá dựa trên danh sách file, mtime và overrides."""
+    if not folder or not os.path.exists(folder):
+        return ""
+    sig_parts = []
+    try:
+        files = sorted(os.listdir(folder))
+        for f in files:
+            if f.lower().endswith(".pdf"):
+                fp = os.path.join(folder, f)
+                st = os.stat(fp)
+                sig_parts.append(f"{f}:{st.st_mtime}:{st.st_size}")
+    except Exception:
+        pass
+    
+    if overrides:
+        sig_parts.append(f"overrides:{json.dumps(overrides, sort_keys=True)}")
+        
+    return "|".join(sig_parts)
+
+
+def clear_quotes_cache():
+    """Xóa bộ đệm cache khi cần làm mới dữ liệu."""
+    global _MEMORY_CACHE
+    _MEMORY_CACHE.clear()
+    if os.path.exists(CACHE_FILE):
+        try:
+            os.remove(CACHE_FILE)
+        except Exception:
+            pass
+
+
+def scan_quotation_folder(folder_path=None, overrides=None, force_rescan=False):
     """
     Quét toàn bộ các file PDF báo giá trong thư mục và bóc tách bảng danh mục giá.
+    Sử dụng Smart Cache để tối ưu hiệu năng.
     """
     folder = folder_path or DEFAULT_QUOTES_DIR
     if not os.path.exists(folder):
-        return {"success": False, "message": f"Không tìm thấy thư mục: {folder}", "quotes": []}
+        try:
+            os.makedirs(folder, exist_ok=True)
+        except Exception:
+            return {"success": True, "message": f"Thư mục mới chưa có file: {folder}", "quotes": [], "scans": [], "docs": [], "total_files": 0}
+
+    sig = get_folder_signature(folder, overrides=overrides)
+
+    # 1. Kiểm tra RAM Cache nếu không ép buộc quét lại
+    if not force_rescan and sig and sig in _MEMORY_CACHE:
+        return _MEMORY_CACHE[sig]
+
+    # 2. Kiểm tra Disk Cache nếu RAM Cache rỗng và không force_rescan
+    if not force_rescan and sig and os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                disk_cache = json.load(f)
+                if disk_cache.get("signature") == sig and "result" in disk_cache:
+                    _MEMORY_CACHE[sig] = disk_cache["result"]
+                    return disk_cache["result"]
+        except Exception:
+            pass
 
     PRICE_KEYWORDS = ["ĐƠN GIÁ", "Đ.GIÁ", "GIÁ TIỀN", "GIÁ CHÀO", "GIÁ ĐỀ NGHỊ", "GIÁ (VNĐ)", "TIỀN (VNĐ)", "UNIT PRICE", "ĐƠN GIÁ (VND)", "ĐƠN GIÁ CHƯA VAT"]
     TOTAL_KEYWORDS = ["THÀNH TIỀN", "T.TIỀN", "T. TIỀN", "TỔNG TIỀN", "TOTAL"]
@@ -269,7 +325,7 @@ def scan_quotation_folder(folder_path=None, overrides=None):
                 })
                 scanned_scans.remove(s)
 
-    return {
+    result = {
         "success": True,
         "folder": folder,
         "total_files": len(scanned_quotes) + len(scanned_scans) + len(scanned_docs),
@@ -277,6 +333,18 @@ def scan_quotation_folder(folder_path=None, overrides=None):
         "scans": scanned_scans,
         "docs": scanned_docs
     }
+
+    # Lưu vào RAM Cache và Disk Cache
+    if sig:
+        _MEMORY_CACHE[sig] = result
+        try:
+            os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+            with open(CACHE_FILE, "w", encoding="utf-8") as f:
+                json.dump({"signature": sig, "result": result}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Lỗi khi lưu disk cache báo giá: {e}")
+
+    return result
 
 
 def normalize_code(s):
@@ -371,48 +439,53 @@ def match_item_in_quotes(item, quotes_data):
     for q in quotes:
         best_match = None
         best_score = 0
+        best_reasons = []
 
         for it in q["items"]:
-            it_name = (it.get("ten_vt") or "").upper()
-            it_tskt = (it.get("tskt") or "").upper()
-            cand_combined = f"{it_name} {it_tskt}"
+            cand_name = (it.get("ten_vt") or "").strip()
+            cand_tskt = (it.get("tskt") or "").strip()
             cand_price = float(it.get("don_gia") or 0)
+            cand_combined = f"{cand_name} {cand_tskt}".upper()
 
             # 1. KIỂM TRA XUNG ĐỘT CHỦNG LOẠI (Hard Conflict Exclusion)
             cand_fams = [fam for fam, kws in PRODUCT_FAMILIES.items() if any(kw in cand_combined for kw in kws)]
             if target_fams and cand_fams:
-                # Nếu cả 2 đều có nhóm rõ ràng nhưng không chia sẻ nhóm nào -> XUNG ĐỘT, bỏ qua ngay!
-                # VD: Mục là ACTUATOR, báo giá là TUBE hoặc GASKET -> điểm = 0
                 if not any(f in cand_fams for f in target_fams):
                     continue
 
             score = 0
+            reasons = []
             cand_codes = extract_meaningful_identifiers(cand_combined)
 
             # 2. SO KHỚP MÃ KỸ THUẬT & PART NO (Trọng số cao nhất)
             shared_codes = target_codes.intersection(cand_codes)
             if shared_codes:
                 score += len(shared_codes) * 120
+                reasons.append(f"Trùng mã Part No: {', '.join(shared_codes)}")
 
             # 3. SO KHỚP CHỦNG LOẠI
-            if target_fams and cand_fams and any(f in cand_fams for f in target_fams):
+            common_fams = set(target_fams) & set(cand_fams)
+            if target_fams and cand_fams and common_fams:
                 score += 60
+                reasons.append(f"Cùng chủng loại: {', '.join(common_fams)}")
 
             # 4. SO KHỚP TÊN VẬT TƯ (Nếu tên chứa các từ đặc thù)
             clean_name_tokens = [w for w in re.findall(r'[A-Za-z0-9]{4,}', ten_vt.upper()) if w not in COMMON_STOPWORDS]
             matched_name_tokens = [w for w in clean_name_tokens if w in cand_combined]
             if matched_name_tokens:
                 score += len(matched_name_tokens) * 40
+                reasons.append(f"Khớp từ khóa: {', '.join(matched_name_tokens[:3])}")
 
             # 5. SO KHỚP ĐƠN GIÁ TRÌNH
-            # Chỉ cộng điểm trùng giá nếu đã có ít nhất 1 điểm chung về mã hoặc chủng loại
             if dg_trinh > 0 and cand_price > 0 and abs(dg_trinh - cand_price) < 1.0:
                 if score > 0 or not target_fams:
                     score += 80
+                    reasons.append("Trùng khớp đơn giá trình")
 
             if score > best_score:
                 best_score = score
                 best_match = it
+                best_reasons = reasons
 
         # Chỉ chấp nhận báo giá có độ tương đồng thực sự cao (Score >= 80)
         if best_match and best_score >= 80:
@@ -426,7 +499,8 @@ def match_item_in_quotes(item, quotes_data):
                 "quoted_tskt": best_match["tskt"],
                 "don_gia": best_match["don_gia"],
                 "is_match_trinh": abs(best_match["don_gia"] - dg_trinh) < 1.0,
-                "score": best_score
+                "score": best_score,
+                "match_reason": " • ".join(best_reasons) if best_reasons else "Độ tương đồng cao"
             })
 
     if not supplier_matches:
