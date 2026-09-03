@@ -1,0 +1,51 @@
+# ======================================================
+# .gitignore - ThamDinhDuToanApp
+# Loại trừ dữ liệu nhạy cảm & file không cần thiết
+# ======================================================
+
+# --- THÔNG TIN NHẠY CẢM (Curl, Token, Session) ---
+config/evn_imis_token.json
+config/msc_session.json
+config/msc_cookies.json
+config/*.token
+config/*.session
+**/curl_command*.txt
+**/curl_*.json
+
+# --- CACHE LỚN ---
+config/.erp_cache.json
+
+# --- DỮ LIỆU DỰ ÁN (data cụ thể, không đưa lên github) ---
+data/projects/*/
+data/projects/*_files/
+data/projects/*.json
+
+# --- CÁC FILE TESSERACT OCR BINARY ---
+*.traineddata
+
+# --- FILE ERP EXCEL LỚN ---
+ERP.xlsx
+
+# --- PYTHON ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.env
+venv/
+env/
+
+# --- IDE ---
+.vscode/
+.idea/
+*.suo
+*.user
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
