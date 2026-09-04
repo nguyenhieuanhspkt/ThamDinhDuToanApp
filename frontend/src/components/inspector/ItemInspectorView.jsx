@@ -801,12 +801,20 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [searching, setSearching] = useState(false);
 
+  // In-table client filtering states
+  const [filterKw, setFilterKw]     = useState('');
+  const [filterUnit, setFilterUnit] = useState('');
+  const [priceFilter, setPriceFilter] = useState('ALL'); // ALL, LOWER, HIGHER
+
   useEffect(() => {
     setImisResults(data?.imis || []);
     setSummaryData(data?.summary || {});
     const cleanKw = extractCleanImisKeyword(item?.ten_vt || item?.ma_vt || '');
     setSearchKey(data?.used_keyword || cleanKw);
     setSelectedIdx(0);
+    setFilterKw('');
+    setFilterUnit('');
+    setPriceFilter('ALL');
   }, [data, item]);
 
   const summaryText = summaryData?.summary_text || data?.summary_text;
@@ -837,6 +845,9 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
       setImisResults(resp.imis || []);
       setSummaryData(resp.summary || {});
       setSelectedIdx(0);
+      setFilterKw('');
+      setFilterUnit('');
+      setPriceFilter('ALL');
       toast.success(`Đã tìm thấy ${resp.imis?.length || 0} kết quả IMIS cho từ khóa [${targetKw.trim()}] (${startD} -> ${endD})`);
     } catch (e) {
       toast.error('Lỗi tìm kiếm IMIS thủ công');
@@ -849,9 +860,11 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
     triggerSearchWithKw(searchKey);
   };
 
-  const handleSelectRecord = async (index) => {
-    setSelectedIdx(index);
-    const rec = imisResults[index];
+  const handleSelectRecord = async (indexOrRec) => {
+    let rec = typeof indexOrRec === 'object' ? indexOrRec : imisResults[indexOrRec];
+    let idx = typeof indexOrRec === 'number' ? indexOrRec : imisResults.indexOf(indexOrRec);
+    if (idx < 0) idx = 0;
+    setSelectedIdx(idx);
     if (!rec) return;
     try {
       const res = await fetch('/api/search-item-sources', {
@@ -903,6 +916,30 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
       toast.success('Đã sao chép thuyết minh IMIS vào clipboard!');
     }
   };
+
+  // Logic lọc dữ liệu client-side cho IMIS EVN
+  const filteredImisResults = imisResults.filter(r => {
+    const dg = parseFloat(r.don_gia || r.gia || r.donGia || 0);
+    if (priceFilter === 'LOWER' && (dgTrinh <= 0 || dg > dgTrinh)) return false;
+    if (priceFilter === 'HIGHER' && (dgTrinh <= 0 || dg <= dgTrinh)) return false;
+
+    if (filterKw.trim()) {
+      const fkw = filterKw.trim().toLowerCase();
+      const matchText = (r.ten_vt || r.ten_hang_hoa || r.mo_ta || '').toLowerCase().includes(fkw) ||
+                        (r.ma_vt || r.ma_hang_hoa || '').toLowerCase().includes(fkw) ||
+                        (r.so_hop_dong || r.so_hd || r.so_po || '').toLowerCase().includes(fkw);
+      if (!matchText) return false;
+    }
+
+    if (filterUnit.trim()) {
+      const funit = filterUnit.trim().toLowerCase();
+      const matchUnit = (r.ten_don_vi || r.nha_may || r.don_vi || '').toLowerCase().includes(funit) ||
+                        (r.nha_thau || r.nha_cung_cap || '').toLowerCase().includes(funit);
+      if (!matchUnit) return false;
+    }
+
+    return true;
+  });
 
   // Tính đơn giá trung bình IMIS cho thanh hiển thị nhanh
   const validPrices = imisResults.map(r => parseFloat(r.don_gia || r.gia || r.donGia || 0)).filter(p => p > 0);
@@ -1110,8 +1147,74 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
         </div>
       )}
 
+      {/* In-Table Client Filter Bar */}
+      {imisResults.length > 0 && (
+        <div className="bg-slate-100/90 p-2.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 flex-1 min-w-[280px]">
+            <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1 text-[11px]">
+              <Filter className="w-3.5 h-3.5 text-purple-700" /> Lọc tại chỗ ({filteredImisResults.length}/{imisResults.length}):
+            </span>
+            <input
+              type="text"
+              value={filterKw}
+              onChange={e => setFilterKw(e.target.value)}
+              placeholder="Lọc Tên vật tư / Mã VT / Số HĐ..."
+              className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg flex-1 focus:outline-none focus:border-purple-500 font-medium"
+            />
+            <input
+              type="text"
+              value={filterUnit}
+              onChange={e => setFilterUnit(e.target.value)}
+              placeholder="Lọc Đơn vị EVN / Nhà thầu..."
+              className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg flex-1 focus:outline-none focus:border-purple-500 font-medium"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <span className="font-semibold text-slate-500">Mức Giá:</span>
+            <button
+              onClick={() => setPriceFilter('ALL')}
+              className={`px-2 py-1 rounded-lg font-bold border transition ${
+                priceFilter === 'ALL' ? 'bg-purple-900 text-white border-purple-950 shadow-2xs' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              Tất Cả
+            </button>
+            <button
+              onClick={() => setPriceFilter('LOWER')}
+              className={`px-2 py-1 rounded-lg font-bold border transition ${
+                priceFilter === 'LOWER' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+              }`}
+            >
+              🟢 Giá &lt; Trình
+            </button>
+            <button
+              onClick={() => setPriceFilter('HIGHER')}
+              className={`px-2 py-1 rounded-lg font-bold border transition ${
+                priceFilter === 'HIGHER' ? 'bg-red-700 text-white border-red-800 shadow-2xs' : 'bg-white text-red-800 border-red-300 hover:bg-red-50'
+              }`}
+            >
+              🔴 Giá &gt; Trình
+            </button>
+
+            {(filterKw || filterUnit || priceFilter !== 'ALL') && (
+              <button
+                onClick={() => {
+                  setFilterKw('');
+                  setFilterUnit('');
+                  setPriceFilter('ALL');
+                }}
+                className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-bold transition border border-amber-300"
+              >
+                🔄 Xóa Lọc
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Bảng dữ liệu IMIS EVN */}
-      {loading || searching ? <LoadingSpinner /> : imisResults.length > 0 ? (
+      {loading || searching ? <LoadingSpinner /> : filteredImisResults.length > 0 ? (
         <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
           <table className="w-full text-xs text-left border-collapse min-w-[900px]">
             <thead className="bg-purple-50 text-purple-950 font-bold border-b border-purple-200">
@@ -1128,8 +1231,8 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {imisResults.map((r, i) => {
-                const isSelected = i === selectedIdx;
+              {filteredImisResults.map((r, i) => {
+                const isSelected = imisResults[selectedIdx] === r || imisResults.indexOf(r) === selectedIdx;
                 const matchScore = r.match_score || 80;
                 const dg = parseFloat(r.don_gia || r.gia || r.donGia || 0);
                 const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
@@ -1138,7 +1241,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
                   <tr key={i} className={`transition text-[11px] ${isSelected ? 'bg-purple-100/70 border-l-4 border-l-purple-700 font-semibold' : 'hover:bg-purple-50/30'}`}>
                     <td className="py-2 px-2 border-r text-center">
                       <button
-                        onClick={() => handleSelectRecord(i)}
+                        onClick={() => handleSelectRecord(r)}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
                           isSelected
                             ? 'bg-purple-700 text-white shadow-xs'
