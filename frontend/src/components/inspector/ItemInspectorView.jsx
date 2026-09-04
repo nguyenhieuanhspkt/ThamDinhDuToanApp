@@ -2076,16 +2076,17 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
       {/* Bảng Danh Sách Nguồn Chứng Cứ Giá Web TMĐT */}
       {urlItems.length > 0 ? (
         <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
-          <table className="w-full text-xs text-left border-collapse min-w-[850px]">
+          <table className="w-full text-xs text-left border-collapse min-w-[950px]">
             <thead className="bg-cyan-50 text-cyan-950 font-bold border-b border-cyan-200">
               <tr>
                 <th className="py-2.5 px-2 border-r w-24 text-center">Căn Cứ</th>
+                <th className="py-2.5 px-3 border-r w-36">Từ Khóa Tra Cứu</th>
                 <th className="py-2.5 px-3 border-r">Tên Vật Tư / Sản Phẩm Web</th>
-                <th className="py-2.5 px-3 border-r w-44">Sàn TMĐT / Trang Web</th>
-                <th className="py-2.5 px-3 border-r w-36 font-mono bg-cyan-100/50 text-right">Đơn Giá Web</th>
-                <th className="py-2.5 px-3 border-r font-mono">Đường Link URL</th>
-                <th className="py-2.5 px-3 border-r w-28 text-center">Ngày Tra Cứu</th>
-                <th className="py-2.5 px-2 text-center w-16">Xóa</th>
+                <th className="py-2.5 px-3 border-r w-40">Sàn TMĐT / Trang Web</th>
+                <th className="py-2.5 px-3 border-r w-32 font-mono bg-cyan-100/50 text-right">Đơn Giá Web</th>
+                <th className="py-2.5 px-3 border-r font-mono">Link Kết Quả Tìm Kiếm URL</th>
+                <th className="py-2.5 px-3 border-r w-24 text-center">Ngày Tra Cứu</th>
+                <th className="py-2.5 px-2 text-center w-14">Xóa</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -2093,6 +2094,15 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
                 const isSelected = i === selectedIdx;
                 const dg = parseFloat(r.price || 0);
                 const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+                const kwUsed = r.search_keyword || searchKey;
+                const actualSearchUrl = (r.url && r.url.includes('search')) || (r.url && r.url.includes('_nkw')) || (r.url && r.url.includes('Keyword'))
+                  ? r.url
+                  : (r.vendor || '').toLowerCase().includes('ebay')
+                    ? `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(kwUsed)}`
+                    : (r.vendor || '').toLowerCase().includes('misumi')
+                      ? `https://vn.misumi-ec.com/vona2/result/?Keyword=${encodeURIComponent(kwUsed)}`
+                      : `https://www.google.com/search?q=${encodeURIComponent(kwUsed + ' ' + (r.vendor || '') + ' gia ban')}`;
+
                 return (
                   <tr key={r.id || i} className={`transition text-[11px] ${isSelected ? 'bg-cyan-100/80 border-l-4 border-l-cyan-600 font-semibold' : 'hover:bg-cyan-50/40'}`}>
                     <td className="py-2 px-2 border-r text-center">
@@ -2105,6 +2115,11 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
                         {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
                         {isSelected ? 'Đã Chọn' : 'Chọn'}
                       </button>
+                    </td>
+                    <td className="py-2 px-3 border-r font-mono">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-950 border border-cyan-300">
+                        🔍 {kwUsed}
+                      </span>
                     </td>
                     <td className="py-2 px-3 border-r">
                       <div className="font-bold text-slate-900">{r.title || '—'}</div>
@@ -2121,10 +2136,10 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-3 border-r font-mono text-blue-700 underline truncate max-w-[200px]">
-                      <a href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-900" title={r.url}>
+                    <td className="py-2 px-3 border-r font-mono text-blue-700 underline truncate max-w-[220px]">
+                      <a href={actualSearchUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-900" title={actualSearchUrl}>
                         <ExternalLink className="w-3 h-3 shrink-0 text-blue-600" />
-                        <span className="truncate">{r.url}</span>
+                        <span className="truncate">{actualSearchUrl}</span>
                       </a>
                     </td>
                     <td className="py-2 px-3 border-r text-center font-mono text-slate-600">{r.date || '—'}</td>
