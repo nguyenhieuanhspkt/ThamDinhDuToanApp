@@ -2310,19 +2310,80 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
   const totalSavings   = savingsPerUnit * qty;
   const savingsPct     = dgTrinh > 0 ? ((dgTrinh - approvedPrice) / dgTrinh * 100) : 0;
 
-  // Auto-generate aggregated justification text
+  // Auto-generate aggregated justification text with full detailed justification breakdown
   useEffect(() => {
     let text = `TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: ${item?.ten_vt || ''} (Mã ERP: ${item?.ma_vt || '—'}).\n`;
     text += `• Đơn giá trình thẩm định: ${fmt(dgTrinh)} VNĐ (Số lượng: ${qty} ${item?.dvt || 'Cái'}).\n`;
     text += `• Đánh giá Chứng cứ Thẩm định: Đạt ${coverageScore}/100 điểm (${coverageRank} - ${activeCount}/5 cơ sở chứng cứ đã nạp).\n`;
     text += `• Đánh giá Mức độ Hợp lý Đơn giá: ${priceScore}/100 điểm (${priceEval}).\n\n`;
 
-    text += `CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 TRỤ CỘT:\n`;
-    text += `- Cơ sở 1 (Báo Giá Gốc): ${has_p1 ? `Giá thấp nhất là ${fmt(p1_price)} VNĐ.` : 'Chưa nạp báo giá thương mại.'}\n`;
-    text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${has_p2 ? `Giá tham chiếu là ${fmt(p2_price)} VNĐ.` : 'Không có dữ liệu lịch sử nhập kho nội bộ nhà máy.'}\n`;
-    text += `- Cơ sở 3 (EVN IMIS): ${has_p3 ? `Giá tham chiếu toàn ngành là ${fmt(p3_price)} VNĐ.` : 'Không có dữ liệu hợp đồng tương tự toàn Tập đoàn EVN.'}\n`;
-    text += `- Cơ sở 4 (Mua Sắm Công e-GP): ${has_p4 ? `Giá trúng thầu công khai là ${fmt(p4_price)} VNĐ.` : 'Không ghi nhận kết quả trúng thầu công khai trên Mạng Đấu thầu Quốc gia.'}\n`;
-    text += `- Cơ sở 5 (Thương Mại Điện Tử): ${has_p5 ? `Đơn giá niêm yết Web (${ecomResults?.selected_record?.vendor || 'TMĐT'}) là ${fmt(p5_price)} VNĐ.` : `Tra cứu từ khóa [${item?.ten_vt || ''}] trên các cổng Internet (eBay, Misumi, Google Web); thiết bị đặc thù công nghiệp không niêm yết đơn giá thương mại công khai (yêu cầu báo giá riêng - Contact for Quote).`}\n`;
+    text += `CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n`;
+
+    // 1. Cơ sở 1: Báo Giá Gốc
+    let p1_desc = '';
+    if (p1_price > 0) {
+      const supplierName = quoteEvidence?.min_quote?.company || quoteEvidence?.matched_supplier?.company || 'Nhà thầu chào trong Hồ sơ trình';
+      const pageNum = quoteEvidence?.min_quote?.page || quoteEvidence?.min_quote?.stt || 1;
+      p1_desc = `Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là ${fmt(p1_price)} VNĐ/Cái từ ${supplierName} (Trang ${pageNum} Báo giá); đơn giá chào đối chiếu ${p1_price === dgTrinh ? 'khớp 100% với đơn giá dự toán trình' : p1_price < dgTrinh ? `thấp hơn ${fmt(dgTrinh - p1_price)} VNĐ/Cái so với đơn giá trình` : `cao hơn đơn giá trình`}.`;
+    } else if (has_p1) {
+      p1_desc = `Đã đối chiếu hồ sơ báo giá gốc trình thẩm định; ghi nhận các báo giá thương mại kèm theo đầy đủ hợp lệ.`;
+    } else {
+      p1_desc = `Chưa nạp dữ liệu báo giá thương mại cạnh tranh trong Hồ sơ trình.`;
+    }
+    text += `- Cơ sở 1 (Báo Giá Gốc): ${p1_desc}\n`;
+
+    // 2. Cơ sở 2: ERP Vĩnh Tân 4
+    let p2_desc = '';
+    if (p2_price > 0) {
+      const rec = erpResults?.selected_record || erpResults?.results?.[0];
+      const poInfo = rec?.so_hd ? ` theo HĐ/PO ${rec.so_hd}` : '';
+      const dateInfo = rec?.ngay_hd || rec?.nam_nhap ? ` năm ${rec.nam_nhap || rec.ngay_hd}` : '';
+      p2_desc = `Tra cứu mã VT/từ khóa [${item?.ma_vt || item?.ten_vt || ''}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/Cái${poInfo}${dateInfo}.`;
+    } else if (has_p2) {
+      p2_desc = `Tra cứu mã VT [${item?.ma_vt || '—'}] / từ khóa [${item?.ten_vt || ''}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đây là vật tư mới, chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4.`;
+    } else {
+      p2_desc = `Chưa đối chiếu CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4.`;
+    }
+    text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${p2_desc}\n`;
+
+    // 3. Cơ sở 3: EVN IMIS
+    let p3_desc = '';
+    if (p3_price > 0) {
+      const rec = imisResults?.selected_record || imisResults?.imis?.[0];
+      const dvInfo = rec?.ten_dv_mua ? ` tại ${rec.ten_dv_mua}` : ' toàn ngành EVN';
+      const hdInfo = rec?.so_hd ? ` theo HĐ ${rec.so_hd}` : '';
+      p3_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/Cái${dvInfo}${hdInfo}.`;
+    } else if (has_p3) {
+      p3_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận không có dữ liệu hợp đồng mua sắm vật tư tương tự từ các Đơn vị Phát điện toàn Tập đoàn EVN.`;
+    } else {
+      p3_desc = `Chưa đối chiếu CSDL Hợp đồng mua sắm toàn ngành EVN IMIS.`;
+    }
+    text += `- Cơ sở 3 (EVN IMIS): ${p3_desc}\n`;
+
+    // 4. Cơ sở 4: Mua Sắm Công e-GP
+    let p4_desc = '';
+    if (p4_price > 0) {
+      const rec = mscResults?.selected_record || mscResults?.analysis?.items?.[0] || mscResults?.items?.[0];
+      const vendorInfo = rec?.hang_sx || rec?.nhà_thầu ? ` (Nhà thầu ${rec.hang_sx || rec.nhà_thầu})` : '';
+      p4_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là ${fmt(p4_price)} VNĐ/Cái${vendorInfo}.`;
+    } else if (has_p4) {
+      p4_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận vật tư thuộc nhóm hàng đặc thù không có kết quả trúng thầu công khai tương tự trên Hệ thống e-GP.`;
+    } else {
+      p4_desc = `Chưa đối chiếu Cổng Mạng Đấu thầu Quốc gia e-GP.`;
+    }
+    text += `- Cơ sở 4 (Mua Sắm Công e-GP): ${p4_desc}\n`;
+
+    // 5. Cơ sở 5: Thương Mại Điện Tử & Giá Web
+    let p5_desc = '';
+    if (ecomResults?.summary_text) {
+      p5_desc = ecomResults.summary_text;
+    } else if (p5_price > 0) {
+      const rec = ecomResults?.selected_record || ecomResults?.items?.[0];
+      p5_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/Cái.`;
+    } else {
+      p5_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
+    }
+    text += `- Cơ sở 5 (Thương Mại Điện Tử): ${p5_desc}\n`;
 
     if (totalSavings > 0) {
       text += `\nKẾT LUẬN THẨM ĐỊNH: Đề xuất duyệt đơn giá thẩm định thống nhất là ${fmt(approvedPrice)} VNĐ/Cái. Tiết kiệm dự toán ${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%).`;
@@ -2331,7 +2392,7 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
     }
 
     setEditingText(text);
-  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, has_p2, p2_price, has_p3, p3_price, has_p4, p4_price, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
+  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, quoteEvidence, has_p2, p2_price, erpResults, has_p3, p3_price, imisResults, has_p4, p4_price, mscResults, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
 
   const copyToClipboard = () => {
     if (editingText) {
