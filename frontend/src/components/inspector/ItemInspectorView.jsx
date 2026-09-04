@@ -58,12 +58,12 @@ const generateKeywordCandidates = (raw) => {
 };
 
 const PILLAR_CFG = {
-  quotes:    { key: 'quotes',    label: '1. Báo Giá Gốc',        color: 'emerald', icon: FileCheck2,  saveKey: 'quotes'     },
-  erp:       { key: 'erp',       label: '2. ERP Vĩnh Tân 4',     color: 'blue',    icon: Building2,   saveKey: 'erp'        },
-  imis:      { key: 'imis',      label: '3. EVN IMIS',           color: 'purple',  icon: Network,     saveKey: 'imis'       },
-  msc:       { key: 'msc',       label: '4. Mua Sắm Công',       color: 'orange',  icon: Globe,       saveKey: 'muasamcong' },
-  ecom:      { key: 'ecom',      label: '5. Thương Mại Điện Tử', color: 'cyan',    icon: ShoppingBag, saveKey: 'ecom'       },
-  synthesis: { key: 'synthesis', label: '6. Tổng Hợp & Đánh Giá', color: 'teal',    icon: Award,       saveKey: 'synthesis'  },
+  quotes:    { key: 'quotes',    label: 'Cơ sở 1: Báo Giá Gốc',                  color: 'emerald', icon: FileCheck2,  saveKey: 'quotes'     },
+  erp:       { key: 'erp',       label: 'Cơ sở 2: ERP Vĩnh Tân 4',               color: 'blue',    icon: Building2,   saveKey: 'erp'        },
+  imis:      { key: 'imis',      label: 'Cơ sở 3: EVN IMIS',                     color: 'purple',  icon: Network,     saveKey: 'imis'       },
+  msc:       { key: 'msc',       label: 'Cơ sở 4: Mua Sắm Công e-GP',            color: 'orange',  icon: Globe,       saveKey: 'muasamcong' },
+  ecom:      { key: 'ecom',      label: 'Cơ sở 5: Thương Mại Điện Tử & Giá Web', color: 'cyan',    icon: ShoppingBag, saveKey: 'ecom'       },
+  synthesis: { key: 'synthesis', label: 'Cơ sở 6: Tổng Hợp & Đánh Giá Thẩm Định', color: 'teal',    icon: Award,       saveKey: 'synthesis'  },
 };
 const PILLARS = ['quotes', 'erp', 'imis', 'msc', 'ecom', 'synthesis'];
 
@@ -526,7 +526,7 @@ function PillarQuotes({ loading, saving, minQuote, supplierMatches, dgTrinh, onO
           Chưa tìm thấy báo giá khớp với mục này trong thư mục báo giá.
         </div>
       )}
-      <SaveFooter saving={saving} saved={saved} onSave={onSave} nextLabel="Khối 2 (ERP)" />
+      <SaveFooter saving={saving} saved={saved} onSave={onSave} nextLabel="Cơ sở 2 (ERP)" />
     </div>
   );
 }
@@ -824,7 +824,7 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
       ) : (
         <EmptyState text="Không tìm thấy kết quả lịch sử ERP phù hợp (hoặc có tỷ lệ match cao). Hãy thử nhập từ khóa khác ở thanh tra cứu thủ công." />
       )}
-      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ results: erpResults, selected_record: erpResults[selectedIdx] })} nextLabel="Khối 3 (IMIS)" prevLabel="Khối 1 (BG)" />
+      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ results: erpResults, selected_record: erpResults[selectedIdx] })} nextLabel="Cơ sở 3 (IMIS)" prevLabel="Cơ sở 1 (BG)" />
     </div>
   );
 }
@@ -1338,7 +1338,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
       ) : (
         <EmptyState text="Nhấn vào tab IMIS để tra cứu toàn ngành EVN..." />
       )}
-      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ imis: imisResults, selected_record: imisResults[selectedIdx] })} nextLabel="Khối 4 (MSC)" prevLabel="Khối 2 (ERP)" />
+      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ imis: imisResults, selected_record: imisResults[selectedIdx] })} nextLabel="Cơ sở 4 (MSC)" prevLabel="Cơ sở 2 (ERP)" />
     </div>
   );
 }
@@ -1790,8 +1790,8 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         saving={saving}
         saved={saved}
         onSave={() => onSave({ analysis, items: itemsList, selected_record: selectedRecord })}
-        nextLabel="Khối 5 (TMĐT)"
-        prevLabel="Khối 3 (IMIS)"
+        nextLabel="Cơ sở 5 (TMĐT)"
+        prevLabel="Cơ sở 3 (IMIS)"
       />
     </div>
   );
@@ -1880,7 +1880,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
       summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
     }
   } else {
-    summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Thương mại điện tử (eBay, Misumi, Google Web) nhưng chưa ghi nhận/nạp đường link giá TMĐT tham chiếu thực tế cho vật tư này.`;
+    summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
   }
 
   const copyToClipboard = () => {
@@ -1892,7 +1892,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
 
   return (
     <div className="space-y-4">
-      <PillarHeader icon={ShoppingBag} color="cyan" title="KHỐI 5: THƯƠNG MẠI ĐIỆN TỬ & GIÁ THỊ TRƯỜNG INTERNET (LINK URL)" loading={loading} />
+      <PillarHeader icon={ShoppingBag} color="cyan" title="CƠ SỞ 5: THƯƠNG MẠI ĐIỆN TỬ & GIÁ THỊ TRƯỜNG INTERNET (LINK URL)" loading={loading} />
 
       {/* Thanh Nhập Từ Khóa Tra Cứu TMĐT & Tích Hợp eBay / Misumi / Google */}
       <div className="bg-cyan-50/70 p-3 rounded-xl border border-cyan-200 space-y-2.5">
@@ -2168,8 +2168,8 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
         saving={saving}
         saved={saved}
         onSave={() => onSave({ items: urlItems, selected_record: selectedRecord, summary_text: summaryText })}
-        nextLabel="Khối 6 (Tổng Hợp)"
-        prevLabel="Khối 4 (MSC)"
+        nextLabel="Cơ sở 6 (Tổng Hợp)"
+        prevLabel="Cơ sở 4 (MSC)"
       />
     </div>
   );
@@ -2252,15 +2252,15 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
   useEffect(() => {
     let text = `TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: ${item?.ten_vt || ''} (Mã ERP: ${item?.ma_vt || '—'}).\n`;
     text += `• Đơn giá trình thẩm định: ${fmt(dgTrinh)} VNĐ (Số lượng: ${qty} ${item?.dvt || 'Cái'}).\n`;
-    text += `• Đánh giá Chứng cứ Thẩm định: Đạt ${coverageScore}/100 điểm (${coverageRank} - ${activeCount}/5 khối chứng cứ đã nạp).\n`;
+    text += `• Đánh giá Chứng cứ Thẩm định: Đạt ${coverageScore}/100 điểm (${coverageRank} - ${activeCount}/5 cơ sở chứng cứ đã nạp).\n`;
     text += `• Đánh giá Mức độ Hợp lý Đơn giá: ${priceScore}/100 điểm (${priceEval}).\n\n`;
 
     text += `CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 TRỤ CỘT:\n`;
-    if (has_p1) text += `- Khối 1 (Báo Giá Gốc): Giá thấp nhất là ${fmt(p1_price)} VNĐ.\n`;
-    if (has_p2) text += `- Khối 2 (ERP Vĩnh Tân 4): Giá tham chiếu là ${fmt(p2_price)} VNĐ.\n`;
-    if (has_p3) text += `- Khối 3 (EVN IMIS): Giá tham chiếu toàn ngành là ${fmt(p3_price)} VNĐ.\n`;
-    if (has_p4) text += `- Khối 4 (Mua Sắm Công): Giá trúng thầu công khai là ${fmt(p4_price)} VNĐ.\n`;
-    if (has_p5) text += `- Khối 5 (Thương Mại Điện Tử): Giá niêm yết Web là ${fmt(p5_price)} VNĐ.\n`;
+    text += `- Cơ sở 1 (Báo Giá Gốc): ${has_p1 ? `Giá thấp nhất là ${fmt(p1_price)} VNĐ.` : 'Chưa nạp báo giá thương mại.'}\n`;
+    text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${has_p2 ? `Giá tham chiếu là ${fmt(p2_price)} VNĐ.` : 'Không có dữ liệu lịch sử nhập kho nội bộ nhà máy.'}\n`;
+    text += `- Cơ sở 3 (EVN IMIS): ${has_p3 ? `Giá tham chiếu toàn ngành là ${fmt(p3_price)} VNĐ.` : 'Không có dữ liệu hợp đồng tương tự toàn Tập đoàn EVN.'}\n`;
+    text += `- Cơ sở 4 (Mua Sắm Công e-GP): ${has_p4 ? `Giá trúng thầu công khai là ${fmt(p4_price)} VNĐ.` : 'Không ghi nhận kết quả trúng thầu công khai trên Mạng Đấu thầu Quốc gia.'}\n`;
+    text += `- Cơ sở 5 (Thương Mại Điện Tử): ${has_p5 ? `Đơn giá niêm yết Web (${ecomResults?.selected_record?.vendor || 'TMĐT'}) là ${fmt(p5_price)} VNĐ.` : `Tra cứu từ khóa [${item?.ten_vt || ''}] trên các cổng Internet (eBay, Misumi, Google Web); thiết bị đặc thù công nghiệp không niêm yết đơn giá thương mại công khai (yêu cầu báo giá riêng - Contact for Quote).`}\n`;
 
     if (totalSavings > 0) {
       text += `\nKẾT LUẬN THẨM ĐỊNH: Đề xuất duyệt đơn giá thẩm định thống nhất là ${fmt(approvedPrice)} VNĐ/Cái. Tiết kiệm dự toán ${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%).`;
@@ -2269,13 +2269,250 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
     }
 
     setEditingText(text);
-  }, [item?.ten_vt, dgTrinh, approvedPrice, coverageScore, priceScore]);
+  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, has_p2, p2_price, has_p3, p3_price, has_p4, p4_price, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
 
   const copyToClipboard = () => {
     if (editingText) {
       navigator.clipboard.writeText(editingText);
-      toast.success('Đã sao chép Thuyết Minh Tổng Hợp 5 Khối!');
+      toast.success('Đã sao chép Thuyết Minh Tổng Hợp 5 Cơ Sở!');
     }
+  };
+
+  const handleExportDocx = () => {
+    const docHtml = `
+      <div style="font-family: 'Times New Roman', serif; line-height: 1.4; color: #000; padding: 20px;">
+        <table style="width: 100%; border: none; margin-bottom: 20px;">
+          <tr>
+            <td style="width: 45%; text-align: center; border: none; font-size: 11pt;">
+              <strong>NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4</strong><br/>
+              <b>TỔ THẨM ĐỊNH DỰ TOÁN</b><br/>
+              -------------
+            </td>
+            <td style="width: 55%; text-align: center; border: none; font-size: 11pt;">
+              <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
+              <b>Độc lập - Tự do - Hạnh phúc</b><br/>
+              -----------------------
+            </td>
+          </tr>
+        </table>
+
+        <h2 style="text-align: center; font-size: 15pt; font-weight: bold; margin-top: 15px; margin-bottom: 15px; text-transform: uppercase;">
+          BÁO CÁO TỔNG HỢP KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ VẬT TƯ
+        </h2>
+
+        <p style="font-size: 12pt; margin-bottom: 10px;">
+          <strong>Mục vật tư thẩm định:</strong> ${item?.ten_vt || '—'}<br/>
+          <strong>Mã vật tư (ERP):</strong> ${item?.ma_vt || '—'}<br/>
+          <strong>Số lượng:</strong> ${qty} ${item?.dvt || 'Cái'} &nbsp;|&nbsp; <strong>Đơn giá trình:</strong> ${fmt(dgTrinh)} VNĐ
+        </p>
+
+        <h3 style="font-size: 13pt; font-weight: bold; margin-top: 15px; border-bottom: 1px solid #000; padding-bottom: 4px;">
+          I. ĐÁNH GIÁ CHỨNG CỨ THẨM ĐỊNH (5 CƠ SỞ CHỨNG CỨ)
+        </h3>
+        <p style="font-size: 12pt;">
+          - Điểm số độ đủ chứng cứ: <strong>${coverageScore}/100 điểm</strong> (${coverageRank} - ${activeCount}/5 Cơ sở chứng cứ đã nạp).<br/>
+          - Điểm số mức độ hợp lý giá trình: <strong>${priceScore}/100 điểm</strong> (${priceEval}).
+        </p>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px;">
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11pt;">Cơ Sở Chứng Cứ</th>
+              <th style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11pt;">Đơn Giá Tham Chiếu</th>
+              <th style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11pt;">% Lệch vs Trình</th>
+              <th style="border: 1px solid #000; padding: 6px; text-align: left; font-size: 11pt;">Trạng Thái Chứng Cứ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border: 1px solid #000; padding: 6px; font-size: 11pt;"><strong>Đơn Giá Dự Toán Trình</strong></td>
+              <td style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11pt;"><strong>${fmt(dgTrinh)} VNĐ</strong></td>
+              <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11pt;">0.0%</td>
+              <td style="border: 1px solid #000; padding: 6px; font-size: 11pt;">Mốc dự toán lập</td>
+            </tr>
+            ${pillarsList.map(p => {
+              const dg = p.price;
+              const diff = (dgTrinh > 0 && dg > 0) ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+              return `
+                <tr>
+                  <td style="border: 1px solid #000; padding: 6px; font-size: 11pt;">${p.name}</td>
+                  <td style="border: 1px solid #000; padding: 6px; text-align: right; font-size: 11pt;">${dg > 0 ? `${fmt(dg)} VNĐ` : '—'}</td>
+                  <td style="border: 1px solid #000; padding: 6px; text-align: center; font-size: 11pt;">${dg > 0 ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%` : '—'}</td>
+                  <td style="border: 1px solid #000; padding: 6px; font-size: 11pt;">${p.has ? 'Đã nạp chứng cứ' : 'Chưa nạp dữ liệu'}</td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+
+        <h3 style="font-size: 13pt; font-weight: bold; margin-top: 15px; border-bottom: 1px solid #000; padding-bottom: 4px;">
+          II. BẢN THUYẾT MINH THẨM ĐỊNH THỐNG NHẤT
+        </h3>
+        <div style="font-size: 11pt; white-space: pre-wrap; background-color: #f9f9f9; padding: 10px; border: 1px solid #ccc; font-family: 'Times New Roman', serif;">
+          ${editingText}
+        </div>
+
+        <h3 style="font-size: 13pt; font-weight: bold; margin-top: 15px; border-bottom: 1px solid #000; padding-bottom: 4px;">
+          III. KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT
+        </h3>
+        <p style="font-size: 12pt;">
+          - <strong>Đơn giá phê duyệt đề xuất:</strong> <span style="font-size: 13pt; color: #003366;"><strong>${fmt(approvedPrice)} VNĐ / ${item?.dvt || 'Cái'}</strong></span><br/>
+          - <strong>Tổng tiết kiệm dự toán:</strong> <strong>${totalSavings > 0 ? `${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%)` : '0 VNĐ (Giữ nguyên giá trình)'}</strong>
+        </p>
+
+        <table style="width: 100%; border: none; margin-top: 40px;">
+          <tr>
+            <td style="width: 50%; text-align: center; border: none; font-size: 11pt;">
+              <strong>CHUYÊN VIÊN THẨM ĐỊNH</strong><br/>
+              <i>(Ký và ghi rõ họ tên)</i>
+              <br/><br/><br/><br/>
+            </td>
+            <td style="width: 50%; text-align: center; border: none; font-size: 11pt;">
+              <strong>LÃNH ĐẠO PHÊ DUYỆT</strong><br/>
+              <i>(Ký và ghi rõ họ tên)</i>
+              <br/><br/><br/><br/>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+
+    const header = `<html xmlns:o='urn:schemas-microsoft-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head><meta charset='utf-8'><title>Báo cáo Thẩm định</title></head><body>`;
+    const footer = `</body></html>`;
+    const blob = new Blob(['\ufeff' + header + docHtml + footer], { type: 'application/msword;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Bao_Cao_Tham_Dinh_${(item?.ma_vt || 'VT').replace(/[^a-zA-Z0-9]/g, '_')}.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('✨ Đã xuất file Báo cáo Thẩm định Word (.doc/.docx)!');
+  };
+
+  const handleExportPdf = () => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      toast.error('Vui lòng cho phép popup trình duyệt để mở giao diện in PDF!');
+      return;
+    }
+    const printHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Báo Cáo Thẩm Định - ${item?.ten_vt || ''}</title>
+        <meta charset="utf-8" />
+        <style>
+          @page { size: A4; margin: 20mm; }
+          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.4; color: #000; margin: 0; padding: 20px; }
+          h2 { font-size: 15pt; font-weight: bold; text-align: center; text-transform: uppercase; margin-top: 15px; margin-bottom: 15px; }
+          h3 { font-size: 13pt; font-weight: bold; margin-top: 15px; border-bottom: 1px solid #000; padding-bottom: 3px; text-transform: uppercase; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
+          th, td { border: 1px solid #000; padding: 6px 8px; font-size: 11pt; text-align: left; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+          .header-table { width: 100%; border: none; margin-bottom: 20px; }
+          .header-table td { border: none; padding: 0; }
+          .pre-text { font-family: 'Times New Roman', serif; white-space: pre-wrap; font-size: 11pt; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-top: 5px; }
+          @media print {
+            body { padding: 0; }
+            button { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div style="text-align: right; margin-bottom: 10px;">
+          <button onclick="window.print()" style="padding: 8px 16px; background: #003366; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">🖨️ In / Lưu PDF Ngay</button>
+        </div>
+        <table class="header-table">
+          <tr>
+            <td style="width: 45%; text-align: center;">
+              <strong>NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4</strong><br/>
+              <b>TỔ THẨM ĐỊNH DỰ TOÁN</b><br/>
+              -------------
+            </td>
+            <td style="width: 55%; text-align: center;">
+              <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
+              <b>Độc lập - Tự do - Hạnh phúc</b><br/>
+              -----------------------
+            </td>
+          </tr>
+        </table>
+
+        <h2>BÁO CÁO TỔNG HỢP KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ VẬT TƯ</h2>
+
+        <p>
+          <strong>Tên vật tư:</strong> ${item?.ten_vt || '—'}<br/>
+          <strong>Mã VT (ERP):</strong> ${item?.ma_vt || '—'} &nbsp;|&nbsp; <strong>Số lượng:</strong> ${qty} ${item?.dvt || 'Cái'}<br/>
+          <strong>Đơn giá trình thẩm định:</strong> ${fmt(dgTrinh)} VNĐ
+        </p>
+
+        <h3>I. ĐÁNH GIÁ CHỨNG CỨ THẨM ĐỊNH (5 CƠ SỞ CHỨNG CỨ)</h3>
+        <p>
+          - Điểm số phủ chứng cứ: <strong>${coverageScore}/100 điểm</strong> (${coverageRank} - ${activeCount}/5 Cơ sở chứng cứ đã nạp).<br/>
+          - Điểm số hợp lý đơn giá trình: <strong>${priceScore}/100 điểm</strong> (${priceEval}).
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Cơ Sở Chứng Cứ Thẩm Định</th>
+              <th style="text-align: right;">Đơn Giá Tham Chiếu</th>
+              <th style="text-align: center;">% Lệch vs Trình</th>
+              <th>Trạng Thái Chứng Cứ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Đơn Giá Dự Toán Trình</strong></td>
+              <td style="text-align: right;"><strong>${fmt(dgTrinh)} VNĐ</strong></td>
+              <td style="text-align: center;">0.0%</td>
+              <td>Mốc dự toán lập</td>
+            </tr>
+            ${pillarsList.map(p => `
+              <tr>
+                <td>${p.name}</td>
+                <td style="text-align: right;">${p.price > 0 ? `${fmt(p.price)} VNĐ` : '—'}</td>
+                <td style="text-align: center;">${p.price > 0 ? `${((p.price - dgTrinh)/dgTrinh*100).toFixed(1)}%` : '—'}</td>
+                <td>${p.has ? 'Đã nạp chứng cứ' : 'Chưa nạp dữ liệu'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <h3>II. BẢN THUYẾT MINH THẨM ĐỊNH THỐNG NHẤT</h3>
+        <div class="pre-text">${editingText}</div>
+
+        <h3>III. KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT</h3>
+        <p>
+          - <strong>Đơn giá phê duyệt đề xuất:</strong> <strong style="color: #003366; font-size: 13pt;">${fmt(approvedPrice)} VNĐ / ${item?.dvt || 'Cái'}</strong><br/>
+          - <strong>Tổng tiết kiệm dự toán:</strong> <strong>${totalSavings > 0 ? `${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%)` : '0 VNĐ (Giữ nguyên giá trình)'}</strong>
+        </p>
+
+        <table class="header-table" style="margin-top: 40px;">
+          <tr>
+            <td style="width: 50%; text-align: center;">
+              <strong>CHUYÊN VIÊN THẨM ĐỊNH</strong><br/>
+              <i>(Ký và ghi rõ họ tên)</i>
+            </td>
+            <td style="width: 50%; text-align: center;">
+              <strong>LÃNH ĐẠO PHÊ DUYỆT</strong><br/>
+              <i>(Ký và ghi rõ họ tên)</i>
+            </td>
+          </tr>
+        </table>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() { window.print(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+    printWin.document.write(printHtml);
+    printWin.document.close();
   };
 
   const handleFinalApprove = () => {
@@ -2290,16 +2527,16 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
   };
 
   const pillarsList = [
-    { key: 'p1', name: 'Khối 1: Báo Giá Gốc', price: p1_price, has: has_p1 },
-    { key: 'p2', name: 'Khối 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2 },
-    { key: 'p3', name: 'Khối 3: EVN IMIS', price: p3_price, has: has_p3 },
-    { key: 'p4', name: 'Khối 4: Mua Sắm Công e-GP', price: p4_price, has: has_p4 },
-    { key: 'p5', name: 'Khối 5: Thương Mại Điện Tử', price: p5_price, has: has_p5 },
+    { key: 'p1', name: 'Cơ sở 1: Báo Giá Gốc', price: p1_price, has: has_p1 },
+    { key: 'p2', name: 'Cơ sở 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2 },
+    { key: 'p3', name: 'Cơ sở 3: EVN IMIS', price: p3_price, has: has_p3 },
+    { key: 'p4', name: 'Cơ sở 4: Mua Sắm Công e-GP', price: p4_price, has: has_p4 },
+    { key: 'p5', name: 'Cơ sở 5: Thương Mại Điện Tử', price: p5_price, has: has_p5 },
   ];
 
   return (
     <div className="space-y-4">
-      <PillarHeader icon={Award} color="teal" title="KHỐI 6: TỔNG HỢP & ĐÁNH GIÁ THẨM ĐỊNH (5 TRỤ CỘT)" loading={loading} />
+      <PillarHeader icon={Award} color="teal" title="CƠ SỞ 6: TỔNG HỢP & ĐÁNH GIÁ THẨM ĐỊNH (5 CƠ SỞ CHỨNG CỨ)" loading={loading} />
 
       {/* Scoring Dashboard */}
       <div className="grid grid-cols-3 gap-3">
@@ -2347,7 +2584,7 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
         <table className="w-full text-xs text-left border-collapse min-w-[750px]">
           <thead className="bg-teal-50 text-teal-950 font-bold border-b border-teal-200">
             <tr>
-              <th className="py-2.5 px-3 border-r">Khối Chứng Cứ Thẩm Định</th>
+              <th className="py-2.5 px-3 border-r">Cơ Sở Chứng Cứ Thẩm Định</th>
               <th className="py-2.5 px-3 border-r w-36 text-right font-mono">Đơn Giá Tham Chiếu</th>
               <th className="py-2.5 px-3 border-r w-32 text-center">Chênh Lệch % vs Trình</th>
               <th className="py-2.5 px-3 border-r text-center">Đánh Giá Độ Phù Hợp</th>
@@ -2456,18 +2693,32 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
         </div>
       </div>
 
-      {/* Bản Thuyết Minh Tổng Hợp 5 Khối */}
+      {/* Bản Thuyết Minh Tổng Hợp 5 Cơ Sở */}
       <div className="p-4 rounded-xl border-2 border-teal-400 bg-white text-slate-900 shadow-sm space-y-2">
         <div className="flex items-center justify-between">
           <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-teal-950">
-            <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (BIÊN SOẠN TỰ ĐỘNG 5 KHỐI)
+            <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (BIÊN SOẠN TỰ ĐỘNG 5 CƠ SỞ)
           </h5>
-          <button
-            onClick={copyToClipboard}
-            className="bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
-          >
-            📋 Sao Chép Thuyết Minh Tổng Hợp
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyToClipboard}
+              className="bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+            >
+              📋 Sao Chép Thuyết Minh
+            </button>
+            <button
+              onClick={handleExportDocx}
+              className="bg-blue-700 hover:bg-blue-800 text-white text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+            >
+              📄 Xuất File Word (.docx)
+            </button>
+            <button
+              onClick={handleExportPdf}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+            >
+              🖨️ Xuất / In PDF
+            </button>
+          </div>
         </div>
         <textarea
           rows={7}
@@ -2482,7 +2733,7 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
         saved={saved}
         onSave={handleFinalApprove}
         nextLabel={null}
-        prevLabel="Khối 5 (TMĐT)"
+        prevLabel="Cơ sở 5 (TMĐT)"
         isFinal
       />
     </div>
@@ -2532,7 +2783,7 @@ function SaveFooter({ saving, saved, onSave, nextLabel, prevLabel, isFinal }) {
         }`}
       >
         {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-        {isFinal ? '✨ Lưu & Tổng Hợp 4 Khối' : `💾 Lưu & Đi Tiếp ${nextLabel || ''}`}
+        {isFinal ? '✨ Lưu & Phê Duyệt 5 Cơ Sở' : `💾 Lưu & Đi Tiếp ${nextLabel || ''}`}
         {!isFinal && <ArrowRight className="w-3.5 h-3.5" />}
       </button>
     </div>
