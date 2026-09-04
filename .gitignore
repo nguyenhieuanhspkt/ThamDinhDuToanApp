@@ -14,6 +14,8 @@ config/*.session
 
 # --- CACHE LỚN ---
 config/.erp_cache.json
+data/.quotes_cache.json
+*.cache.json
 
 # --- DỮ LIỆU DỰ ÁN (data cụ thể, không đưa lên github) ---
 data/projects/*/

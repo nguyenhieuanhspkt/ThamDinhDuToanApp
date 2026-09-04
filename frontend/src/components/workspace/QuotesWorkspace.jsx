@@ -3,8 +3,11 @@ import LeftSidebar from './LeftSidebar.jsx';
 import PDFCenterViewer from './PDFCenterViewer.jsx';
 import SpreadsheetGrid from './SpreadsheetGrid.jsx';
 import FolderPickerModal from '../modals/FolderPickerModal.jsx';
+import { useToast } from '../ui/Toast.jsx';
 
 export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelectInspectorItem }) {
+  const toast = useToast();
+
   const [folderPath, setFolderPath] = useState(
     initialFolderPath ||
       'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định'
@@ -38,7 +41,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         body: JSON.stringify({ folder_path: targetPath, force_rescan: forceRescan })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setDossierData(data);
         const quotes = data.quotes || [];
@@ -50,16 +53,11 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
           setActiveQuoteData(null);
         }
       } else {
-        setDossierData({
-          folder_path: targetPath,
-          quotes: [],
-          scans: [],
-          docs: [],
-          total_files: 0
-        });
+        setDossierData({ folder_path: targetPath, quotes: [], scans: [], docs: [], total_files: 0 });
       }
     } catch (e) {
-      console.error("Lỗi nạp thư mục báo giá:", e);
+      console.error('Lỗi nạp thư mục báo giá:', e);
+      toast.error('Lỗi kết nối khi quét thư mục báo giá!');
     } finally {
       setIsLoadingDossier(false);
     }
@@ -67,6 +65,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
 
   useEffect(() => {
     fetchDossier(folderPath, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const selectQuote = async (filename, filePath, targetFolder = folderPath) => {
@@ -88,7 +87,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         setActiveQuoteData(null);
       }
     } catch (e) {
-      console.error("Lỗi nạp chi tiết báo giá:", e);
+      console.error('Lỗi nạp chi tiết báo giá:', e);
       setActiveQuoteData(null);
     } finally {
       setIsLoadingQuote(false);
@@ -100,29 +99,24 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
       const res = await fetch('/api/quotes/save-override', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folder_path: folderPath,
-          quote: updatedQuote
-        })
+        body: JSON.stringify({ folder_path: folderPath, quote: updatedQuote })
       });
       const data = await res.json();
       if (data.success) {
-        alert("✅ Đã lưu hiệu chỉnh dữ liệu báo giá thành công!");
+        toast.success('Đã lưu hiệu chỉnh dữ liệu báo giá thành công!');
         setActiveQuoteData(updatedQuote);
         fetchDossier(folderPath, false);
       } else {
-        alert("❌ Lỗi lưu dữ liệu: " + (data.message || 'Không rõ nguyên nhân'));
+        toast.error('Lỗi lưu dữ liệu: ' + (data.message || 'Không rõ nguyên nhân'));
       }
     } catch (e) {
-      console.error("Lỗi kết nối khi lưu báo giá:", e);
-      alert("❌ Lỗi mạng khi gửi dữ liệu lưu!");
+      console.error('Lỗi kết nối khi lưu báo giá:', e);
+      toast.error('Lỗi mạng khi gửi dữ liệu lưu!');
     }
   };
 
   const handleRowClick = (pageNum) => {
-    if (pageNum && pageNum > 0) {
-      setPageNumber(pageNum);
-    }
+    if (pageNum && pageNum > 0) setPageNumber(pageNum);
   };
 
   const handleSelectFolder = (newPath) => {
@@ -137,8 +131,9 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         dossierData={dossierData}
         currentFilter={currentFilter}
         setFilter={setFilter}
-        activeFilename={activeFilename}
+        activeQuoteFilename={activeFilename}
         onSelectQuote={(fn, fp) => selectQuote(fn, fp, folderPath)}
+        onRescanPdf={() => fetchDossier(folderPath, true)}
         onChangeFolder={() => setIsFolderModalOpen(true)}
         folderPath={folderPath}
         isLoading={isLoadingDossier}
@@ -163,7 +158,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         onSelectInspectorItem={onSelectInspectorItem}
       />
 
-      {/* Custom Folder Picker Modal */}
+      {/* Folder Picker Modal */}
       <FolderPickerModal
         isOpen={isFolderModalOpen}
         onClose={() => setIsFolderModalOpen(false)}

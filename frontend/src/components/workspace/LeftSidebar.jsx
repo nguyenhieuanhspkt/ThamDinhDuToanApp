@@ -209,7 +209,7 @@ export default function LeftSidebar({
                   📄 {q.filename}
                 </p>
                 <div className="flex items-center justify-between mt-0.5 pt-1 border-t border-gray-100">
-                  <span class="text-[10px] text-gray-500 font-medium">Tổng tiền:</span>
+                  <span className="text-[10px] text-gray-500 font-medium">Tổng tiền:</span>
                   <span className="text-xs font-black text-red-700 font-mono">{formatMoney(q.total_amount)} đ</span>
                 </div>
               </div>

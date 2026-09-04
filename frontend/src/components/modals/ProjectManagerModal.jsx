@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FolderOpen, Trash2, Calendar, FileText, Check, X, ShieldAlert, PlusCircle } from 'lucide-react';
+import { useToast } from '../ui/Toast.jsx';
 
 export default function ProjectManagerModal({ isOpen, onClose, onSelectProject, activeProjectId }) {
+  const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // filename to confirm delete
 
   const fetchProjectsList = async () => {
     setIsLoading(true);
@@ -16,7 +19,7 @@ export default function ProjectManagerModal({ isOpen, onClose, onSelectProject, 
         const data = await res.json();
         setProjects(Array.isArray(data) ? data : []);
       } else {
-        setErrorMsg("Không thể nạp danh sách dự án từ máy chủ.");
+        setErrorMsg('Không thể nạp danh sách dự án từ máy chủ.');
       }
     } catch (e) {
       setErrorMsg(`Lỗi kết nối: ${e}`);
@@ -26,9 +29,7 @@ export default function ProjectManagerModal({ isOpen, onClose, onSelectProject, 
   };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchProjectsList();
-    }
+    if (isOpen) fetchProjectsList();
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -40,33 +41,33 @@ export default function ProjectManagerModal({ isOpen, onClose, onSelectProject, 
       if (data.success) {
         onSelectProject(data.dossier, filename);
         onClose();
+        toast.success('Đã nạp dự án thành công!');
       } else {
-        alert(`❌ Lỗi nạp dự án: ${data.message}`);
+        toast.error('Lỗi nạp dự án: ' + data.message);
       }
     } catch (e) {
-      alert(`❌ Lỗi kết nối: ${e}`);
+      toast.error('Lỗi kết nối: ' + e);
     }
   };
 
-  const handleDeleteProject = async (filename, projName) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn XÓA hẳn dự án [${projName}] khỏi hệ thống?`)) return;
+  const handleDeleteProject = async (filename) => {
     try {
       const res = await fetch(`/api/projects/delete/${filename}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        toast.success('Đã xóa dự án!');
         fetchProjectsList();
       } else {
-        alert(`❌ Lỗi xóa dự án: ${data.message}`);
+        toast.error('Lỗi xóa dự án: ' + data.message);
       }
     } catch (e) {
-      alert(`❌ Lỗi kết nối: ${e}`);
+      toast.error('Lỗi kết nối: ' + e);
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
-  const formatMoney = (val) => {
-    if (!val) return '0 đ';
-    return Math.round(val).toLocaleString('vi-VN') + ' đ';
-  };
+  const formatMoney = (val) => (!val ? '0 đ' : Math.round(val).toLocaleString('vi-VN') + ' đ');
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -142,21 +143,23 @@ export default function ProjectManagerModal({ isOpen, onClose, onSelectProject, 
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => handleLoadProject(projId)}
-                      className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs ${
-                        isActive
-                          ? 'bg-teal-700 hover:bg-teal-800 text-white'
-                          : 'bg-slate-800 hover:bg-slate-700 text-white'
+                      className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+                        isActive ? 'bg-teal-700 hover:bg-teal-800 text-white' : 'bg-slate-800 hover:bg-slate-700 text-white'
                       }`}
                     >
                       <FolderOpen className="w-3.5 h-3.5" /> Mở Dự Án
                     </button>
-                    <button
-                      onClick={() => handleDeleteProject(projId, proj.name)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                      title="Xóa dự án này"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {deleteConfirm === projId ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-rose-700 font-bold">Xác nhận xóa?</span>
+                        <button onClick={() => handleDeleteProject(projId)} className="text-[10px] bg-rose-600 text-white px-2 py-1 rounded font-bold">Xóa</button>
+                        <button onClick={() => setDeleteConfirm(null)} className="text-[10px] bg-slate-200 text-slate-700 px-2 py-1 rounded font-bold">Hủy</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setDeleteConfirm(projId)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Xóa dự án này">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
