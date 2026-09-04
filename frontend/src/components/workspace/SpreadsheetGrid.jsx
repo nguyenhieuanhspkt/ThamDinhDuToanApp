@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Table2, Calculator, Save, Plus, Search, Trash2, ShieldCheck,
-  AlertTriangle, Eye, Sparkles, Wand2, CheckCircle2, ArrowRight
+  AlertTriangle, Eye, Wand2, CheckCircle2, AlertCircle, Info
 } from 'lucide-react';
 import { useToast } from '../ui/Toast.jsx';
 
@@ -55,6 +55,14 @@ const COMMON_BRANDS = [
   'spirax sarco', 'festo', 'smc', 'omron', 'schneider', 'weidmuller',
   'endress', 'rosemount', 'fisher', 'masoneilan', 'ksb', 'ebara'
 ];
+
+// ── Normalize Score to Percentage (0% - 99%) ────────────────────────────────
+function calculateConfidence(score) {
+  if (!score || score <= 0) return 0;
+  // Exponential normalization mapping score to 20% - 99%
+  const conf = Math.min(99, Math.max(25, Math.round(100 * (1 - Math.exp(-score / 60)))));
+  return conf;
+}
 
 // ── Multi-Factor Smart Matching Engine ───────────────────────────────────────
 function scoreDossierMatch(quotedItem, estItem) {
@@ -165,15 +173,62 @@ export default function SpreadsheetGrid({
   const [targetPdfTotal, setTargetPdfTotal] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
 
+  // ── Calculate Suggestions for a Quoted Item ────────────────────────────────
+  const getSuggestions = useCallback((item) => {
+    if (!dossierItems || dossierItems.length === 0) return [];
+    const scored = dossierItems.map(dItem => {
+      const { score, reasons } = scoreDossierMatch(item, dItem);
+      return { item: dItem, score, confidence: calculateConfidence(score), reasons };
+    });
+    return scored
+      .filter(s => s.score >= 30)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  }, [dossierItems]);
+
+  // ── Auto-Fill on Load: Điền tự động nếu khớp, chưa khớp cũng điền kèm cảnh báo ──
   useEffect(() => {
-    if (quoteData) {
-      setItems(quoteData.items || []);
+    if (quoteData && quoteData.items) {
+      const rawList = quoteData.items || [];
+      const populated = rawList.map((it) => {
+        // Nếu dòng này đã có du_toan_stt hợp lệ thì giữ nguyên
+        if (it.du_toan_stt) {
+          const matched = dossierItems.find(x => x.id === parseInt(it.du_toan_stt, 10));
+          if (matched) {
+            const { score, reasons } = scoreDossierMatch(it, matched);
+            return {
+              ...it,
+              match_confidence: calculateConfidence(score),
+              match_reasons: reasons,
+              auto_matched: it.auto_matched || false
+            };
+          }
+          return it;
+        }
+
+        // Nếu CHƯA ĐƯỢC GẮN: Tự động tìm ứng viên tốt nhất để điền vào luôn!
+        const suggestions = getSuggestions(it);
+        if (suggestions.length > 0) {
+          const top = suggestions[0];
+          return {
+            ...it,
+            du_toan_stt: top.item.id,
+            match_confidence: top.confidence,
+            match_reasons: top.reasons,
+            auto_matched: true // đánh dấu tự động gán
+          };
+        }
+
+        return it;
+      });
+
+      setItems(populated);
       setTargetPdfTotal(quoteData.total_amount ? Math.round(quoteData.total_amount).toString() : '');
     } else {
       setItems([]);
       setTargetPdfTotal('');
     }
-  }, [quoteData]);
+  }, [quoteData, dossierItems, getSuggestions]);
 
   const formatMoney = (val) => {
     if (!val && val !== 0) return '0';
@@ -184,7 +239,16 @@ export default function SpreadsheetGrid({
     const newItems = [...items];
     const item = { ...newItems[idx] };
 
-    if (field === 'so_luong') {
+    if (field === 'du_toan_stt') {
+      item.du_toan_stt = value;
+      item.auto_matched = false; // Người dùng tự chọn bằng tay
+      const matched = dossierItems.find(x => x.id === parseInt(value, 10));
+      if (matched) {
+        const { score, reasons } = scoreDossierMatch(item, matched);
+        item.match_confidence = calculateConfidence(score);
+        item.match_reasons = reasons;
+      }
+    } else if (field === 'so_luong') {
       item.so_luong = parseFloat(value) || 0;
       item.thanh_tien = Math.round(item.so_luong * (item.don_gia || 0));
     } else if (field === 'don_gia') {
@@ -242,38 +306,30 @@ export default function SpreadsheetGrid({
     onSaveQuote(updatedQuote);
   };
 
-  // ── Calculate Suggestions for a Quoted Item ────────────────────────────────
-  const getSuggestions = (item) => {
-    if (!dossierItems || dossierItems.length === 0) return [];
-    const scored = dossierItems.map(dItem => {
-      const { score, reasons } = scoreDossierMatch(item, dItem);
-      return { item: dItem, score, reasons };
-    });
-    return scored
-      .filter(s => s.score >= 35)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
-  };
+  // ── Force Re-Auto-Match All Rows ──────────────────────────────────────────
+  const handleReAutoMatchAll = () => {
+    let highCount = 0;
+    let warnCount = 0;
 
-  // ── Batch Auto-Guess All Unassigned Rows ───────────────────────────────────
-  const handleAutoGuessAll = () => {
-    let matchedCount = 0;
     const newItems = items.map(it => {
-      if (it.du_toan_stt) return it; // already assigned
       const suggestions = getSuggestions(it);
-      if (suggestions.length > 0 && suggestions[0].score >= 45) {
-        matchedCount++;
-        return { ...it, du_toan_stt: suggestions[0].item.id };
+      if (suggestions.length > 0) {
+        const top = suggestions[0];
+        if (top.confidence >= 75) highCount++;
+        else warnCount++;
+        return {
+          ...it,
+          du_toan_stt: top.item.id,
+          match_confidence: top.confidence,
+          match_reasons: top.reasons,
+          auto_matched: true
+        };
       }
       return it;
     });
 
-    if (matchedCount > 0) {
-      setItems(newItems);
-      toast.success(`Đã tự động suy đoán và gắn ${matchedCount} mục dự toán với độ tin cậy cao!`);
-    } else {
-      toast.info('Không có mục nào mới đạt ngưỡng độ tin cậy để tự động gán.');
-    }
+    setItems(newItems);
+    toast.success(`Đã tự động suy đoán ${items.length} dòng: ${highCount} khớp cao 🟢, ${warnCount} cần lưu ý ⚠️`);
   };
 
   const filteredItems = items.filter((it) => {
@@ -286,7 +342,7 @@ export default function SpreadsheetGrid({
   });
 
   return (
-    <div className="flex-1 bg-white border-l flex flex-col shrink-0 overflow-hidden shadow-xs h-full min-w-[580px]">
+    <div className="flex-1 bg-white border-l flex flex-col shrink-0 overflow-hidden shadow-xs h-full min-w-[700px]">
       {/* Header Bar */}
       <div className="p-3 bg-[#003366] text-white border-b flex items-center justify-between shrink-0 text-xs">
         <div className="flex items-center gap-2">
@@ -369,14 +425,13 @@ export default function SpreadsheetGrid({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Batch Auto-Guess Button */}
           <button
-            onClick={handleAutoGuessAll}
+            onClick={handleReAutoMatchAll}
             disabled={!quoteData || items.length === 0}
             className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white rounded text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
-            title="Tự động so khớp & suy đoán gán các dòng chưa có Mục #"
+            title="Quét và tự động điền lại tất cả các dòng"
           >
-            <Wand2 className="w-3.5 h-3.5" /> ⚡ Tự Động Gán Tất Cả
+            <Wand2 className="w-3.5 h-3.5" /> ⚡ Tự Động Gán Lại Tất Cả
           </button>
 
           <button
@@ -389,7 +444,7 @@ export default function SpreadsheetGrid({
         </div>
       </div>
 
-      {/* Table Body */}
+      {/* Table Body - Optimized Horizontal Space Layout */}
       <div className="flex-1 overflow-auto bg-gray-100/50 p-2">
         {isLoading ? (
           <div className="text-center py-12 text-gray-400 text-xs">
@@ -398,31 +453,31 @@ export default function SpreadsheetGrid({
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-xs italic">Không có dòng dữ liệu bóc tách nào.</div>
         ) : (
-          <table className="w-full text-xs text-left border-collapse bg-white rounded border shadow-2xs">
+          <table className="w-full text-xs text-left border-collapse bg-white rounded border shadow-2xs min-w-[1100px]">
             <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10 border-b">
               <tr>
-                <th className="py-2 px-1 text-center w-7 border-r">TT</th>
-                <th className="py-2 px-1.5 text-center w-40 border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
+                <th className="py-2 px-1 text-center w-8 border-r">TT</th>
+                <th className="py-2 px-2 text-left w-64 border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
                   Gắn Mục # Dự Toán
                 </th>
-                <th className="py-2 px-2 border-r">Tên Hàng Hóa / Vật Tư</th>
-                <th className="py-2 px-2 w-32 border-r">Thông Số Kỹ Thuật</th>
-                <th className="py-2 px-1 text-center w-10 border-r">ĐVT</th>
-                <th className="py-2 px-1 text-center w-10 border-r">SL</th>
-                <th className="py-2 px-2 text-right w-24 border-r">Đơn Giá (đ)</th>
-                <th className="py-2 px-2 text-right w-28 border-r bg-amber-50 text-amber-950 font-bold">Thành Tiền (đ)</th>
-                <th className="py-2 px-1 text-center w-7 border-r">Tr.</th>
-                <th className="py-2 px-1 text-center w-7">Xóa</th>
+                <th className="py-2 px-2.5 w-72 border-r">Tên Hàng Hóa / Vật Tư Trong Báo Giá</th>
+                <th className="py-2 px-2.5 w-60 border-r">Thông Số Kỹ Thuật Báo Giá</th>
+                <th className="py-2 px-1 text-center w-12 border-r">ĐVT</th>
+                <th className="py-2 px-1 text-center w-12 border-r">SL</th>
+                <th className="py-2 px-2 text-right w-28 border-r">Đơn Giá (đ)</th>
+                <th className="py-2 px-2 text-right w-32 border-r bg-amber-50 text-amber-950 font-bold">Thành Tiền (đ)</th>
+                <th className="py-2 px-1 text-center w-8 border-r">Tr.</th>
+                <th className="py-2 px-1 text-center w-8">Xóa</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredItems.map((it, idx) => {
                 const estStt = parseInt(it.du_toan_stt, 10);
                 const matchedEstItem = dossierItems.find(x => (x.id === estStt) || (x.stt === estStt));
-                const suggestions = !matchedEstItem ? getSuggestions(it) : [];
-                const topSuggestion = suggestions.length > 0 ? suggestions[0] : null;
+                const conf = it.match_confidence || (matchedEstItem ? 85 : 0);
+                const isHighMatch = conf >= 75;
 
-                // Price comparison if matched
+                // Price comparison
                 let priceDiffText = null;
                 if (matchedEstItem && matchedEstItem.don_gia_trinh && it.don_gia) {
                   const pTrinh = parseFloat(matchedEstItem.don_gia_trinh);
@@ -433,60 +488,50 @@ export default function SpreadsheetGrid({
                     : `${diffPct > 0 ? '+' : ''}${diffPct.toFixed(1)}% so với trình`;
                 }
 
+                // Row background highlight for attention
+                const cellBgClass = matchedEstItem
+                  ? (isHighMatch ? 'bg-emerald-50/50' : 'bg-amber-50/80')
+                  : 'bg-white';
+
                 return (
                   <tr
                     key={idx}
                     onClick={() => onRowClick(it.page || 1)}
-                    className="hover:bg-blue-50/60 cursor-pointer transition h-10"
+                    className="hover:bg-blue-50/60 cursor-pointer transition h-12"
                   >
                     <td className="py-1 px-1 text-center font-mono border-r">
                       <input
                         type="text"
                         value={it.stt || idx + 1}
                         onChange={(e) => handleRowChange(idx, 'stt', e.target.value)}
-                        className="w-6 text-center text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-7 text-center text-xs p-0.5 border rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
-                    {/* Cột Gắn Mục # Thông Minh */}
-                    <td className="py-1 px-1.5 border-r bg-emerald-50/40">
+                    {/* Cột Gắn Mục # Thông Minh (Auto-Filled + Two-Tier Warning Badges) */}
+                    <td className={`py-1.5 px-2 border-r ${cellBgClass}`}>
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-1">
                           <select
                             value={it.du_toan_stt || ''}
                             onChange={(e) => handleRowChange(idx, 'du_toan_stt', e.target.value)}
-                            className={`flex-1 text-[11px] font-mono font-bold py-0.5 px-1 border rounded shadow-2xs truncate ${
+                            className={`flex-1 text-[11px] font-mono font-bold py-1 px-1.5 border rounded shadow-2xs truncate ${
                               matchedEstItem
-                                ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
-                                : topSuggestion
-                                ? 'bg-amber-50 text-amber-950 border-amber-300'
+                                ? isHighMatch
+                                  ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
+                                  : 'bg-amber-100 text-amber-950 border-amber-400 animate-pulse'
                                 : 'bg-white text-slate-800 border-slate-300'
                             }`}
                           >
-                            <option value="">-- Chọn Mục # --</option>
-
-                            {/* ⭐ Gợi ý thông minh đưa lên hàng đầu */}
-                            {suggestions.length > 0 && (
-                              <optgroup label="⭐ GỢI Ý PHÙ HỢP NHẤT">
-                                {suggestions.map((sug, sIdx) => (
-                                  <option key={`sug-${sIdx}`} value={sug.item.id}>
-                                    ⭐ [Khớp {sug.score}%] #{sug.item.id}: {(sug.item.ten_vt_goc || sug.item.ten_vt || '').slice(0, 30)} ({formatMoney(sug.item.don_gia_trinh)} đ)
-                                  </option>
-                                ))}
-                              </optgroup>
-                            )}
-
-                            {/* Toàn bộ danh mục */}
-                            <optgroup label="📋 TOÀN BỘ DANH MỤC DỰ TOÁN">
-                              {dossierItems.map((dItem, dIdx) => (
-                                <option key={dIdx} value={dItem.id || dIdx + 1}>
-                                  #{dItem.id || dIdx + 1}: {(dItem.ten_vt_goc || dItem.ten_vt || '').slice(0, 26)}...
-                                </option>
-                              ))}
-                            </optgroup>
+                            <option value="">-- Chưa gán mục --</option>
+                            {dossierItems.map((dItem, dIdx) => (
+                              <option key={dIdx} value={dItem.id || dIdx + 1}>
+                                #{dItem.id || dIdx + 1}: {(dItem.ten_vt_goc || dItem.ten_vt || '').slice(0, 32)}... ({formatMoney(dItem.don_gia_trinh)} đ)
+                              </option>
+                            ))}
                           </select>
 
-                          {/* Eye button to view Inspector if matched */}
+                          {/* Eye Button to jump straight to View 3 Inspector */}
                           {onSelectInspectorItem && matchedEstItem && (
                             <button
                               onClick={(e) => {
@@ -497,65 +542,62 @@ export default function SpreadsheetGrid({
                               className="p-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded shadow-2xs transition shrink-0"
                               title={`Soi Chi Tiết Mục #${matchedEstItem.id} trên View Duyệt Chi Tiết`}
                             >
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
 
-                        {/* Quick 1-Click Suggestion Button if unassigned */}
-                        {!matchedEstItem && topSuggestion && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRowChange(idx, 'du_toan_stt', topSuggestion.item.id);
-                                toast.success(`Đã gắn vào Mục #${topSuggestion.item.id}: ${topSuggestion.item.ten_vt_goc || topSuggestion.item.ten_vt}`);
-                              }}
-                              className="w-full py-0.5 px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-bold rounded flex items-center justify-between shadow-xs transition animate-pulse"
-                              title={`Lý do khớp: ${topSuggestion.reasons.join(', ')}`}
-                            >
-                              <span className="flex items-center gap-1 truncate">
-                                <Sparkles className="w-2.5 h-2.5 shrink-0" />
-                                Gợi ý: #{topSuggestion.item.id} (Khớp {topSuggestion.score}%)
+                        {/* Status / Warning Notification Indicator */}
+                        {matchedEstItem ? (
+                          isHighMatch ? (
+                            <div className="flex items-center justify-between text-[10px] text-emerald-900 font-semibold leading-tight">
+                              <span className="flex items-center gap-1 truncate max-w-[150px]" title={matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                {it.auto_matched ? `Tự động khớp (${conf}%)` : 'Đã chọn'}
                               </span>
-                              <ArrowRight className="w-2.5 h-2.5 shrink-0" />
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Matched item summary label */}
-                        {matchedEstItem && (
-                          <div className="text-[9.5px] font-medium text-emerald-800 flex items-center justify-between leading-tight">
-                            <span className="truncate max-w-[120px]" title={matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}>
-                              ✓ {matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}
-                            </span>
-                            {priceDiffText && (
-                              <span className="font-mono text-[9px] font-bold shrink-0 text-emerald-900 bg-emerald-200/60 px-1 rounded">
-                                {priceDiffText}
+                              {priceDiffText && (
+                                <span className="font-mono text-[9px] font-bold text-emerald-800 bg-emerald-200/80 px-1 py-0.2 rounded shrink-0">
+                                  {priceDiffText}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between text-[10px] text-amber-900 font-bold bg-amber-200/70 border border-amber-300 px-1.5 py-0.5 rounded leading-tight">
+                              <span className="flex items-center gap-1 truncate" title={`Lý do: ${(it.match_reasons || []).join(', ') || 'Chưa đủ thông tin khẳng định'}`}>
+                                <AlertTriangle className="w-3 h-3 text-amber-700 shrink-0" />
+                                Cảnh báo: Tạm gán ({conf}%) - Cần duyệt lại!
                               </span>
-                            )}
+                            </div>
+                          )
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic">
+                            Chưa tìm thấy mục phù hợp
                           </div>
                         )}
                       </div>
                     </td>
 
+                    {/* Cột Tên Hàng Hóa / Vật Tư (Rộng rãi, dễ đọc) */}
                     <td className="py-1 px-2 border-r">
                       <input
                         type="text"
                         value={it.ten_vt || ''}
                         onChange={(e) => handleRowChange(idx, 'ten_vt', e.target.value)}
                         onFocus={() => onRowClick(it.page || 1)}
-                        className="w-full text-xs font-medium p-0.5 border rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500"
+                        className="w-full text-xs font-semibold text-slate-900 p-1 border border-slate-200 rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 truncate"
+                        title={it.ten_vt || ''}
                       />
                     </td>
 
+                    {/* Cột Thông Số Kỹ Thuật (Rộng rãi) */}
                     <td className="py-1 px-2 border-r">
                       <input
                         type="text"
                         value={it.tskt || ''}
                         onChange={(e) => handleRowChange(idx, 'tskt', e.target.value)}
                         onFocus={() => onRowClick(it.page || 1)}
-                        className="w-full text-[11px] text-gray-600 p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-full text-[11px] text-slate-600 p-1 border border-slate-200 rounded bg-transparent focus:bg-white truncate"
+                        title={it.tskt || ''}
                       />
                     </td>
 
@@ -564,7 +606,7 @@ export default function SpreadsheetGrid({
                         type="text"
                         value={it.dvt || ''}
                         onChange={(e) => handleRowChange(idx, 'dvt', e.target.value)}
-                        className="w-8 text-center text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-full text-center text-xs p-1 border border-slate-200 rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
@@ -573,7 +615,7 @@ export default function SpreadsheetGrid({
                         type="text"
                         value={it.so_luong || 1}
                         onChange={(e) => handleRowChange(idx, 'so_luong', e.target.value)}
-                        className="w-7 text-center font-mono text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-full text-center font-mono text-xs font-bold p-1 border border-slate-200 rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
@@ -582,11 +624,11 @@ export default function SpreadsheetGrid({
                         type="text"
                         value={formatMoney(it.don_gia)}
                         onChange={(e) => handleRowChange(idx, 'don_gia', e.target.value)}
-                        className="w-20 text-right font-mono text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-full text-right font-mono text-xs font-bold text-slate-900 p-1 border border-slate-200 rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
-                    <td className="py-1 px-2 border-r text-right font-mono font-bold text-amber-950 bg-amber-50/40">
+                    <td className="py-1 px-2 border-r text-right font-mono font-extrabold text-amber-950 bg-amber-50/50">
                       {formatMoney(it.thanh_tien)} đ
                     </td>
 
