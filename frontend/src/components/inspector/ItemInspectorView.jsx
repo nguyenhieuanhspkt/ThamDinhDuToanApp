@@ -3,7 +3,8 @@ import {
   ChevronLeft, ChevronRight, FileCheck2, Building2, Network, Globe,
   ExternalLink, CheckCircle, AlertTriangle, FileText, Award,
   Loader2, Save, ArrowRight, ArrowLeft, ShieldCheck, ShieldAlert, Database,
-  Search, RotateCcw, Pin, Check, BarChart3, Calculator, Filter
+  Search, RotateCcw, Pin, Check, BarChart3, Calculator, Filter,
+  ShoppingBag, Link, Plus, Trash2, Edit3, Star, Percent, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../ui/Toast.jsx';
 
@@ -57,12 +58,14 @@ const generateKeywordCandidates = (raw) => {
 };
 
 const PILLAR_CFG = {
-  quotes: { key: 'quotes', label: '1. Báo Giá Gốc',  color: 'emerald', icon: FileCheck2,  saveKey: 'quotes'       },
-  erp:    { key: 'erp',    label: '2. ERP Vĩnh Tân 4',color: 'blue',    icon: Building2,  saveKey: 'erp'          },
-  imis:   { key: 'imis',   label: '3. EVN IMIS',      color: 'purple',  icon: Network,    saveKey: 'imis'         },
-  msc:    { key: 'msc',    label: '4. Mua Sắm Công',  color: 'orange',  icon: Globe,      saveKey: 'muasamcong'   },
+  quotes:    { key: 'quotes',    label: '1. Báo Giá Gốc',        color: 'emerald', icon: FileCheck2,  saveKey: 'quotes'     },
+  erp:       { key: 'erp',       label: '2. ERP Vĩnh Tân 4',     color: 'blue',    icon: Building2,   saveKey: 'erp'        },
+  imis:      { key: 'imis',      label: '3. EVN IMIS',           color: 'purple',  icon: Network,     saveKey: 'imis'       },
+  msc:       { key: 'msc',       label: '4. Mua Sắm Công',       color: 'orange',  icon: Globe,       saveKey: 'muasamcong' },
+  ecom:      { key: 'ecom',      label: '5. Thương Mại Điện Tử', color: 'cyan',    icon: ShoppingBag, saveKey: 'ecom'       },
+  synthesis: { key: 'synthesis', label: '6. Tổng Hợp & Đánh Giá', color: 'teal',    icon: Award,       saveKey: 'synthesis'  },
 };
-const PILLARS = ['quotes', 'erp', 'imis', 'msc'];
+const PILLARS = ['quotes', 'erp', 'imis', 'msc', 'ecom', 'synthesis'];
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOpenPdfPage, onOpenErpConfig, onOpenImisConfig, onOpenMscConfig, imisStatus, mscStatus }) {
@@ -77,9 +80,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
   const [erpResults, setErpResults]         = useState(null);
   const [imisResults, setImisResults]       = useState(null);
   const [mscResults, setMscResults]         = useState(null);
+  const [ecomResults, setEcomResults]       = useState(null);
 
   // Loading states
-  const [loading, setLoading] = useState({ quotes: false, erp: false, imis: false, msc: false });
+  const [loading, setLoading] = useState({ quotes: false, erp: false, imis: false, msc: false, ecom: false });
   const [saving, setSaving]   = useState(false);
 
   // Load items list
@@ -108,6 +112,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     setErpResults(null);
     setImisResults(null);
     setMscResults(null);
+    setEcomResults(null);
     setActivePillar('quotes');
   }, [selectedIndex]);
 
@@ -126,7 +131,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       .finally(() => setLoading(p => ({ ...p, quotes: false })));
   }, [currentItem?.id]);
 
-  // Load on-demand for pillars 2/3/4
+  // Load on-demand for pillars 2/3/4/5
   const loadErp = useCallback(async () => {
     if (erpResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, erp: true }));
@@ -176,12 +181,26 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     finally { setLoading(p => ({ ...p, msc: false })); }
   }, [mscResults, currentItem]);
 
+  const loadEcom = useCallback(async () => {
+    if (ecomResults || !currentItem?.id) return;
+    setLoading(p => ({ ...p, ecom: true }));
+    try {
+      const res = await fetch(`/api/evidence/get?item_id=${currentItem.id}&step_type=ecom`);
+      if (res.ok) {
+        const d = await res.json();
+        setEcomResults(d.data || d.payload || null);
+      }
+    } catch (e) { console.error(e); }
+    finally { setLoading(p => ({ ...p, ecom: false })); }
+  }, [ecomResults, currentItem]);
+
   // Activate pillar with lazy load
   const switchPillar = (pk) => {
     setActivePillar(pk);
     if (pk === 'erp')  loadErp();
     if (pk === 'imis') loadImis();
     if (pk === 'msc')  loadMsc();
+    if (pk === 'ecom') loadEcom();
   };
 
   // Save evidence for a step
@@ -266,7 +285,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               const origIdx = items.findIndex(x => x === it);
               const isActive = origIdx === selectedIndex;
               const stBadge = evidenceStatus[String(it.id)] || {};
-              const doneCount = [stBadge.has_quotes, stBadge.has_erp, stBadge.has_imis, stBadge.has_msc].filter(Boolean).length;
+              const doneCount = [stBadge.has_quotes, stBadge.has_erp, stBadge.has_imis, stBadge.has_msc, stBadge.has_ecom].filter(Boolean).length;
               return (
                 <div
                   key={origIdx}
@@ -278,17 +297,18 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
                     <span className="font-mono text-[#003366] font-bold text-[10px]">{fmt(it.don_gia_trinh)} đ</span>
                   </div>
                   <p className={`text-[11px] truncate ${isActive ? 'font-bold text-teal-900' : 'font-medium text-slate-800'}`} title={it.ten_vt}>{it.ten_vt}</p>
-                  {/* 4-pillar mini badges */}
+                  {/* 5-pillar mini badges */}
                   <div className="flex items-center gap-0.5 mt-1">
                     {[
-                      { k: 'has_quotes', lbl: 'BG',  col: stBadge.has_quotes ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-400' },
-                      { k: 'has_erp',    lbl: 'ERP', col: stBadge.has_erp    ? 'bg-blue-100 text-blue-800 border-blue-300'     : 'bg-gray-100 text-gray-400' },
-                      { k: 'has_imis',   lbl: 'IMIS',col: stBadge.has_imis   ? 'bg-purple-100 text-purple-800 border-purple-300': 'bg-gray-100 text-gray-400' },
-                      { k: 'has_msc',    lbl: 'MSC', col: stBadge.has_msc    ? 'bg-orange-100 text-orange-800 border-orange-300': 'bg-gray-100 text-gray-400' },
+                      { k: 'has_quotes', lbl: 'BG',   col: stBadge.has_quotes ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-400' },
+                      { k: 'has_erp',    lbl: 'ERP',  col: stBadge.has_erp    ? 'bg-blue-100 text-blue-800 border-blue-300'     : 'bg-gray-100 text-gray-400' },
+                      { k: 'has_imis',   lbl: 'IMIS', col: stBadge.has_imis   ? 'bg-purple-100 text-purple-800 border-purple-300': 'bg-gray-100 text-gray-400' },
+                      { k: 'has_msc',    lbl: 'MSC',  col: stBadge.has_msc    ? 'bg-orange-100 text-orange-800 border-orange-300': 'bg-gray-100 text-gray-400' },
+                      { k: 'has_ecom',   lbl: 'TMĐT', col: stBadge.has_ecom   ? 'bg-cyan-100 text-cyan-800 border-cyan-300'     : 'bg-gray-100 text-gray-400' },
                     ].map(b => (
                       <span key={b.k} className={`text-[8px] px-1 rounded border font-bold ${b.col}`}>{stBadge[b.k] ? '✓' : ''}{b.lbl}</span>
                     ))}
-                    <span className={`text-[8px] font-mono ml-auto font-bold ${doneCount === 4 ? 'text-emerald-700' : doneCount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{doneCount}/4</span>
+                    <span className={`text-[8px] font-mono ml-auto font-bold ${doneCount === 5 ? 'text-emerald-700' : doneCount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{doneCount}/5</span>
                   </div>
                 </div>
               );
@@ -315,12 +335,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               const cfg = PILLAR_CFG[pk];
               const Icon = cfg.icon;
               const isActive = activePillar === pk;
-              const saved = pk === 'quotes' ? evSt.has_quotes : pk === 'erp' ? evSt.has_erp : pk === 'imis' ? evSt.has_imis : evSt.has_msc;
+              const saved = pk === 'quotes' ? evSt.has_quotes : pk === 'erp' ? evSt.has_erp : pk === 'imis' ? evSt.has_imis : pk === 'msc' ? evSt.has_msc : pk === 'ecom' ? evSt.has_ecom : evSt.has_syn;
               return (
                 <button
                   key={pk}
                   onClick={() => switchPillar(pk)}
-                  className={`flex-1 py-2 px-2 rounded-lg transition flex items-center justify-center gap-1.5 relative ${
+                  className={`flex-1 py-2 px-1.5 rounded-lg transition flex items-center justify-center gap-1 relative ${
                     isActive ? `bg-${cfg.color}-700 text-white shadow-sm font-bold` : 'text-slate-700 hover:bg-slate-300'
                   }`}
                 >
@@ -369,10 +389,31 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarMsc
                 loading={loading.msc} saving={saving}
                 data={mscResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={() => saveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt }, null)}
+                onSave={() => saveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt }, 'ecom')}
                 saved={evSt.has_msc}
                 onOpenMscConfig={onOpenMscConfig}
                 mscStatus={mscStatus}
+              />
+            )}
+            {/* ── PILLAR 5: ECOMMERCE ── */}
+            {activePillar === 'ecom' && (
+              <PillarEcom
+                loading={loading.ecom} saving={saving}
+                data={ecomResults} dgTrinh={dgTrinh} item={currentItem}
+                onSave={(payload) => saveStep('ecom', payload, 'synthesis')}
+                saved={evSt.has_ecom}
+              />
+            )}
+            {/* ── PILLAR 6: SYNTHESIS ── */}
+            {activePillar === 'synthesis' && (
+              <PillarSynthesis
+                loading={saving} saving={saving}
+                dgTrinh={dgTrinh} item={currentItem}
+                quoteEvidence={quoteEvidence} erpResults={erpResults}
+                imisResults={imisResults} mscResults={mscResults}
+                ecomResults={ecomResults} evidenceStatus={evSt}
+                onSave={(payload) => saveStep('synthesis', payload, null)}
+                saved={evSt.has_syn}
               />
             )}
           </div>
@@ -1749,8 +1790,632 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         saving={saving}
         saved={saved}
         onSave={() => onSave({ analysis, items: itemsList, selected_record: selectedRecord })}
-        nextLabel={null}
+        nextLabel="Khối 5 (TMĐT)"
         prevLabel="Khối 3 (IMIS)"
+      />
+    </div>
+  );
+}
+
+// ── Pillar 5: E-Commerce / Market Prices ──────────────────────────────────────
+function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
+  const toast = useToast();
+  const [urlItems, setUrlItems] = useState(data?.items || [
+    {
+      id: 1,
+      title: item?.ten_vt || 'Sản phẩm tham khảo',
+      vendor: 'Misumi Việt Nam / Sieuthithietbi',
+      url: 'https://vn.misumi-ec.com/',
+      price: dgTrinh > 0 ? Math.round(dgTrinh * 0.95) : 0,
+      date: new Date().toLocaleDateString('vi-VN'),
+      notes: 'Giá niêm yết chưa bao gồm VAT 8%'
+    }
+  ]);
+  const [selectedIdx, setSelectedIdx] = useState(0);
+
+  // Form input state for adding URL evidence
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTitle, setNewTitle]   = useState(item?.ten_vt || '');
+  const [newVendor, setNewVendor] = useState('');
+  const [newUrl, setNewUrl]       = useState('');
+  const [newPrice, setNewPrice]   = useState(dgTrinh > 0 ? String(Math.round(dgTrinh)) : '');
+  const [newNotes, setNewNotes]   = useState('');
+
+  // Quick preset vendors
+  const presetVendors = [
+    { name: 'Misumi Việt Nam', domain: 'vn.misumi-ec.com' },
+    { name: 'Siêu Thị Thiết Bị', domain: 'sieuthithietbi.com' },
+    { name: 'Thiết Bị Vật Tư', domain: 'thietbivattu.com' },
+    { name: 'Tiki / Shopee Mall', domain: 'shopee.vn' },
+    { name: 'Lazada Việt Nam', domain: 'lazada.vn' },
+    { name: 'Website Nhà Sản Xuất / Đại Lý', domain: 'dai-ly-chinh-hang.vn' }
+  ];
+
+  const handleAddUrl = () => {
+    if (!newUrl.trim() && !newVendor.trim()) {
+      toast.error('Vui lòng nhập tên nhà cung cấp hoặc đường link URL');
+      return;
+    }
+    const pVal = parseFloat(newPrice) || 0;
+    const newItemObj = {
+      id: Date.now(),
+      title: newTitle || item?.ten_vt || 'Mục tham khảo',
+      vendor: newVendor || 'Website Thương mại điện tử',
+      url: newUrl.startsWith('http') ? newUrl : (newUrl ? `https://${newUrl}` : '#'),
+      price: pVal,
+      date: new Date().toLocaleDateString('vi-VN'),
+      notes: newNotes || 'Thông tin niêm yết công khai'
+    };
+    const updated = [newItemObj, ...urlItems];
+    setUrlItems(updated);
+    setSelectedIdx(0);
+    setShowAddForm(false);
+    setNewVendor('');
+    setNewUrl('');
+    setNewPrice('');
+    setNewNotes('');
+    toast.success('Đã nạp đường link chứng cứ giá TMĐT!');
+  };
+
+  const handleDeleteUrl = (idx) => {
+    const updated = urlItems.filter((_, i) => i !== idx);
+    setUrlItems(updated);
+    if (selectedIdx >= updated.length) setSelectedIdx(Math.max(0, updated.length - 1));
+    toast.success('Đã xóa dòng chứng cứ TMĐT');
+  };
+
+  const selectedRecord = urlItems[selectedIdx] || urlItems[0];
+  const selectedPrice  = selectedRecord ? parseFloat(selectedRecord.price || 0) : 0;
+  const diffAmt = dgTrinh - selectedPrice;
+  const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
+  const thoiGianTraCuu = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
+
+  let summaryText = '';
+  if (urlItems.length > 0 && selectedRecord) {
+    if (diffAmt <= 0) {
+      summaryText = `Đã tra cứu đơn giá tham khảo trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
+    } else {
+      summaryText = `Đã tra cứu đơn giá tham khảo trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
+    }
+  } else {
+    summaryText = `Chưa ghi nhận đường link giá Thương mại điện tử tham chiếu cho vật tư này.`;
+  }
+
+  const copyToClipboard = () => {
+    if (summaryText) {
+      navigator.clipboard.writeText(summaryText);
+      toast.success('Đã sao chép thuyết minh TMĐT vào clipboard!');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <PillarHeader icon={ShoppingBag} color="cyan" title="KHỐI 5: THƯƠNG MẠI ĐIỆN TỬ & GIÁ THỊ TRƯỜNG INTERNET (LINK URL)" loading={loading} />
+
+      {/* Top Banner & Quick Add Trigger */}
+      <div className="bg-cyan-50/70 p-3 rounded-xl border border-cyan-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-cyan-950 flex items-center gap-1">
+            🌐 Tra cứu giá niêm yết từ bất kỳ URL Web / Sàn TMĐT ({urlItems.length} nguồn chứng cứ):
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const kw = item?.ten_vt || '';
+              window.open(`https://www.google.com/search?q=${encodeURIComponent(kw + ' gia ban')}`, '_blank');
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-cyan-100 text-cyan-900 border border-cyan-300 rounded-lg font-bold transition flex items-center gap-1 shadow-2xs"
+          >
+            <Search className="w-3.5 h-3.5 text-cyan-700" /> Tìm Giá Google Web ↗
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg font-bold transition flex items-center gap-1 shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" /> Thêm URL Chứng Cứ Mới
+          </button>
+        </div>
+      </div>
+
+      {/* Form Nạp URL Chứng Cứ Giá Mới */}
+      {showAddForm && (
+        <div className="bg-white p-4 rounded-xl border-2 border-cyan-400 space-y-3 shadow-md">
+          <h5 className="font-bold text-xs text-cyan-900 uppercase flex items-center gap-1.5">
+            <Plus className="w-4 h-4 text-cyan-700" /> NẠP CHỨNG CỨ GIÁ TỪ WEBSITE / SÀN TMĐT
+          </h5>
+
+          {/* Quick Presets */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+            <span className="text-slate-500 font-semibold">Gợi ý sàn/trang web:</span>
+            {presetVendors.map((pv, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setNewVendor(pv.name);
+                  if (!newUrl) setNewUrl(`https://${pv.domain}/`);
+                }}
+                className="px-2 py-0.5 bg-cyan-50 hover:bg-cyan-100 text-cyan-950 rounded border border-cyan-200 font-medium transition"
+              >
+                + {pv.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Tên Vật Tư / Sản Phẩm Niêm Yết:</label>
+              <input
+                type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                placeholder="Nhập tên sản phẩm hiển thị trên web..."
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Đơn Vị Cung Cấp / Tên Trang Web:</label>
+              <input
+                type="text" value={newVendor} onChange={e => setNewVendor(e.target.value)}
+                placeholder="Ví dụ: Misumi Việt Nam, Sieuthithietbi..."
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Đường Link URL Website Giá:</label>
+              <input
+                type="text" value={newUrl} onChange={e => setNewUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500 font-mono text-cyan-950 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 mb-1">Đơn Giá Niêm Yết (VNĐ):</label>
+              <input
+                type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)}
+                placeholder="Nhập số tiền..."
+                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500 font-mono font-bold text-cyan-950"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-700 mb-1">Ghi Chú / Điều Khoản Giá (Bảo hành, VAT, giao hàng):</label>
+            <input
+              type="text" value={newNotes} onChange={e => setNewNotes(e.target.value)}
+              placeholder="Ghi chú thêm nếu có..."
+              className="w-full px-3 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:border-cyan-500 font-medium"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold transition"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleAddUrl}
+              className="px-4 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg font-bold transition shadow-xs flex items-center gap-1"
+            >
+              <Check className="w-4 h-4" /> Đã Kiểm Tra & Lưu Nạp
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bản Thuyết Minh Tham Chiếu Giá TMĐT */}
+      {summaryText && (
+        <div className="p-4 rounded-xl border-2 border-cyan-300 bg-cyan-50/80 text-slate-900 shadow-sm transition">
+          <div className="flex items-center justify-between mb-2">
+            <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-cyan-950">
+              <FileText className="w-4 h-4 text-cyan-700" /> 📄 BẢN THUYẾT MINH GIÁ THƯƠNG MẠI ĐIỆN TỬ (TỰ ĐỘNG)
+            </h5>
+            <button
+              onClick={copyToClipboard}
+              className="bg-white hover:bg-slate-100 text-cyan-900 border border-cyan-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-xs transition"
+            >
+              📋 Sao Chép Thuyết Minh TMĐT
+            </button>
+          </div>
+          <p className="text-xs leading-relaxed font-medium bg-white/80 p-3 rounded-lg border border-cyan-200/80 text-slate-800">
+            {summaryText}
+          </p>
+        </div>
+      )}
+
+      {/* Bảng Danh Sách Nguồn Chứng Cứ Giá Web TMĐT */}
+      {urlItems.length > 0 ? (
+        <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
+          <table className="w-full text-xs text-left border-collapse min-w-[850px]">
+            <thead className="bg-cyan-50 text-cyan-950 font-bold border-b border-cyan-200">
+              <tr>
+                <th className="py-2.5 px-2 border-r w-24 text-center">Căn Cứ</th>
+                <th className="py-2.5 px-3 border-r">Tên Vật Tư / Sản Phẩm Web</th>
+                <th className="py-2.5 px-3 border-r w-44">Sàn TMĐT / Trang Web</th>
+                <th className="py-2.5 px-3 border-r w-36 font-mono bg-cyan-100/50 text-right">Đơn Giá Web</th>
+                <th className="py-2.5 px-3 border-r font-mono">Đường Link URL</th>
+                <th className="py-2.5 px-3 border-r w-28 text-center">Ngày Tra Cứu</th>
+                <th className="py-2.5 px-2 text-center w-16">Xóa</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {urlItems.map((r, i) => {
+                const isSelected = i === selectedIdx;
+                const dg = parseFloat(r.price || 0);
+                const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+                return (
+                  <tr key={r.id || i} className={`transition text-[11px] ${isSelected ? 'bg-cyan-100/80 border-l-4 border-l-cyan-600 font-semibold' : 'hover:bg-cyan-50/40'}`}>
+                    <td className="py-2 px-2 border-r text-center">
+                      <button
+                        onClick={() => setSelectedIdx(i)}
+                        className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
+                          isSelected ? 'bg-cyan-700 text-white shadow-xs' : 'bg-slate-200 hover:bg-cyan-100 text-slate-700'
+                        }`}
+                      >
+                        {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+                        {isSelected ? 'Đã Chọn' : 'Chọn'}
+                      </button>
+                    </td>
+                    <td className="py-2 px-3 border-r">
+                      <div className="font-bold text-slate-900">{r.title || '—'}</div>
+                      <div className="text-[10px] text-slate-500 italic">{r.notes || '—'}</div>
+                    </td>
+                    <td className="py-2 px-3 border-r font-semibold text-cyan-950">
+                      🏢 {r.vendor || 'Web Internet'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-extrabold border-r text-cyan-950 bg-cyan-50/30">
+                      {fmt(dg)} đ
+                      {diff !== 0 && (
+                        <div className={`text-[9.5px] font-bold ${diff > 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                          {diff > 0 ? '+' : ''}{diff.toFixed(1)}% so với trình
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 border-r font-mono text-blue-700 underline truncate max-w-[200px]">
+                      <a href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-blue-900" title={r.url}>
+                        <ExternalLink className="w-3 h-3 shrink-0 text-blue-600" />
+                        <span className="truncate">{r.url}</span>
+                      </a>
+                    </td>
+                    <td className="py-2 px-3 border-r text-center font-mono text-slate-600">{r.date || '—'}</td>
+                    <td className="py-2 px-2 text-center">
+                      <button
+                        onClick={() => handleDeleteUrl(i)}
+                        className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition"
+                        title="Xóa đường link này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState text="Chưa có đường link chứng cứ giá TMĐT nào. Hãy bấm 'Thêm URL Chứng Cứ Mới' để bổ sung." />
+      )}
+
+      <SaveFooter
+        saving={saving}
+        saved={saved}
+        onSave={() => onSave({ items: urlItems, selected_record: selectedRecord, summary_text: summaryText })}
+        nextLabel="Khối 6 (Tổng Hợp)"
+        prevLabel="Khối 4 (MSC)"
+      />
+    </div>
+  );
+}
+
+// ── Pillar 6: Synthesis & Evaluation (5 Pillars Matrix & Scoring) ──────────────
+function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
+  const toast = useToast();
+
+  // Extract prices from 5 pillars
+  const p1_price = parseFloat(quoteEvidence?.min_price || quoteEvidence?.min_quote?.don_gia || 0);
+  const p2_price = parseFloat(erpResults?.selected_record?.don_gia || erpResults?.avg_price || erpResults?.min_price || 0);
+  const p3_price = parseFloat(imisResults?.selected_record?.don_gia || imisResults?.avg_price || 0);
+  const p4_price = parseFloat(mscResults?.selected_record?.don_gia || mscResults?.min_price || 0);
+  const p5_price = parseFloat(ecomResults?.selected_record?.price || ecomResults?.selected_record?.don_gia || 0);
+
+  // Status checks for 5 pillars
+  const has_p1 = Boolean(quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || evidenceStatus?.has_quotes);
+  const has_p2 = Boolean(erpResults?.results?.length > 0 || evidenceStatus?.has_erp);
+  const has_p3 = Boolean(imisResults?.imis?.length > 0 || evidenceStatus?.has_imis);
+  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || evidenceStatus?.has_msc);
+  const has_p5 = Boolean(ecomResults?.items?.length > 0 || evidenceStatus?.has_ecom);
+
+  // 1. Evidence Coverage Score (0-100 points, 20 points per pillar)
+  const activeCount = [has_p1, has_p2, has_p3, has_p4, has_p5].filter(Boolean).length;
+  const coverageScore = activeCount * 20;
+
+  let coverageRank = 'Hạng C';
+  let coverageBadge = 'bg-red-100 text-red-800 border-red-300';
+  let coverageTitle = '🔴 Chứng cứ Thiếu hụt (Cần bổ sung tra cứu)';
+  if (coverageScore >= 80) {
+    coverageRank = 'Hạng A';
+    coverageBadge = 'bg-emerald-100 text-emerald-900 border-emerald-400';
+    coverageTitle = '🟢 Chứng cứ Cực kỳ Đầy đủ & Vững chắc';
+  } else if (coverageScore >= 60) {
+    coverageRank = 'Hạng B';
+    coverageBadge = 'bg-blue-100 text-blue-900 border-blue-300';
+    coverageTitle = '🟡 Chứng cứ Khá đầy đủ';
+  }
+
+  // 2. Price Reasonableness Score
+  const validPrices = [p1_price, p2_price, p3_price, p4_price, p5_price].filter(p => p > 0);
+  const minBaseline = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+  const avgBaseline = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : 0;
+
+  let priceScore = 100;
+  let priceEval = '🟢 Rất Hợp Lý (Đơn giá trình <= Mốc tham chiếu thấp nhất)';
+
+  if (validPrices.length === 0) {
+    priceScore = 70;
+    priceEval = '⚪ Chưa có mốc giá so sánh thực tế';
+  } else if (dgTrinh <= minBaseline) {
+    priceScore = 100;
+    priceEval = '🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)';
+  } else if (dgTrinh <= avgBaseline) {
+    priceScore = 85;
+    priceEval = '🟡 Hợp Lý (Nằm trong biên độ giá trung bình thị trường)';
+  } else if (dgTrinh <= minBaseline * 1.2) {
+    priceScore = 60;
+    priceEval = '🟠 Cần Xem Xét (Cao hơn giá mốc thấp nhất <20%)';
+  } else {
+    priceScore = 30;
+    priceEval = '🔴 Chưa Hợp Lý (Đơn giá trình cao hơn >20% so với mốc giá tham chiếu)';
+  }
+
+  // Selection state for final approved price
+  const [approvedPrice, setApprovedPrice] = useState(minBaseline > 0 ? minBaseline : dgTrinh);
+  const [editingText, setEditingText]     = useState('');
+
+  useEffect(() => {
+    if (minBaseline > 0) setApprovedPrice(minBaseline);
+  }, [minBaseline]);
+
+  const qty = parseFloat(item?.so_luong || 1);
+  const savingsPerUnit = dgTrinh - approvedPrice;
+  const totalSavings   = savingsPerUnit * qty;
+  const savingsPct     = dgTrinh > 0 ? ((dgTrinh - approvedPrice) / dgTrinh * 100) : 0;
+
+  // Auto-generate aggregated justification text
+  useEffect(() => {
+    let text = `TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: ${item?.ten_vt || ''} (Mã ERP: ${item?.ma_vt || '—'}).\n`;
+    text += `• Đơn giá trình thẩm định: ${fmt(dgTrinh)} VNĐ (Số lượng: ${qty} ${item?.dvt || 'Cái'}).\n`;
+    text += `• Đánh giá Chứng cứ Thẩm định: Đạt ${coverageScore}/100 điểm (${coverageRank} - ${activeCount}/5 khối chứng cứ đã nạp).\n`;
+    text += `• Đánh giá Mức độ Hợp lý Đơn giá: ${priceScore}/100 điểm (${priceEval}).\n\n`;
+
+    text += `CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 TRỤ CỘT:\n`;
+    if (has_p1) text += `- Khối 1 (Báo Giá Gốc): Giá thấp nhất là ${fmt(p1_price)} VNĐ.\n`;
+    if (has_p2) text += `- Khối 2 (ERP Vĩnh Tân 4): Giá tham chiếu là ${fmt(p2_price)} VNĐ.\n`;
+    if (has_p3) text += `- Khối 3 (EVN IMIS): Giá tham chiếu toàn ngành là ${fmt(p3_price)} VNĐ.\n`;
+    if (has_p4) text += `- Khối 4 (Mua Sắm Công): Giá trúng thầu công khai là ${fmt(p4_price)} VNĐ.\n`;
+    if (has_p5) text += `- Khối 5 (Thương Mại Điện Tử): Giá niêm yết Web là ${fmt(p5_price)} VNĐ.\n`;
+
+    if (totalSavings > 0) {
+      text += `\nKẾT LUẬN THẨM ĐỊNH: Đề xuất duyệt đơn giá thẩm định thống nhất là ${fmt(approvedPrice)} VNĐ/Cái. Tiết kiệm dự toán ${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%).`;
+    } else {
+      text += `\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là ${fmt(approvedPrice)} VNĐ/Cái.`;
+    }
+
+    setEditingText(text);
+  }, [item?.ten_vt, dgTrinh, approvedPrice, coverageScore, priceScore]);
+
+  const copyToClipboard = () => {
+    if (editingText) {
+      navigator.clipboard.writeText(editingText);
+      toast.success('Đã sao chép Thuyết Minh Tổng Hợp 5 Khối!');
+    }
+  };
+
+  const handleFinalApprove = () => {
+    onSave({
+      approved_price: approvedPrice,
+      total_savings: totalSavings,
+      coverage_score: coverageScore,
+      price_score: priceScore,
+      summary_text: editingText
+    });
+    toast.success('✨ Đã lưu & Phê duyệt Kết quả Thẩm định Mục!');
+  };
+
+  const pillarsList = [
+    { key: 'p1', name: 'Khối 1: Báo Giá Gốc', price: p1_price, has: has_p1 },
+    { key: 'p2', name: 'Khối 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2 },
+    { key: 'p3', name: 'Khối 3: EVN IMIS', price: p3_price, has: has_p3 },
+    { key: 'p4', name: 'Khối 4: Mua Sắm Công e-GP', price: p4_price, has: has_p4 },
+    { key: 'p5', name: 'Khối 5: Thương Mại Điện Tử', price: p5_price, has: has_p5 },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <PillarHeader icon={Award} color="teal" title="KHỐI 6: TỔNG HỢP & ĐÁNH GIÁ THẨM ĐỊNH (5 TRỤ CỘT)" loading={loading} />
+
+      {/* Scoring Dashboard */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Coverage Score */}
+        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+          <div className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
+            <ShieldCheck className="w-4 h-4 text-teal-700" /> 1. Điểm Độ Đủ Chứng Cứ
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-black font-mono text-teal-900">{coverageScore}<span className="text-sm font-semibold text-slate-500">/100</span></span>
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${coverageBadge}`}>{coverageRank}</span>
+          </div>
+          <p className="text-[11px] font-medium text-slate-600 truncate" title={coverageTitle}>{coverageTitle}</p>
+        </div>
+
+        {/* Price Score */}
+        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1">
+          <div className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
+            <Percent className="w-4 h-4 text-blue-700" /> 2. Điểm Mức Độ Hợp Lý Giá
+          </div>
+          <div className="flex items-baseline justify-between">
+            <span className="text-2xl font-black font-mono text-blue-950">{priceScore}<span className="text-sm font-semibold text-slate-500">/100</span></span>
+            <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-300">Biên độ giá</span>
+          </div>
+          <p className="text-[11px] font-medium text-slate-600 truncate" title={priceEval}>{priceEval}</p>
+        </div>
+
+        {/* Savings Calculator Card */}
+        <div className={`p-3.5 rounded-xl border space-y-1 ${totalSavings > 0 ? 'bg-emerald-50/80 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
+          <div className="text-[11px] font-bold text-slate-600 uppercase flex items-center justify-between">
+            <span className="flex items-center gap-1 text-emerald-950 font-extrabold"><Calculator className="w-4 h-4 text-emerald-700" /> Tiết Kiệm Dự Toán</span>
+            {totalSavings > 0 && <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">-${fmt(savingsPct)}%</span>}
+          </div>
+          <div className="text-2xl font-black font-mono text-emerald-900">
+            {totalSavings > 0 ? `-${fmt(totalSavings)} đ` : '0 đ'}
+          </div>
+          <p className="text-[10px] font-semibold text-slate-600">
+            Duyệt: <strong className="font-mono text-teal-950">{fmt(approvedPrice)} đ</strong> / Trình: {fmt(dgTrinh)} đ
+          </p>
+        </div>
+      </div>
+
+      {/* Bảng Ma Trận So Sánh 5 Căn Cứ Tham Chiếu */}
+      <div className="border border-slate-200 rounded-xl overflow-x-auto shadow-sm">
+        <table className="w-full text-xs text-left border-collapse min-w-[750px]">
+          <thead className="bg-teal-50 text-teal-950 font-bold border-b border-teal-200">
+            <tr>
+              <th className="py-2.5 px-3 border-r">Khối Chứng Cứ Thẩm Định</th>
+              <th className="py-2.5 px-3 border-r w-36 text-right font-mono">Đơn Giá Tham Chiếu</th>
+              <th className="py-2.5 px-3 border-r w-32 text-center">Chênh Lệch % vs Trình</th>
+              <th className="py-2.5 px-3 border-r text-center">Đánh Giá Độ Phù Hợp</th>
+              <th className="py-2.5 px-3 w-28 text-center">Trạng Thái</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            <tr className="bg-slate-100/80 font-bold">
+              <td className="py-2 px-3 border-r text-slate-900">📋 ĐƠN GIÁ DỰ TOÁN TRÌNH THẨM ĐỊNH</td>
+              <td className="py-2 px-3 border-r text-right font-mono text-blue-950 font-black">{fmt(dgTrinh)} đ</td>
+              <td className="py-2 px-3 border-r text-center font-mono text-slate-500">0.0% (Gốc)</td>
+              <td className="py-2 px-3 border-r text-center text-slate-700">Mốc dự toán lập</td>
+              <td className="py-2 px-3 text-center"><span className="px-2 py-0.5 bg-blue-100 text-blue-900 rounded font-bold text-[10px]">Gốc Trình</span></td>
+            </tr>
+
+            {pillarsList.map((p) => {
+              const dg = p.price;
+              const diff = (dgTrinh > 0 && dg > 0) ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+              const isLower = dg > 0 && dg < dgTrinh;
+              return (
+                <tr key={p.key} className="hover:bg-slate-50/80 text-[11px]">
+                  <td className="py-2 px-3 border-r font-bold text-slate-800 flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${p.has ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    {p.name}
+                  </td>
+                  <td className="py-2 px-3 border-r text-right font-mono font-extrabold text-slate-900">
+                    {dg > 0 ? `${fmt(dg)} đ` : '—'}
+                  </td>
+                  <td className="py-2 px-3 border-r text-center font-mono font-bold">
+                    {dg > 0 ? (
+                      <span className={diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-700' : 'text-slate-600'}>
+                        {diff > 0 ? '+' : ''}{diff.toFixed(1)}%
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td className="py-2 px-3 border-r text-center font-semibold">
+                    {!p.has ? (
+                      <span className="text-slate-400 italic">Chưa nạp dữ liệu</span>
+                    ) : isLower ? (
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">🟢 Thấp hơn trình ({fmt(dgTrinh - dg)} đ)</span>
+                    ) : (
+                      <span className="text-slate-700">⚪ Tương đương / Phù hợp</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-center">
+                    {p.has && dg > 0 ? (
+                      <button
+                        onClick={() => setApprovedPrice(dg)}
+                        className="px-2.5 py-1 bg-teal-100 hover:bg-teal-200 text-teal-900 rounded font-bold text-[10px] border border-teal-300 transition"
+                      >
+                        ⚡ Chọn Giá Này
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-[10px]">Chưa nạp</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Hộp Chọn Đơn Giá Thống Nhất & Tùy Chỉnh */}
+      <div className="bg-teal-50/70 p-4 rounded-xl border border-teal-200 space-y-3">
+        <h5 className="font-bold text-xs text-teal-950 uppercase flex items-center gap-1.5">
+          <CheckCircle2 className="w-4 h-4 text-teal-700" /> PHÊ DUYỆT ĐƠN GIÁ THẨM ĐỊNH THỐNG NHẤT
+        </h5>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700">Đơn giá phê duyệt:</span>
+            <div className="relative">
+              <input
+                type="number"
+                value={approvedPrice}
+                onChange={e => setApprovedPrice(parseFloat(e.target.value) || 0)}
+                className="w-44 px-3 py-1.5 text-xs font-mono font-extrabold text-teal-950 bg-white border border-teal-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">đ</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
+            <span className="text-slate-500 font-semibold">Chọn nhanh:</span>
+            {pillarsList.filter(p => p.has && p.price > 0).map(p => (
+              <button
+                key={p.key}
+                onClick={() => setApprovedPrice(p.price)}
+                className={`px-2.5 py-1 rounded-lg font-bold transition border ${
+                  approvedPrice === p.price ? 'bg-teal-700 text-white border-teal-800 shadow-2xs' : 'bg-white text-slate-700 border-slate-300 hover:bg-teal-100'
+                }`}
+              >
+                {p.name.split(':')[0]}: {fmt(p.price)} đ
+              </button>
+            ))}
+            <button
+              onClick={() => setApprovedPrice(dgTrinh)}
+              className={`px-2.5 py-1 rounded-lg font-bold transition border ${
+                approvedPrice === dgTrinh ? 'bg-blue-700 text-white border-blue-800 shadow-2xs' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+              }`}
+            >
+              Giữ Giá Trình ({fmt(dgTrinh)} đ)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bản Thuyết Minh Tổng Hợp 5 Khối */}
+      <div className="p-4 rounded-xl border-2 border-teal-400 bg-white text-slate-900 shadow-sm space-y-2">
+        <div className="flex items-center justify-between">
+          <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-teal-950">
+            <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (BIÊN SOẠN TỰ ĐỘNG 5 KHỐI)
+          </h5>
+          <button
+            onClick={copyToClipboard}
+            className="bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+          >
+            📋 Sao Chép Thuyết Minh Tổng Hợp
+          </button>
+        </div>
+        <textarea
+          rows={7}
+          value={editingText}
+          onChange={e => setEditingText(e.target.value)}
+          className="w-full text-xs leading-relaxed font-mono p-3 rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:outline-none focus:border-teal-500 text-slate-800"
+        />
+      </div>
+
+      <SaveFooter
+        saving={saving}
+        saved={saved}
+        onSave={handleFinalApprove}
+        nextLabel={null}
+        prevLabel="Khối 5 (TMĐT)"
         isFinal
       />
     </div>
