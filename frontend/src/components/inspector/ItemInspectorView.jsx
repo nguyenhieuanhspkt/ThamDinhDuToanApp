@@ -125,6 +125,21 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     }
   }, []);
 
+  // Silent auto-save evidence for a step
+  const autoSaveStep = useCallback(async (stepKey, payload) => {
+    if (!currentItem?.id || !stepKey || !payload) return;
+    try {
+      await fetch('/api/evidence/save-step', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: currentItem.id, step_type: stepKey, payload })
+      });
+      loadAllEvidenceStatus();
+    } catch (e) {
+      console.error('Lỗi lưu ngầm chứng cứ:', e);
+    }
+  }, [currentItem?.id, loadAllEvidenceStatus]);
+
   // Reset pillar data when item changes & load saved evidence
   useEffect(() => {
     setQuoteEvidence(null);
@@ -148,10 +163,16 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       body: JSON.stringify({ item: currentItem })
     })
       .then(r => r.json())
-      .then(d => setQuoteEvidence(prev => ({ ...d, ...prev })))
+      .then(d => {
+        setQuoteEvidence(prev => {
+          const merged = { ...d, ...prev };
+          autoSaveStep('quotes', { status: merged?.status, min_price: merged?.min_price, matches: merged?.matches || [], summary_text: merged?.summary_text });
+          return merged;
+        });
+      })
       .catch(console.error)
       .finally(() => setLoading(p => ({ ...p, quotes: false })));
-  }, [currentItem?.id]);
+  }, [currentItem?.id, autoSaveStep]);
 
   // Load on-demand for pillars 2/3/4/5
   const loadErp = useCallback(async () => {
@@ -168,10 +189,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
           dg_trinh: currentItem.don_gia_trinh || 0
         })
       });
-      setErpResults(await res.json());
+      const data = await res.json();
+      setErpResults(data);
+      autoSaveStep('erp', { results: data?.results || [], keyword: currentItem.ten_vt });
     } catch (e) { toast.error('Lỗi kết nối ERP'); }
     finally { setLoading(p => ({ ...p, erp: false })); }
-  }, [erpResults, currentItem]);
+  }, [erpResults, currentItem, autoSaveStep]);
 
   const loadImis = useCallback(async () => {
     if (imisResults || !currentItem?.ten_vt) return;
@@ -185,9 +208,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       });
       const data = await res.json();
       setImisResults(data);
+      autoSaveStep('imis', { imis: data?.imis || [], erp: data?.erp || [], keyword: currentItem.ten_vt });
     } catch (e) { toast.error('Lỗi kết nối IMIS'); }
     finally { setLoading(p => ({ ...p, imis: false })); }
-  }, [imisResults, currentItem]);
+  }, [imisResults, currentItem, autoSaveStep]);
 
   const loadMsc = useCallback(async () => {
     if (mscResults || !currentItem?.ten_vt) return;
@@ -198,10 +222,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keyword: currentItem.ten_vt })
       });
-      setMscResults(await res.json());
+      const data = await res.json();
+      setMscResults(data);
+      autoSaveStep('muasamcong', { results: data?.analysis?.items || data?.items || [], keyword: data?.analysis?.keyword || currentItem.ten_vt });
     } catch (e) { toast.error('Lỗi kết nối Mua Sắm Công'); }
     finally { setLoading(p => ({ ...p, msc: false })); }
-  }, [mscResults, currentItem]);
+  }, [mscResults, currentItem, autoSaveStep]);
 
   const loadEcom = useCallback(async () => {
     if (ecomResults || !currentItem?.id) return;
@@ -216,8 +242,21 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     finally { setLoading(p => ({ ...p, ecom: false })); }
   }, [ecomResults, currentItem]);
 
-  // Activate pillar with lazy load
+  // Activate pillar with lazy load & silent auto-save
   const switchPillar = (pk) => {
+    // Auto-save current active pillar before switching
+    if (activePillar === 'quotes' && quoteEvidence) {
+      autoSaveStep('quotes', { status: quoteEvidence?.status, min_price: quoteEvidence?.min_price, matches: quoteEvidence?.matches || [], summary_text: quoteEvidence?.summary_text });
+    } else if (activePillar === 'erp' && erpResults) {
+      autoSaveStep('erp', { results: erpResults?.results || [], keyword: currentItem.ten_vt });
+    } else if (activePillar === 'imis' && imisResults) {
+      autoSaveStep('imis', { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt });
+    } else if (activePillar === 'msc' && mscResults) {
+      autoSaveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt });
+    } else if (activePillar === 'ecom' && ecomResults) {
+      autoSaveStep('ecom', { items: ecomResults?.items || [], selected_record: ecomResults?.selected_record || null, summary_text: ecomResults?.summary_text || '' });
+    }
+
     setActivePillar(pk);
     if (pk === 'erp')  loadErp();
     if (pk === 'imis') loadImis();
