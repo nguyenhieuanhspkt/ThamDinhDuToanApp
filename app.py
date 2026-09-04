@@ -919,6 +919,50 @@ def api_save_evidence_step():
     return jsonify({"success": True, "filename": fname})
 
 
+@app.route("/api/evidence/get", methods=["GET"])
+@app.route("/api/evidence/get-item-evidence/<int:item_id>", methods=["GET"])
+def api_get_item_evidence(item_id=None):
+    """Đọc toàn bộ chứng cứ 5 Cơ sở đã lưu của 1 mục vật tư."""
+    if item_id is None:
+        try:
+            item_id = int(request.args.get("item_id"))
+        except (TypeError, ValueError):
+            item_id = None
+            
+    step_type = request.args.get("step_type")
+    if not item_id:
+        return jsonify({"success": False, "message": "Thiếu item_id"}), 400
+        
+    p_dir = get_project_files_dir()
+    item_dir = os.path.join(p_dir, f"item_{item_id}")
+    
+    if step_type:
+        fname = f"chung_cu_{step_type}.json"
+        fpath = os.path.join(item_dir, fname)
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    return jsonify({"success": True, "data": json.load(f), "payload": json.load(f)})
+            except Exception as e:
+                return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({"success": True, "data": None, "payload": None})
+        
+    evidence = {}
+    steps = ["quotes", "erp", "imis", "muasamcong", "ecom", "synthesis"]
+    for s in steps:
+        fpath = os.path.join(item_dir, f"chung_cu_{s}.json")
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    evidence[s] = json.load(f)
+            except Exception:
+                evidence[s] = None
+        else:
+            evidence[s] = None
+            
+    return jsonify({"success": True, "evidence": evidence})
+
+
 @app.route("/api/evidence/status/<int:item_id>", methods=["GET"])
 def api_evidence_status(item_id):
     """Kiểm tra xem mục này đã có các chứng cứ nào được lưu."""
@@ -928,18 +972,22 @@ def api_evidence_status(item_id):
     k2 = os.path.exists(os.path.join(item_dir, "chung_cu_erp.json"))
     k3 = os.path.exists(os.path.join(item_dir, "chung_cu_imis.json"))
     k4 = os.path.exists(os.path.join(item_dir, "chung_cu_muasamcong.json"))
+    k5 = os.path.exists(os.path.join(item_dir, "chung_cu_ecom.json"))
+    k6 = os.path.exists(os.path.join(item_dir, "chung_cu_synthesis.json"))
     return jsonify({
         "has_quotes": k1,
         "has_erp": k2,
         "has_imis": k3,
         "has_msc": k4,
-        "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4]])
+        "has_ecom": k5,
+        "has_syn": k6,
+        "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4, k5]])
     })
 
 
 @app.route("/api/evidence/all-status", methods=["GET"])
 def api_evidence_all_status():
-    """Kiểm tra tiến độ 4 khối của toàn bộ các mục trong dự án."""
+    """Kiểm tra tiến độ 5 cơ sở của toàn bộ các mục trong dự án."""
     p_dir = get_project_files_dir()
     status_map = {}
     if os.path.exists(p_dir):
@@ -953,12 +1001,16 @@ def api_evidence_all_status():
                         k2 = os.path.exists(os.path.join(i_dir, "chung_cu_erp.json"))
                         k3 = os.path.exists(os.path.join(i_dir, "chung_cu_imis.json"))
                         k4 = os.path.exists(os.path.join(i_dir, "chung_cu_muasamcong.json"))
+                        k5 = os.path.exists(os.path.join(i_dir, "chung_cu_ecom.json"))
+                        k6 = os.path.exists(os.path.join(i_dir, "chung_cu_synthesis.json"))
                         status_map[str(i_id)] = {
                             "has_quotes": k1,
                             "has_erp": k2,
                             "has_imis": k3,
                             "has_msc": k4,
-                            "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4]])
+                            "has_ecom": k5,
+                            "has_syn": k6,
+                            "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4, k5]])
                         }
                 except Exception:
                     pass

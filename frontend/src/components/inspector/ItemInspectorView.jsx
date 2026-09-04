@@ -106,7 +106,26 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
 
   const currentItem = items[selectedIndex] || items[0] || {};
 
-  // Reset pillar data when item changes
+  // Auto-restore saved evidence for all pillars when item changes
+  const loadSavedEvidence = useCallback(async (itemId) => {
+    if (!itemId) return;
+    try {
+      const res = await fetch(`/api/evidence/get-item-evidence/${itemId}`);
+      if (res.ok) {
+        const json = await res.json();
+        const ev = json.evidence || {};
+        if (ev.quotes) setQuoteEvidence(prev => ({ ...prev, ...ev.quotes }));
+        if (ev.erp) setErpResults(ev.erp);
+        if (ev.imis) setImisResults(ev.imis);
+        if (ev.muasamcong) setMscResults(ev.muasamcong);
+        if (ev.ecom) setEcomResults(ev.ecom);
+      }
+    } catch (e) {
+      console.error('Lỗi đọc chứng cứ đã lưu:', e);
+    }
+  }, []);
+
+  // Reset pillar data when item changes & load saved evidence
   useEffect(() => {
     setQuoteEvidence(null);
     setErpResults(null);
@@ -114,7 +133,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     setMscResults(null);
     setEcomResults(null);
     setActivePillar('quotes');
-  }, [selectedIndex]);
+    if (currentItem?.id) {
+      loadSavedEvidence(currentItem.id);
+    }
+  }, [selectedIndex, currentItem?.id, loadSavedEvidence]);
 
   // Load Pillar 1 when item changes or pillar is quotes
   useEffect(() => {
@@ -126,7 +148,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       body: JSON.stringify({ item: currentItem })
     })
       .then(r => r.json())
-      .then(d => setQuoteEvidence(d))
+      .then(d => setQuoteEvidence(prev => ({ ...d, ...prev })))
       .catch(console.error)
       .finally(() => setLoading(p => ({ ...p, quotes: false })));
   }, [currentItem?.id]);
@@ -188,7 +210,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       const res = await fetch(`/api/evidence/get?item_id=${currentItem.id}&step_type=ecom`);
       if (res.ok) {
         const d = await res.json();
-        setEcomResults(d.data || d.payload || null);
+        if (d.data || d.payload) setEcomResults(d.data || d.payload);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(p => ({ ...p, ecom: false })); }
@@ -217,6 +239,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       if (data.success) {
         toast.success('Đã lưu chứng cứ ' + PILLAR_CFG[activePillar].label);
         await loadAllEvidenceStatus();
+        await loadSavedEvidence(currentItem.id);
         if (nextPillar) switchPillar(nextPillar);
       } else {
         toast.error('Lỗi lưu: ' + (data.message || 'Không rõ'));
@@ -2179,19 +2202,19 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
 function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
   const toast = useToast();
 
-  // Extract prices from 5 pillars
-  const p1_price = parseFloat(quoteEvidence?.min_price || quoteEvidence?.min_quote?.don_gia || 0);
-  const p2_price = parseFloat(erpResults?.selected_record?.don_gia || erpResults?.avg_price || erpResults?.min_price || 0);
-  const p3_price = parseFloat(imisResults?.selected_record?.don_gia || imisResults?.avg_price || 0);
-  const p4_price = parseFloat(mscResults?.selected_record?.don_gia || mscResults?.min_price || 0);
-  const p5_price = parseFloat(ecomResults?.selected_record?.price || ecomResults?.selected_record?.don_gia || 0);
+  // Extract prices from 5 pillars (live results or saved evidence)
+  const p1_price = parseFloat(quoteEvidence?.min_price || quoteEvidence?.min_quote?.don_gia || quoteEvidence?.selected_record?.don_gia || 0);
+  const p2_price = parseFloat(erpResults?.selected_record?.don_gia || erpResults?.don_gia_tham_chieu || erpResults?.avg_price || erpResults?.min_price || 0);
+  const p3_price = parseFloat(imisResults?.selected_record?.don_gia || imisResults?.don_gia_tham_chieu || imisResults?.avg_price || 0);
+  const p4_price = parseFloat(mscResults?.selected_record?.don_gia || mscResults?.don_gia_tham_chieu || mscResults?.min_price || 0);
+  const p5_price = parseFloat(ecomResults?.selected_record?.price || ecomResults?.selected_record?.don_gia || ecomResults?.don_gia_tham_chieu || 0);
 
   // Status checks for 5 pillars
   const has_p1 = Boolean(quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || evidenceStatus?.has_quotes);
-  const has_p2 = Boolean(erpResults?.results?.length > 0 || evidenceStatus?.has_erp);
-  const has_p3 = Boolean(imisResults?.imis?.length > 0 || evidenceStatus?.has_imis);
-  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || evidenceStatus?.has_msc);
-  const has_p5 = Boolean(ecomResults?.items?.length > 0 || evidenceStatus?.has_ecom);
+  const has_p2 = Boolean(erpResults?.results?.length > 0 || erpResults?.thoi_gian_luu || evidenceStatus?.has_erp);
+  const has_p3 = Boolean(imisResults?.imis?.length > 0 || imisResults?.thoi_gian_luu || evidenceStatus?.has_imis);
+  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || mscResults?.danh_sach_ket_qua?.length > 0 || mscResults?.thoi_gian_luu || evidenceStatus?.has_msc);
+  const has_p5 = Boolean(ecomResults?.items?.length > 0 || ecomResults?.thoi_gian_luu || evidenceStatus?.has_ecom);
 
   // 1. Evidence Coverage Score (0-100 points, 20 points per pillar)
   const activeCount = [has_p1, has_p2, has_p3, has_p4, has_p5].filter(Boolean).length;
@@ -2625,8 +2648,10 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
                       <span className="text-slate-400 italic">Chưa nạp dữ liệu</span>
                     ) : isLower ? (
                       <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">🟢 Thấp hơn trình ({fmt(dgTrinh - dg)} đ)</span>
-                    ) : (
+                    ) : dg > 0 ? (
                       <span className="text-slate-700">⚪ Tương đương / Phù hợp</span>
+                    ) : (
+                      <span className="text-slate-600 italic">Đã kiểm tra (Không có mốc giá)</span>
                     )}
                   </td>
                   <td className="py-2 px-3 text-center">
@@ -2637,6 +2662,8 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
                       >
                         ⚡ Chọn Giá Này
                       </button>
+                    ) : p.has ? (
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px] border border-emerald-300">✓ Đã Nạp</span>
                     ) : (
                       <span className="text-slate-400 text-[10px]">Chưa nạp</span>
                     )}
