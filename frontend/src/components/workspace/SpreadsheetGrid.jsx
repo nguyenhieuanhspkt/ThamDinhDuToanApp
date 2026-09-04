@@ -1,6 +1,156 @@
-import React, { useState, useEffect } from 'react';
-import { Table2, Calculator, Save, Plus, Search, Trash2, ShieldCheck, AlertTriangle, Eye, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Table2, Calculator, Save, Plus, Search, Trash2, ShieldCheck,
+  AlertTriangle, Eye, Sparkles, Wand2, CheckCircle2, ArrowRight
+} from 'lucide-react';
+import { useToast } from '../ui/Toast.jsx';
 
+// ── Vietnamese diacritics removal for robust fuzzy matching ──────────────────
+function removeVietnameseTones(str) {
+  if (!str) return '';
+  return str.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+// ── Extract model codes, alphanumeric sequences, hyphenated part numbers ─────
+function extractTechnicalCodes(text) {
+  if (!text) return [];
+  const matches = text.match(/[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)*/g) || [];
+  const ignore = new Set(['the', 'cho', 'cac', 'nay', 'loai', 'type', 'part', 'model', 'vnd', 'usd', 'eur', 'page', 'stt']);
+  return matches
+    .map(m => m.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    .filter(m => m.length >= 3 && !ignore.has(m));
+}
+
+// ── Product Categories & Synonyms ───────────────────────────────────────────
+const PRODUCT_CATEGORIES = {
+  PUMP:     ['bom', 'pump', 'canh khuay'],
+  VALVE:    ['van', 'valve', 'cau', 'mot chieu', 'buom', 'bi', 'giam ap', 'an toan', 'selector valve'],
+  ACTUATOR: ['actuator', 'khi nen', 'dieu khien khi nen', 'chap hanh', 'flowtek'],
+  SOLENOID: ['solenoid', 'cuon hut', 'namur'],
+  GASKET:   ['gasket', 'gioang', 'dem', 'o-ring', 'vong dem', 'spiral'],
+  FITTING:  ['fitting', 'union', 'elbow', 'rac co', 'te', 'dau noi', 'connector', 'g 10-pl', 'dpr 10', 'khop noi'],
+  TUBE:     ['tube', 'pipe', 'ong'],
+  SWITCH:   ['nut nhan', 'call point', 'switch', 'cong tac', 'khan cap'],
+  MODULE:   ['module', 'card', 'bo mach', 'iux'],
+  MOTOR:    ['dong co', 'motor', 'mo to'],
+  BEARING:  ['vong bi', 'bearing', 'bac dan'],
+  FILTER:   ['loc', 'filter', 'loi loc']
+};
+
+function detectCategory(textNorm) {
+  for (const [cat, keywords] of Object.entries(PRODUCT_CATEGORIES)) {
+    for (const kw of keywords) {
+      if (textNorm.includes(kw)) return cat;
+    }
+  }
+  return null;
+}
+
+const COMMON_BRANDS = [
+  'grundfos', 'flowtek', 'bray', 'swagelok', 'apollo', 'minimax', 'gefa',
+  'parker', 'siemens', 'abb', 'danfoss', 'kitz', 'yokogawa', 'emerson',
+  'spirax sarco', 'festo', 'smc', 'omron', 'schneider', 'weidmuller',
+  'endress', 'rosemount', 'fisher', 'masoneilan', 'ksb', 'ebara'
+];
+
+// ── Multi-Factor Smart Matching Engine ───────────────────────────────────────
+function scoreDossierMatch(quotedItem, estItem) {
+  let score = 0;
+  const reasons = [];
+
+  const qName = quotedItem.ten_vt || '';
+  const qTskt = quotedItem.tskt || '';
+  const qFull = `${qName} ${qTskt}`;
+  const qNorm = removeVietnameseTones(qFull);
+
+  const eGoc = estItem.ten_vt_goc || '';
+  const eFull = `${eGoc} ${estItem.ten_vt || ''} ${estItem.thong_so_kt || ''} ${estItem.part_no || ''}`;
+  const eNorm = removeVietnameseTones(eFull);
+  const eHsxNorm = removeVietnameseTones(estItem.hsx_xx || '');
+
+  // 1. Category Detection & Conflict Exclusion
+  const qCat = detectCategory(qNorm);
+  const eCat = detectCategory(eNorm);
+  if (qCat && eCat) {
+    if (qCat === eCat) {
+      score += 35;
+      reasons.push(`Chủng loại: ${qCat}`);
+    } else {
+      // Hard Conflict (e.g. Pump vs Valve)
+      return { score: 0, reasons: [] };
+    }
+  }
+
+  // 2. Brand Recognition
+  for (const brand of COMMON_BRANDS) {
+    const qHasBrand = qNorm.includes(brand);
+    const eHasBrand = eNorm.includes(brand) || eHsxNorm.includes(brand);
+    if (qHasBrand && eHasBrand) {
+      score += 45;
+      reasons.push(`Hãng: ${brand.toUpperCase()}`);
+      break;
+    }
+  }
+
+  // 3. Technical Model Codes & Alphanumerics
+  const qCodes = extractTechnicalCodes(qFull);
+  const eCodes = extractTechnicalCodes(eFull);
+
+  for (const qc of qCodes) {
+    if (qc.length < 3) continue;
+    for (const ec of eCodes) {
+      if (ec.length < 3) continue;
+      if (qc === ec) {
+        score += 40;
+        reasons.push(`Mã: ${qc.toUpperCase()}`);
+        break;
+      } else if (qc.length >= 4 && ec.length >= 4 && (qc.includes(ec) || ec.includes(qc))) {
+        score += 25;
+        reasons.push(`Mã gần khớp: ${qc.toUpperCase()}`);
+        break;
+      }
+    }
+  }
+
+  // 4. ERP Material Code Match
+  if (estItem.ma_vt && estItem.ma_vt !== 'Chưa có mã vật tư') {
+    const cleanMa = estItem.ma_vt.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (cleanMa.length >= 5 && qNorm.replace(/[^a-z0-9]/g, '').includes(cleanMa)) {
+      score += 60;
+      reasons.push(`Mã ERP: ${estItem.ma_vt}`);
+    }
+  }
+
+  // 5. Price Proximity (Quoted Unit Price vs Estimated Unit Price)
+  const qPrice = parseFloat(quotedItem.don_gia) || 0;
+  const ePrice = parseFloat(estItem.don_gia_trinh) || 0;
+  if (qPrice > 0 && ePrice > 0) {
+    const ratio = Math.min(qPrice, ePrice) / Math.max(qPrice, ePrice);
+    if (ratio >= 0.9) {
+      score += 35;
+      reasons.push(`Đơn giá sát (${Math.round(ratio * 100)}%)`);
+    } else if (ratio >= 0.75) {
+      score += 20;
+      reasons.push(`Đơn giá gần (${Math.round(ratio * 100)}%)`);
+    } else if (ratio >= 0.5) {
+      score += 10;
+    }
+  }
+
+  // 6. Quantity Match
+  const qQty = parseFloat(quotedItem.so_luong) || 0;
+  const eQty = parseFloat(estItem.so_luong) || 0;
+  if (qQty > 0 && eQty > 0 && qQty === eQty) {
+    score += 10;
+  }
+
+  return { score, reasons };
+}
+
+// ── Main SpreadsheetGrid Component ───────────────────────────────────────────
 export default function SpreadsheetGrid({
   quoteData,
   onSaveQuote,
@@ -10,6 +160,7 @@ export default function SpreadsheetGrid({
   dossierItems = [],
   onSelectInspectorItem
 }) {
+  const toast = useToast();
   const [items, setItems] = useState([]);
   const [targetPdfTotal, setTargetPdfTotal] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -54,7 +205,7 @@ export default function SpreadsheetGrid({
   const handleAddRow = () => {
     const newItem = {
       stt: items.length + 1,
-      du_toan_stt: items.length + 1,
+      du_toan_stt: '',
       ten_vt: 'Vật tư mới',
       tskt: '',
       dvt: 'Cái',
@@ -68,10 +219,8 @@ export default function SpreadsheetGrid({
 
   const handleDeleteRow = (idx, e) => {
     e.stopPropagation();
-    if (window.confirm("Bạn có chắc chắn muốn xóa dòng bóc tách này?")) {
-      const newItems = items.filter((_, i) => i !== idx);
-      setItems(newItems);
-    }
+    const newItems = items.filter((_, i) => i !== idx);
+    setItems(newItems);
   };
 
   const recalculatedTotal = items.reduce((sum, it) => sum + (it.thanh_tien || 0), 0);
@@ -81,7 +230,7 @@ export default function SpreadsheetGrid({
 
   const handleSave = () => {
     if (!activeFilename) {
-      alert("⚠️ Vui lòng chọn 1 nhà thầu ở danh sách bên trái để lưu!");
+      toast.error('Vui lòng chọn 1 nhà thầu bên trái để lưu!');
       return;
     }
     const updatedQuote = {
@@ -93,6 +242,40 @@ export default function SpreadsheetGrid({
     onSaveQuote(updatedQuote);
   };
 
+  // ── Calculate Suggestions for a Quoted Item ────────────────────────────────
+  const getSuggestions = (item) => {
+    if (!dossierItems || dossierItems.length === 0) return [];
+    const scored = dossierItems.map(dItem => {
+      const { score, reasons } = scoreDossierMatch(item, dItem);
+      return { item: dItem, score, reasons };
+    });
+    return scored
+      .filter(s => s.score >= 35)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+  };
+
+  // ── Batch Auto-Guess All Unassigned Rows ───────────────────────────────────
+  const handleAutoGuessAll = () => {
+    let matchedCount = 0;
+    const newItems = items.map(it => {
+      if (it.du_toan_stt) return it; // already assigned
+      const suggestions = getSuggestions(it);
+      if (suggestions.length > 0 && suggestions[0].score >= 45) {
+        matchedCount++;
+        return { ...it, du_toan_stt: suggestions[0].item.id };
+      }
+      return it;
+    });
+
+    if (matchedCount > 0) {
+      setItems(newItems);
+      toast.success(`Đã tự động suy đoán và gắn ${matchedCount} mục dự toán với độ tin cậy cao!`);
+    } else {
+      toast.info('Không có mục nào mới đạt ngưỡng độ tin cậy để tự động gán.');
+    }
+  };
+
   const filteredItems = items.filter((it) => {
     if (!searchFilter.trim()) return true;
     const q = searchFilter.toLowerCase();
@@ -101,21 +284,6 @@ export default function SpreadsheetGrid({
     const sttEst = (it.du_toan_stt || '').toString();
     return name.includes(q) || spec.includes(q) || sttEst.includes(q);
   });
-
-  // Smart suggestion logic
-  const getSuggestedEstItem = (item) => {
-    if (!dossierItems || dossierItems.length === 0) return null;
-    const name = (item.ten_vt || '').toLowerCase();
-    const spec = (item.tskt || '').toLowerCase();
-
-    if (spec) {
-      const foundPart = dossierItems.find(it => (it.part_no && spec.includes(it.part_no.toLowerCase())) || (it.ma_vt && spec.includes(it.ma_vt.toLowerCase())));
-      if (foundPart) return foundPart;
-    }
-
-    const foundName = dossierItems.find(it => it.ten_vt && name.includes(it.ten_vt.toLowerCase().slice(0, 8)));
-    return foundName || null;
-  };
 
   return (
     <div className="flex-1 bg-white border-l flex flex-col shrink-0 overflow-hidden shadow-xs h-full min-w-[580px]">
@@ -126,7 +294,7 @@ export default function SpreadsheetGrid({
             <Table2 className="w-4 h-4 text-teal-300" />
           </div>
           <div>
-            <h3 className="font-bold text-xs truncate max-w-[260px]" title={activeFilename || "Chưa chọn file"}>
+            <h3 className="font-bold text-xs truncate max-w-[260px]" title={activeFilename || 'Chưa chọn file'}>
               BÓC TÁCH BÁO GIÁ
             </h3>
             <p className="text-[10px] text-teal-200 truncate">
@@ -187,9 +355,9 @@ export default function SpreadsheetGrid({
         </div>
       </div>
 
-      {/* Filter & Add Row Toolbar */}
-      <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between shrink-0 text-xs">
-        <div className="relative w-52">
+      {/* Filter & Batch Actions Toolbar */}
+      <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between shrink-0 text-xs gap-2">
+        <div className="relative w-48">
           <Search className="w-3 h-3 text-gray-400 absolute left-2 top-2" />
           <input
             type="text"
@@ -200,16 +368,28 @@ export default function SpreadsheetGrid({
           />
         </div>
 
-        <button
-          onClick={handleAddRow}
-          disabled={!quoteData}
-          className="px-2.5 py-1 bg-white border border-gray-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-50 text-gray-700 rounded text-xs font-semibold flex items-center gap-1 shadow-2xs"
-        >
-          <Plus className="w-3.5 h-3.5 text-emerald-600" /> Thêm Dòng Mới
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Batch Auto-Guess Button */}
+          <button
+            onClick={handleAutoGuessAll}
+            disabled={!quoteData || items.length === 0}
+            className="px-2.5 py-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-50 text-white rounded text-[11px] font-bold flex items-center gap-1 shadow-xs transition"
+            title="Tự động so khớp & suy đoán gán các dòng chưa có Mục #"
+          >
+            <Wand2 className="w-3.5 h-3.5" /> ⚡ Tự Động Gán Tất Cả
+          </button>
+
+          <button
+            onClick={handleAddRow}
+            disabled={!quoteData}
+            className="px-2.5 py-1 bg-white border border-gray-300 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-50 text-gray-700 rounded text-[11px] font-semibold flex items-center gap-1 shadow-2xs"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-600" /> Thêm Dòng
+          </button>
+        </div>
       </div>
 
-      {/* Table Body - Optimized 100% Fit Layout */}
+      {/* Table Body */}
       <div className="flex-1 overflow-auto bg-gray-100/50 p-2">
         {isLoading ? (
           <div className="text-center py-12 text-gray-400 text-xs">
@@ -222,8 +402,8 @@ export default function SpreadsheetGrid({
             <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10 border-b">
               <tr>
                 <th className="py-2 px-1 text-center w-7 border-r">TT</th>
-                <th className="py-2 px-1.5 text-center w-28 border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
-                  Gắn Mục #
+                <th className="py-2 px-1.5 text-center w-40 border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
+                  Gắn Mục # Dự Toán
                 </th>
                 <th className="py-2 px-2 border-r">Tên Hàng Hóa / Vật Tư</th>
                 <th className="py-2 px-2 w-32 border-r">Thông Số Kỹ Thuật</th>
@@ -239,10 +419,19 @@ export default function SpreadsheetGrid({
               {filteredItems.map((it, idx) => {
                 const estStt = parseInt(it.du_toan_stt, 10);
                 const matchedEstItem = dossierItems.find(x => (x.id === estStt) || (x.stt === estStt));
-                const suggestedEstItem = !matchedEstItem ? getSuggestedEstItem(it) : null;
-                const tooltipText = matchedEstItem 
-                  ? `Mục #${matchedEstItem.id}: ${matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}`
-                  : (suggestedEstItem ? `💡 Gợi ý: Mục #${suggestedEstItem.id} (${suggestedEstItem.ten_vt})` : 'Chọn STT Mục Dự Toán');
+                const suggestions = !matchedEstItem ? getSuggestions(it) : [];
+                const topSuggestion = suggestions.length > 0 ? suggestions[0] : null;
+
+                // Price comparison if matched
+                let priceDiffText = null;
+                if (matchedEstItem && matchedEstItem.don_gia_trinh && it.don_gia) {
+                  const pTrinh = parseFloat(matchedEstItem.don_gia_trinh);
+                  const pQuote = parseFloat(it.don_gia);
+                  const diffPct = ((pQuote - pTrinh) / pTrinh) * 100;
+                  priceDiffText = diffPct === 0
+                    ? 'Khớp 100% giá trình'
+                    : `${diffPct > 0 ? '+' : ''}${diffPct.toFixed(1)}% so với trình`;
+                }
 
                 return (
                   <tr
@@ -259,49 +448,93 @@ export default function SpreadsheetGrid({
                       />
                     </td>
 
-                    {/* Cột Gắn Mục # Compact 95px layout with Inline Select + Eye Button + Tooltip */}
-                    <td className="py-1 px-1 border-r bg-emerald-50/40" title={tooltipText}>
-                      <div className="flex items-center gap-1">
-                        <select
-                          value={it.du_toan_stt || ''}
-                          onChange={(e) => handleRowChange(idx, 'du_toan_stt', e.target.value)}
-                          className="flex-1 text-[11px] font-mono font-bold text-emerald-950 py-0.5 px-1 border border-emerald-300 rounded bg-white focus:ring-1 focus:ring-emerald-500 shadow-2xs truncate"
-                        >
-                          <option value="">-- Mục # --</option>
-                          {dossierItems.map((dItem, dIdx) => (
-                            <option key={dIdx} value={dItem.id || dIdx + 1}>
-                              #{dItem.id || dIdx + 1}: {(dItem.ten_vt_goc || dItem.ten_vt || '').slice(0, 20)}...
-                            </option>
-                          ))}
-                        </select>
-
-                        {/* Eye Button to jump straight to View 3 Inspector */}
-                        {onSelectInspectorItem && matchedEstItem && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const targetIdx = dossierItems.indexOf(matchedEstItem);
-                              if (targetIdx >= 0) onSelectInspectorItem(targetIdx);
-                            }}
-                            className="p-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded shadow-2xs transition shrink-0"
-                            title={`Soi Chi Tiết Mục #${matchedEstItem.id} trên View 3`}
+                    {/* Cột Gắn Mục # Thông Minh */}
+                    <td className="py-1 px-1.5 border-r bg-emerald-50/40">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={it.du_toan_stt || ''}
+                            onChange={(e) => handleRowChange(idx, 'du_toan_stt', e.target.value)}
+                            className={`flex-1 text-[11px] font-mono font-bold py-0.5 px-1 border rounded shadow-2xs truncate ${
+                              matchedEstItem
+                                ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
+                                : topSuggestion
+                                ? 'bg-amber-50 text-amber-950 border-amber-300'
+                                : 'bg-white text-slate-800 border-slate-300'
+                            }`}
                           >
-                            <Eye className="w-3 h-3" />
-                          </button>
+                            <option value="">-- Chọn Mục # --</option>
+
+                            {/* ⭐ Gợi ý thông minh đưa lên hàng đầu */}
+                            {suggestions.length > 0 && (
+                              <optgroup label="⭐ GỢI Ý PHÙ HỢP NHẤT">
+                                {suggestions.map((sug, sIdx) => (
+                                  <option key={`sug-${sIdx}`} value={sug.item.id}>
+                                    ⭐ [Khớp {sug.score}%] #{sug.item.id}: {(sug.item.ten_vt_goc || sug.item.ten_vt || '').slice(0, 30)} ({formatMoney(sug.item.don_gia_trinh)} đ)
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+
+                            {/* Toàn bộ danh mục */}
+                            <optgroup label="📋 TOÀN BỘ DANH MỤC DỰ TOÁN">
+                              {dossierItems.map((dItem, dIdx) => (
+                                <option key={dIdx} value={dItem.id || dIdx + 1}>
+                                  #{dItem.id || dIdx + 1}: {(dItem.ten_vt_goc || dItem.ten_vt || '').slice(0, 26)}...
+                                </option>
+                              ))}
+                            </optgroup>
+                          </select>
+
+                          {/* Eye button to view Inspector if matched */}
+                          {onSelectInspectorItem && matchedEstItem && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const targetIdx = dossierItems.indexOf(matchedEstItem);
+                                if (targetIdx >= 0) onSelectInspectorItem(targetIdx);
+                              }}
+                              className="p-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded shadow-2xs transition shrink-0"
+                              title={`Soi Chi Tiết Mục #${matchedEstItem.id} trên View Duyệt Chi Tiết`}
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Quick 1-Click Suggestion Button if unassigned */}
+                        {!matchedEstItem && topSuggestion && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRowChange(idx, 'du_toan_stt', topSuggestion.item.id);
+                                toast.success(`Đã gắn vào Mục #${topSuggestion.item.id}: ${topSuggestion.item.ten_vt_goc || topSuggestion.item.ten_vt}`);
+                              }}
+                              className="w-full py-0.5 px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-[10px] font-bold rounded flex items-center justify-between shadow-xs transition animate-pulse"
+                              title={`Lý do khớp: ${topSuggestion.reasons.join(', ')}`}
+                            >
+                              <span className="flex items-center gap-1 truncate">
+                                <Sparkles className="w-2.5 h-2.5 shrink-0" />
+                                Gợi ý: #{topSuggestion.item.id} (Khớp {topSuggestion.score}%)
+                              </span>
+                              <ArrowRight className="w-2.5 h-2.5 shrink-0" />
+                            </button>
+                          </div>
                         )}
 
-                        {/* Suggestion Sparkle button if no match selected yet */}
-                        {!matchedEstItem && suggestedEstItem && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRowChange(idx, 'du_toan_stt', suggestedEstItem.id);
-                            }}
-                            className="p-1 bg-amber-500 hover:bg-amber-600 text-white rounded shadow-2xs transition shrink-0 animate-pulse"
-                            title={`Gợi ý: Click để gắn Mục #${suggestedEstItem.id} (${suggestedEstItem.ten_vt})`}
-                          >
-                            <Sparkles className="w-3 h-3" />
-                          </button>
+                        {/* Matched item summary label */}
+                        {matchedEstItem && (
+                          <div className="text-[9.5px] font-medium text-emerald-800 flex items-center justify-between leading-tight">
+                            <span className="truncate max-w-[120px]" title={matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}>
+                              ✓ {matchedEstItem.ten_vt_goc || matchedEstItem.ten_vt}
+                            </span>
+                            {priceDiffText && (
+                              <span className="font-mono text-[9px] font-bold shrink-0 text-emerald-900 bg-emerald-200/60 px-1 rounded">
+                                {priceDiffText}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
@@ -326,45 +559,45 @@ export default function SpreadsheetGrid({
                       />
                     </td>
 
-                    <td className="py-1 px-1 text-center border-r">
+                    <td className="py-1 px-1 border-r text-center">
                       <input
                         type="text"
-                        value={it.dvt || 'Cái'}
+                        value={it.dvt || ''}
                         onChange={(e) => handleRowChange(idx, 'dvt', e.target.value)}
                         className="w-8 text-center text-xs p-0.5 border rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
-                    <td className="py-1 px-1 text-center border-r">
+                    <td className="py-1 px-1 border-r text-center font-mono">
                       <input
-                        type="number"
+                        type="text"
                         value={it.so_luong || 1}
                         onChange={(e) => handleRowChange(idx, 'so_luong', e.target.value)}
-                        className="w-8 text-center font-mono font-bold text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-7 text-center font-mono text-xs p-0.5 border rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
-                    <td className="py-1 px-2 text-right border-r">
+                    <td className="py-1 px-2 border-r text-right font-mono">
                       <input
                         type="text"
                         value={formatMoney(it.don_gia)}
                         onChange={(e) => handleRowChange(idx, 'don_gia', e.target.value)}
-                        className="w-20 text-right font-mono font-semibold text-xs p-0.5 border rounded bg-transparent focus:bg-white"
+                        className="w-20 text-right font-mono text-xs p-0.5 border rounded bg-transparent focus:bg-white"
                       />
                     </td>
 
-                    <td className="py-1 px-2 text-right font-mono font-bold border-r bg-amber-50/40 text-amber-950">
+                    <td className="py-1 px-2 border-r text-right font-mono font-bold text-amber-950 bg-amber-50/40">
                       {formatMoney(it.thanh_tien)} đ
                     </td>
 
-                    <td className="py-1 px-1 text-center font-mono border-r text-gray-500 text-[11px]">
+                    <td className="py-1 px-1 border-r text-center font-mono text-slate-500 text-[10px]">
                       {it.page || 1}
                     </td>
 
                     <td className="py-1 px-1 text-center">
                       <button
                         onClick={(e) => handleDeleteRow(idx, e)}
-                        className="p-1 text-gray-400 hover:text-red-600 rounded transition"
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                         title="Xóa dòng này"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
