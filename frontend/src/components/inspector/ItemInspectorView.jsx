@@ -253,8 +253,13 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       autoSaveStep('imis', { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt });
     } else if (activePillar === 'msc' && mscResults) {
       autoSaveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt });
-    } else if (activePillar === 'ecom' && ecomResults) {
-      autoSaveStep('ecom', { items: ecomResults?.items || [], selected_record: ecomResults?.selected_record || null, summary_text: ecomResults?.summary_text || '' });
+    } else if (activePillar === 'ecom') {
+      const payload = ecomResults || {
+        items: [],
+        selected_record: null,
+        summary_text: `Đã tra cứu từ khóa [${currentItem?.ten_vt || ''}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`
+      };
+      autoSaveStep('ecom', payload);
     }
 
     setActivePillar(pk);
@@ -463,6 +468,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
                 loading={loading.ecom} saving={saving}
                 data={ecomResults} dgTrinh={dgTrinh} item={currentItem}
                 onSave={(payload) => saveStep('ecom', payload, 'synthesis')}
+                onAutoSave={(payload) => {
+                  setEcomResults(payload);
+                  autoSaveStep('ecom', payload);
+                }}
                 saved={evSt.has_ecom}
               />
             )}
@@ -1860,7 +1869,7 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
 }
 
 // ── Pillar 5: E-Commerce / Market Prices ──────────────────────────────────────
-function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
+function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAutoSave }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
   const defaultKw = candidates[0]?.keyword || extractCleanImisKeyword(item?.ten_vt) || item?.ten_vt || '';
@@ -1944,6 +1953,13 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
   } else {
     summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
   }
+
+  // Trigger autoSave to sync ecom state up to parent view on mount & change
+  useEffect(() => {
+    if (onAutoSave) {
+      onAutoSave({ items: urlItems, selected_record: selectedRecord || null, summary_text: summaryText, search_keyword: searchKey });
+    }
+  }, [urlItems, selectedIdx, searchKey, summaryText]);
 
   const copyToClipboard = () => {
     if (summaryText) {
@@ -2249,11 +2265,11 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
   const p5_price = parseFloat(ecomResults?.selected_record?.price || ecomResults?.selected_record?.don_gia || ecomResults?.don_gia_tham_chieu || 0);
 
   // Status checks for 5 pillars
-  const has_p1 = Boolean(quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || evidenceStatus?.has_quotes);
-  const has_p2 = Boolean(erpResults?.results?.length > 0 || erpResults?.thoi_gian_luu || evidenceStatus?.has_erp);
-  const has_p3 = Boolean(imisResults?.imis?.length > 0 || imisResults?.thoi_gian_luu || evidenceStatus?.has_imis);
-  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || mscResults?.danh_sach_ket_qua?.length > 0 || mscResults?.thoi_gian_luu || evidenceStatus?.has_msc);
-  const has_p5 = Boolean(ecomResults?.items?.length > 0 || ecomResults?.thoi_gian_luu || evidenceStatus?.has_ecom);
+  const has_p1 = Boolean(quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || quoteEvidence?.summary_text || evidenceStatus?.has_quotes);
+  const has_p2 = Boolean(erpResults?.results?.length > 0 || erpResults?.thoi_gian_luu || erpResults?.summary_text || evidenceStatus?.has_erp);
+  const has_p3 = Boolean(imisResults?.imis?.length > 0 || imisResults?.thoi_gian_luu || imisResults?.summary_text || evidenceStatus?.has_imis);
+  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || mscResults?.danh_sach_ket_qua?.length > 0 || mscResults?.thoi_gian_luu || mscResults?.summary_text || evidenceStatus?.has_msc);
+  const has_p5 = Boolean(ecomResults?.summary_text || ecomResults?.items || ecomResults?.thoi_gian_luu || evidenceStatus?.has_ecom);
 
   // 1. Evidence Coverage Score (0-100 points, 20 points per pillar)
   const activeCount = [has_p1, has_p2, has_p3, has_p4, has_p5].filter(Boolean).length;
