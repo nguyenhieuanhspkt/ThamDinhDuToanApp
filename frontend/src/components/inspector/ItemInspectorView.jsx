@@ -1800,6 +1800,10 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
 // ── Pillar 5: E-Commerce / Market Prices ──────────────────────────────────────
 function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
   const toast = useToast();
+  const candidates = generateKeywordCandidates(item?.ten_vt);
+  const defaultKw = candidates[0]?.keyword || extractCleanImisKeyword(item?.ten_vt) || item?.ten_vt || '';
+
+  const [searchKey, setSearchKey] = useState(defaultKw);
   const [urlItems, setUrlItems] = useState(data?.items || [
     {
       id: 1,
@@ -1813,6 +1817,10 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
   ]);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  useEffect(() => {
+    setSearchKey(defaultKw);
+  }, [item?.id]);
+
   // Form input state for adding URL evidence
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle]   = useState(item?.ten_vt || '');
@@ -1823,6 +1831,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
 
   // Quick preset vendors
   const presetVendors = [
+    { name: 'eBay (Quốc tế)', domain: 'ebay.com' },
     { name: 'Misumi Việt Nam', domain: 'vn.misumi-ec.com' },
     { name: 'Siêu Thị Thiết Bị', domain: 'sieuthithietbi.com' },
     { name: 'Thiết Bị Vật Tư', domain: 'thietbivattu.com' },
@@ -1873,12 +1882,12 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
   let summaryText = '';
   if (urlItems.length > 0 && selectedRecord) {
     if (diffAmt <= 0) {
-      summaryText = `Đã tra cứu đơn giá tham khảo trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
+      summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
     } else {
-      summaryText = `Đã tra cứu đơn giá tham khảo trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
+      summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
     }
   } else {
-    summaryText = `Chưa ghi nhận đường link giá Thương mại điện tử tham chiếu cho vật tư này.`;
+    summaryText = `Đã tra cứu từ khóa [${searchKey}] nhưng chưa ghi nhận đường link giá Thương mại điện tử tham chiếu cho vật tư này.`;
   }
 
   const copyToClipboard = () => {
@@ -1892,30 +1901,71 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
     <div className="space-y-4">
       <PillarHeader icon={ShoppingBag} color="cyan" title="KHỐI 5: THƯƠNG MẠI ĐIỆN TỬ & GIÁ THỊ TRƯỜNG INTERNET (LINK URL)" loading={loading} />
 
-      {/* Top Banner & Quick Add Trigger */}
-      <div className="bg-cyan-50/70 p-3 rounded-xl border border-cyan-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+      {/* Thanh Nhập Từ Khóa Tra Cứu TMĐT & Tích Hợp eBay / Google */}
+      <div className="bg-cyan-50/70 p-3 rounded-xl border border-cyan-200 space-y-2.5">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-cyan-950 flex items-center gap-1">
-            🌐 Tra cứu giá niêm yết từ bất kỳ URL Web / Sàn TMĐT ({urlItems.length} nguồn chứng cứ):
+          <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1">
+            <Search className="w-3.5 h-3.5 text-cyan-700" /> Từ khóa tra cứu TMĐT:
           </span>
-        </div>
-        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={searchKey}
+            onChange={e => setSearchKey(e.target.value)}
+            placeholder="Nhập từ khóa hoặc mã vật tư tra cứu giá Internet / eBay..."
+            className="flex-1 text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-cyan-500 font-medium"
+          />
           <button
             onClick={() => {
-              const kw = item?.ten_vt || '';
-              window.open(`https://www.google.com/search?q=${encodeURIComponent(kw + ' gia ban')}`, '_blank');
+              window.open(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchKey)}`, '_blank');
             }}
-            className="px-3 py-1.5 bg-white hover:bg-cyan-100 text-cyan-900 border border-cyan-300 rounded-lg font-bold transition flex items-center gap-1 shadow-2xs"
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0"
+            title="Mở trang kết quả tìm kiếm trên eBay.com theo từ khóa"
           >
-            <Search className="w-3.5 h-3.5 text-cyan-700" /> Tìm Giá Google Web ↗
+            🛒 Tìm Giá trên eBay.com ↗
+          </button>
+          <button
+            onClick={() => {
+              window.open(`https://www.google.com/search?q=${encodeURIComponent(searchKey + ' gia ban')}`, '_blank');
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-cyan-100 text-cyan-900 border border-cyan-300 rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-2xs shrink-0"
+          >
+            <Search className="w-3.5 h-3.5 text-cyan-700" /> Tìm Google Web ↗
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg font-bold transition flex items-center gap-1 shadow-xs"
+            className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0"
           >
             <Plus className="w-3.5 h-3.5" /> Thêm URL Chứng Cứ Mới
           </button>
         </div>
+
+        {/* Thanh Ứng Viên Từ Khóa (Keyword Candidate Chips Bar) */}
+        {candidates.length > 0 && (
+          <div className="pt-1.5 border-t border-cyan-200/80 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[11px] font-bold text-cyan-950 shrink-0 flex items-center gap-1">
+              💡 Gợi ý từ khóa tra cứu (Bấm để chọn):
+            </span>
+            {candidates.map((cand, idx) => {
+              const isActive = searchKey.trim().toLowerCase() === cand.keyword.trim().toLowerCase();
+              return (
+                <button
+                  key={idx}
+                  onClick={() => setSearchKey(cand.keyword)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                    isActive
+                      ? 'bg-cyan-700 text-white border-cyan-800 shadow-xs ring-2 ring-cyan-300'
+                      : 'bg-white text-cyan-950 border-cyan-300 hover:bg-cyan-100 hover:border-cyan-400'
+                  }`}
+                  title={`Từ khóa ${cand.label}: [${cand.keyword}]`}
+                >
+                  <span>{cand.icon || '🏷️'}</span>
+                  <span>{cand.tag || `Tier ${cand.tier}`}:</span>
+                  <span className="font-semibold">{cand.keyword}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Form Nạp URL Chứng Cứ Giá Mới */}
