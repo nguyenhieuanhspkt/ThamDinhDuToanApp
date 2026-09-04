@@ -1,7 +1,11 @@
 import React from 'react';
-import { Layers, Table2, Search, CheckCheck, FolderOpen, Bookmark, Save, Download, Upload, Plus, FileSpreadsheet } from 'lucide-react';
+import { Layers, Table2, Search, FolderOpen, Bookmark, Save, Download, Upload, FileSpreadsheet, Building2, Database, Globe } from 'lucide-react';
 
-export default function HeaderNav({ activeView, setActiveView, dossierName, onOpenProjects, onSaveAs, onSaveProject, onUploadExcel, onExportExcel }) {
+export default function HeaderNav({ activeView, setActiveView, dossierName, onOpenProjects, onSaveAs, onSaveProject, onUploadExcel, onExportExcel, erpStatus, onOpenErpConfig, imisStatus, onOpenImisConfig, mscStatus, onOpenMscConfig }) {
+  const isErpOk = erpStatus?.is_configured;
+  const isImisOk = imisStatus?.is_connected;
+  const isMscOk = mscStatus?.active;
+
   return (
     <header className="bg-[#003366] text-white px-5 py-2.5 shrink-0 shadow-md z-30 flex items-center justify-between">
       {/* Brand & Project Title */}
@@ -65,6 +69,63 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
 
       {/* Global Actions */}
       <div className="flex items-center gap-1.5 text-xs font-semibold">
+        
+        {/* MSC Status Badge */}
+        <button
+          onClick={onOpenMscConfig}
+          className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
+            isMscOk
+              ? 'bg-orange-900/60 hover:bg-orange-800 border-orange-500/50 text-orange-200'
+              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+          }`}
+          title="Bấm để cấu hình chuỗi cURL Session Mua Sắm Công (e-GP)"
+        >
+          <Globe className={`w-3.5 h-3.5 ${isMscOk ? 'text-orange-400' : 'text-amber-400'}`} />
+          {isMscOk ? (
+            <span>🌐 MSC: 200 OK</span>
+          ) : (
+            <span>🔴 MSC: Hết hạn</span>
+          )}
+        </button>
+
+        {/* IMIS Status Badge */}
+        <button
+          onClick={onOpenImisConfig}
+          className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
+            isImisOk
+              ? 'bg-purple-900/60 hover:bg-purple-800 border-purple-500/50 text-purple-200'
+              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+          }`}
+          title="Bấm để kiểm tra / đăng nhập Token API EVN IMIS"
+        >
+          <Database className={`w-3.5 h-3.5 ${isImisOk ? 'text-purple-400' : 'text-amber-400'}`} />
+          {isImisOk ? (
+            <span>🟢 IMIS: Đã kết nối</span>
+          ) : (
+            <span>🔴 IMIS: Mất kết nối</span>
+          )}
+        </button>
+
+        {/* ERP DB Status Badge */}
+        <button
+          onClick={onOpenErpConfig}
+          className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
+            isErpOk
+              ? 'bg-emerald-900/60 hover:bg-emerald-800 border-emerald-500/50 text-emerald-200'
+              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+          }`}
+          title="Bấm để cấu hình CSDL Kế toán ERP 13 cột"
+        >
+          <Database className={`w-3.5 h-3.5 ${isErpOk ? 'text-emerald-400' : 'text-amber-400'}`} />
+          {isErpOk ? (
+            <span>🟢 ERP: {erpStatus?.record_count || 0} HĐ</span>
+          ) : (
+            <span>🔴 ERP: Chưa cấu hình</span>
+          )}
+        </button>
+
+        <div className="h-5 w-px bg-blue-800/80 mx-0.5"></div>
+
         <button
           onClick={onOpenProjects}
           className="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-md border border-white/20 flex items-center gap-1 transition"

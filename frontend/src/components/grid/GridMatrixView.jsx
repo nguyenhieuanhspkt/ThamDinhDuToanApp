@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle } from 'lucide-react';
+import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2 } from 'lucide-react';
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState('standard'); // 'standard' | 'coso_dongia'
   const [stats, setStats] = useState({ total_items: 0, total_trinh: 0, total_thong_nhat: 0 });
+  const [quoteMatches, setQuoteMatches] = useState({});
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
 
   const fetchGridData = async () => {
     try {
@@ -16,19 +19,32 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       const total_trinh = list.reduce((acc, it) => acc + (parseFloat(it.thanh_tien_trinh) || (it.so_luong * it.don_gia_trinh) || 0), 0);
       const total_thong_nhat = list.reduce((acc, it) => acc + (parseFloat(it.thanh_tien_thong_nhat) || ((it.so_luong || 1) * (it.don_gia_thong_nhat || 0)) || 0), 0);
       setStats({ total_items: list.length, total_trinh, total_thong_nhat });
+
+      // Tự động quét & bóc tách các file Báo giá gốc đính kèm
+      fetchQuoteMatches();
     } catch (e) {
       console.error('Lỗi fetch grid data:', e);
+    }
+  };
+
+  const fetchQuoteMatches = async () => {
+    setLoadingQuotes(true);
+    try {
+      const res = await fetch('/api/quotes/match-all-dossier-items');
+      const data = await res.json();
+      if (data && data.results) {
+        setQuoteMatches(data.results);
+      }
+    } catch (e) {
+      console.error('Lỗi tự động bóc tách báo giá gốc:', e);
+    } finally {
+      setLoadingQuotes(false);
     }
   };
 
   useEffect(() => { fetchGridData(); }, []);
 
   const fmt = (val) => (!val && val !== 0 ? '—' : Math.round(val).toLocaleString('vi-VN'));
-  const fmtTax = (val) => {
-    if (!val && val !== 0) return '8%';
-    if (typeof val === 'number') return val < 1 ? `${Math.round(val * 100)}%` : `${val}%`;
-    return val.toString().includes('%') ? val : `${val}%`;
-  };
 
   const filteredItems = items.filter((it, idx) => {
     if (!searchQuery.trim()) return true;
@@ -72,13 +88,49 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
         {/* Toolbar */}
         <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-2">
-            <Table2 className="w-4 h-4 text-teal-700" />
-            <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">Bảng Ma Trận Dự Toán Thẩm Định — Chuẩn 2026</span>
-            <span className="bg-teal-100 text-teal-800 text-[10.5px] px-2 py-0.5 rounded-full font-bold">
-              {filteredItems.length}/{items.length} mục
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Table2 className="w-4 h-4 text-teal-700" />
+              <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
+                {viewMode === 'standard' ? 'Bảng Ma Trận Dự Toán Thẩm Định — Chuẩn 2026' : 'View 1: Cơ Sở Đơn Giá'}
+              </span>
+              <span className="bg-teal-100 text-teal-800 text-[10.5px] px-2 py-0.5 rounded-full font-bold">
+                {filteredItems.length}/{items.length} mục
+              </span>
+              {loadingQuotes && (
+                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 animate-pulse">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Đang bóc tách PDF Báo giá...
+                </span>
+              )}
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-xs font-bold ml-2">
+              <button
+                onClick={() => setViewMode('standard')}
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 ${
+                  viewMode === 'standard'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-300/60'
+                }`}
+                title="Bảng ma trận 13 cột chuẩn 2026"
+              >
+                13 Cột Chuẩn
+              </button>
+              <button
+                onClick={() => setViewMode('coso_dongia')}
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 ${
+                  viewMode === 'coso_dongia'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'text-slate-700 hover:bg-slate-300/60'
+                }`}
+                title="View 1: Cơ sở đơn giá (12 cột)"
+              >
+                <Layers className="w-3 h-3 text-amber-300" /> View 1: Cơ Sở Đơn Giá
+              </button>
+            </div>
           </div>
+
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
@@ -96,7 +148,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
               onClick={() => window.location.href = '/api/export-excel'}
               className="bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 transition"
             >
-              <Download className="w-3.5 h-3.5" /> Xuất Excel 13 Cột
+              <Download className="w-3.5 h-3.5" /> Xuất Excel
             </button>
           </div>
         </div>
@@ -106,25 +158,34 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
           <table className="w-full text-xs text-left border-collapse min-w-[1800px]">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-300 shadow-sm">
               <tr>
-                {/* Sticky Left */}
+                {/* Fixed Common Columns 1..3 */}
                 <th className="py-3 px-2 text-center w-10 sticky left-0 bg-slate-100 border-r border-slate-200 z-30">1. STT</th>
                 <th className="py-3 px-2 text-center w-24 sticky left-10 bg-slate-100 border-r border-slate-200 z-30">2. PYCVT</th>
                 <th className="py-3 px-3 w-56 sticky left-[136px] bg-slate-100 border-r border-slate-200 z-30 shadow-sm">3. Tên vật tư</th>
-                {/* Normal */}
                 <th className="py-3 px-3 w-56 border-r border-slate-200">4. Thông số KT</th>
                 <th className="py-3 px-2 text-center w-12 border-r border-slate-200">5. ĐVT</th>
                 <th className="py-3 px-2 text-right w-14 border-r border-slate-200">6. SL</th>
                 <th className="py-3 px-3 w-28 border-r border-slate-200">7. HSX/XX</th>
                 <th className="py-3 px-3 text-center w-28 border-r border-slate-200 font-mono">8. Mã ERP</th>
-                {/* Trình */}
                 <th className="py-3 px-3 text-right w-32 border-r border-slate-200 bg-blue-50 text-[#003366]">9. ĐG Trình</th>
-                <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-blue-50 text-[#003366]">10. TT Trình</th>
-                {/* Thống Nhất */}
-                <th className="py-3 px-3 text-right w-32 border-r border-slate-200 bg-emerald-50 text-emerald-900">11. ĐG Thống Nhất</th>
-                <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-emerald-50 text-emerald-900">12. TT Thống Nhất</th>
-                {/* Kết quả */}
-                <th className="py-3 px-3 text-right w-20 border-r border-slate-200 bg-amber-50 text-amber-900">13. % Giảm</th>
-                {/* Sticky Right */}
+
+                {/* Conditional View Columns */}
+                {viewMode === 'standard' ? (
+                  <>
+                    <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-blue-50 text-[#003366]">10. TT Trình</th>
+                    <th className="py-3 px-3 text-right w-32 border-r border-slate-200 bg-emerald-50 text-emerald-900">11. ĐG Thống Nhất</th>
+                    <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-emerald-50 text-emerald-900">12. TT Thống Nhất</th>
+                    <th className="py-3 px-3 text-right w-20 border-r border-slate-200 bg-amber-50 text-amber-900">13. % Giảm</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="py-3 px-3 w-72 border-r border-slate-200 bg-amber-50/80 text-amber-950 font-bold">10. Ghi chú cơ sở đơn giá</th>
+                    <th className="py-3 px-3 text-right w-44 border-r border-slate-200 bg-purple-50 text-purple-950 font-bold">11. ĐG Nhà thầu thấp nhất</th>
+                    <th className="py-3 px-3 w-48 border-r border-slate-200 bg-purple-50 text-purple-950 font-bold">12. Tên Nhà thầu thấp nhất</th>
+                  </>
+                )}
+
+                {/* Sticky Right Action */}
                 <th className="py-3 px-2 text-center w-24 sticky right-0 bg-slate-100 border-l border-slate-200 z-30 shadow-sm">Kết quả</th>
               </tr>
             </thead>
@@ -132,7 +193,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <tbody className="divide-y divide-slate-200/80">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan="14" className="text-center py-16 text-slate-400 text-xs italic">
+                  <td colSpan={viewMode === 'standard' ? 14 : 13} className="text-center py-16 text-slate-400 text-xs italic">
                     {searchQuery ? `Không tìm thấy mục nào khớp "${searchQuery}"` : 'Chưa có dòng dự toán. Hãy nạp file Excel.'}
                   </td>
                 </tr>
@@ -153,6 +214,12 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                   const hasTN = dgTN > 0;
                   const pctGiam = hasTN && dgTrinh > 0 ? ((dgTrinh - dgTN) / dgTrinh * 100) : null;
 
+                  // Lowest quote & match info from auto-scan backend
+                  const itemMatch = quoteMatches[it.id || origIdx + 1] || {};
+                  const lowestPrice = itemMatch.lowest_price || it.lowest_quote_price || it.don_gia_nha_thau_thap_nhat || it.don_gia_nhathau_min || null;
+                  const lowestVendor = itemMatch.lowest_vendor || it.lowest_quote_vendor || it.ten_nha_thau_thap_nhat || it.ten_nhathau_min || '—';
+                  const noteCoSo = itemMatch.co_so_don_gia || it.ghi_chu_co_so_don_gia || it.co_so_thong_nhat || it.danh_gia_ttd || it.ghi_chu || '—';
+
                   // Status
                   const status = !hasTN ? 'pending'
                     : pctGiam > 0 ? 'reduced'
@@ -163,7 +230,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
                   return (
                     <tr key={idx} className={`group transition hover:bg-teal-50/60 ${isEven ? 'bg-white' : 'bg-slate-50/30'}`}>
-                      {/* Sticky Left */}
+                      {/* Common Sticky Left 1..3 */}
                       <td className="py-2.5 px-2 text-center font-mono text-slate-500 sticky left-0 bg-inherit group-hover:bg-teal-50 border-r border-slate-200 font-medium">
                         {it.stt || origIdx + 1}
                       </td>
@@ -173,7 +240,8 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                       <td className="py-2.5 px-3 font-semibold text-slate-900 sticky left-[136px] bg-inherit group-hover:bg-teal-50 border-r border-slate-200 shadow-sm">
                         <div className="line-clamp-2" title={it.ten_vt_goc || it.ten_vt}>{it.ten_vt_goc || it.ten_vt || ''}</div>
                       </td>
-                      {/* Normal */}
+
+                      {/* Common Columns 4..9 */}
                       <td className="py-2.5 px-3 text-slate-600 border-r border-slate-200 text-[11px]">
                         <div className="line-clamp-2" title={it.thong_so_kt || it.part_no}>{it.thong_so_kt || it.part_no || '—'}</div>
                       </td>
@@ -181,40 +249,60 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                       <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">{sl}</td>
                       <td className="py-2.5 px-3 border-r border-slate-200 text-[11px] text-slate-600 truncate max-w-[112px]" title={it.hsx_xx}>{it.hsx_xx || '—'}</td>
                       <td className="py-2.5 px-3 text-center font-mono text-slate-800 border-r border-slate-200 text-[11px] font-semibold">{it.ma_vt || '—'}</td>
-
-                      {/* Trình (blue) */}
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-[#003366] border-r border-slate-200 bg-blue-50/20 group-hover:bg-teal-50">
                         {fmt(dgTrinh)} đ
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-extrabold text-[#003366] border-r border-slate-200 bg-blue-50/10 group-hover:bg-teal-50">
-                        {fmt(ttTrinh)} đ
-                      </td>
 
-                      {/* Thống Nhất (emerald) */}
-                      <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-emerald-50/20 group-hover:bg-teal-50">
-                        {hasTN ? <span className="text-emerald-900">{fmt(dgTN)} đ</span> : <span className="text-slate-300 text-[11px] italic">Chưa TĐ</span>}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-emerald-50/10 group-hover:bg-teal-50">
-                        {hasTN ? <span className="text-emerald-900">{fmt(ttTN)} đ</span> : <span className="text-slate-300 text-[11px] italic">—</span>}
-                      </td>
+                      {/* Conditional View Columns */}
+                      {viewMode === 'standard' ? (
+                        <>
+                          <td className="py-2.5 px-3 text-right font-mono font-extrabold text-[#003366] border-r border-slate-200 bg-blue-50/10 group-hover:bg-teal-50">
+                            {fmt(ttTrinh)} đ
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-emerald-50/20 group-hover:bg-teal-50">
+                            {hasTN ? <span className="text-emerald-900">{fmt(dgTN)} đ</span> : <span className="text-slate-300 text-[11px] italic">Chưa TĐ</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-emerald-50/10 group-hover:bg-teal-50">
+                            {hasTN ? <span className="text-emerald-900">{fmt(ttTN)} đ</span> : <span className="text-slate-300 text-[11px] italic">—</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-amber-50/20 group-hover:bg-teal-50">
+                            {pctGiam === null ? (
+                              <span className="text-slate-300 text-[11px]">—</span>
+                            ) : pctGiam > 0 ? (
+                              <span className="text-emerald-700">-{pctGiam.toFixed(1)}%</span>
+                            ) : pctGiam < 0 ? (
+                              <span className="text-red-600">+{Math.abs(pctGiam).toFixed(1)}%</span>
+                            ) : (
+                              <span className="text-slate-500">0%</span>
+                            )}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          {/* View 1: 10. Ghi chú cơ sở đơn giá */}
+                          <td className="py-2.5 px-3 border-r border-slate-200 bg-amber-50/10 text-slate-700 text-[11px]">
+                            <div className="line-clamp-2" title={noteCoSo}>{noteCoSo}</div>
+                          </td>
 
-                      {/* % Giảm (amber) */}
-                      <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-amber-50/20 group-hover:bg-teal-50">
-                        {pctGiam === null ? (
-                          <span className="text-slate-300 text-[11px]">—</span>
-                        ) : pctGiam > 0 ? (
-                          <span className="text-emerald-700">-{pctGiam.toFixed(1)}%</span>
-                        ) : pctGiam < 0 ? (
-                          <span className="text-red-600">+{Math.abs(pctGiam).toFixed(1)}%</span>
-                        ) : (
-                          <span className="text-slate-500">0%</span>
-                        )}
-                      </td>
+                          {/* View 1: 11. Đơn giá nhà thầu báo giá thấp nhất */}
+                          <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-purple-50/20 text-purple-900">
+                            {lowestPrice ? (
+                              <span className="text-purple-900 font-bold">{fmt(lowestPrice)} đ</span>
+                            ) : (
+                              <span className="text-slate-300 text-[11px] italic">—</span>
+                            )}
+                          </td>
+
+                          {/* View 1: 12. Tên Nhà thầu báo thấp nhất */}
+                          <td className="py-2.5 px-3 border-r border-slate-200 bg-purple-50/10 text-purple-900 font-semibold text-[11px]">
+                            <div className="truncate max-w-[180px]" title={lowestVendor}>{lowestVendor}</div>
+                          </td>
+                        </>
+                      )}
 
                       {/* Action — Sticky Right */}
                       <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
                         <div className="flex flex-col items-center gap-1">
-                          {/* Status badge */}
                           {status === 'pending' && <span className="text-[9px] text-slate-400 font-medium">Chưa TĐ</span>}
                           {status === 'reduced'  && <span className="flex items-center gap-0.5 text-[9px] text-emerald-700 font-bold"><CheckCircle2 className="w-3 h-3" />Giảm trừ</span>}
                           {status === 'same'     && <span className="flex items-center gap-0.5 text-[9px] text-blue-600 font-bold"><MinusCircle className="w-3 h-3" />Thống nhất</span>}

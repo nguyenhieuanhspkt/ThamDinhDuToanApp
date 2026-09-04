@@ -98,10 +98,17 @@ def api_status():
     return jsonify(info)
 
 
+@app.route("/api/imis/config-status", methods=["GET"])
+def api_imis_config_status():
+    status = imis_core.get_imis_config_status()
+    return jsonify(status)
+
+
+
 @app.route("/api/refresh-token", methods=["POST"])
 def api_refresh_token():
     ok, msg = imis_core.refresh_imis_token()
-    info = imis_core.get_token_status_info()
+    info = imis_core.get_imis_config_status()
     return jsonify({"success": ok, "message": msg, "info": info})
 
 
@@ -115,7 +122,7 @@ def api_login_imis():
         return jsonify({"success": False, "message": "Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu"}), 400
     
     ok, msg = imis_core.login_imis(username, password, remember)
-    info = imis_core.get_token_status_info()
+    info = imis_core.get_imis_config_status()
     return jsonify({"success": ok, "message": msg, "info": info})
 
 
@@ -620,6 +627,129 @@ def api_match_item_quote():
     return jsonify(match_result)
 
 
+@app.route("/api/quotes/match-all-dossier-items", methods=["GET", "POST"])
+def api_match_all_dossier_items():
+    """Tự động đối chiếu toàn bộ danh mục vật tư trong dự án với các file Báo giá gốc."""
+    dossier = load_dossier_data()
+    items = dossier.get("items", [])
+    
+    p_dir = get_project_files_dir()
+    approved_file = os.path.join(p_dir, "bao_gia_project.json")
+    folder = None
+    if os.path.exists(approved_file):
+        try:
+            with open(approved_file, "r", encoding="utf-8") as f:
+                folder = json.load(f).get("folder_nguon")
+        except Exception:
+            pass
+    folder = folder or quote_matcher.DEFAULT_QUOTES_DIR
+    
+    overrides = get_project_quote_overrides()
+    scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides)
+    
+    results = {}
+    for idx, item in enumerate(items):
+        item_id = item.get("id", idx + 1)
+        res = quote_matcher.match_item_in_quotes(item, scanned)
+        min_vendor = ""
+        if res.get("matches"):
+            min_vendor = res["matches"][0].get("company", "")
+        results[item_id] = {
+            "lowest_price": res.get("min_price"),
+            "lowest_vendor": min_vendor,
+            "co_so_don_gia": res.get("summary_text") or item.get("co_so_thong_nhat") or item.get("danh_gia_ttd") or item.get("ghi_chu") or "",
+            "matches_count": len(res.get("matches", []))
+        }
+        
+    return jsonify({"success": True, "results": results})
+
+
+@app.route("/api/erp/config-status", methods=["GET"])
+def api_erp_config_status():
+    """Kiểm tra trạng thái CSDL ERP khi ứng dụng khởi chạy."""
+    status = imis_core.get_erp_config_status()
+    return jsonify(status)
+
+
+@app.route("/api/erp/preview-columns", methods=["POST"])
+def api_erp_preview_columns():
+    """Đọc tiêu đề cột của file Excel ERP để hiển thị trên UI chọn ánh xạ."""
+    req = request.get_json() or {}
+    file_path = req.get("file_path", "").strip()
+    res = imis_core.get_excel_headers(file_path)
+    return jsonify(res)
+
+
+@app.route("/api/erp/upload", methods=["POST"])
+def api_erp_upload_file():
+    """Tải lên file Excel CSDL ERP mới từ giao diện web."""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "Không tìm thấy file"}), 400
+    file = request.files['file']
+    if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
+        return jsonify({"success": False, "message": "Chỉ chấp nhận file Excel (.xlsx, .xls)"}), 400
+        
+    config_dir = os.path.join(DATA_DIR, "config")
+    os.makedirs(config_dir, exist_ok=True)
+    dest_path = os.path.join(config_dir, "ERP_uploaded.xlsx")
+    file.save(dest_path)
+    
+    headers_res = imis_core.get_excel_headers(dest_path)
+    headers_res["uploaded_path"] = dest_path
+    return jsonify(headers_res)
+
+
+@app.route("/api/erp/save-config", methods=["POST"])
+def api_erp_save_config():
+    """Lưu cấu hình vị trí file Excel ERP và mapping 13 cột pháp lý."""
+    req = request.get_json() or {}
+    file_path = req.get("file_path", "").strip()
+    mapping = req.get("mapping", {})
+    header_row = int(req.get("header_row", 1))
+    
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({"success": False, "message": f"Không tìm thấy file Excel: {file_path}"}), 400
+        
+    records = imis_core.save_erp_mapping_config(file_path, mapping, header_row=header_row)
+    return jsonify({
+        "success": True,
+        "message": f"Đã nạp thành công CSDL ERP với {len(records)} bản ghi hợp đồng!",
+        "count": len(records)
+    })
+
+
+@app.route("/api/erp/search", methods=["POST"])
+def api_erp_search():
+    """Tra cứu lịch sử mua sắm CSDL Kế toán ERP Vĩnh Tân 4."""
+    req = request.get_json() or {}
+    keyword = req.get("keyword", "").strip()
+    ma_vt = req.get("ma_vt", "").strip()
+    item = req.get("item") or {}
+    dg_trinh = float(req.get("dg_trinh") or item.get("don_gia_trinh") or 0)
+    selected_record = req.get("selected_record")
+    is_manual = req.get("is_manual", False)
+    
+    min_score = 0 if is_manual else 60
+    
+    results = imis_core.search_erp_baseline(keyword, ma_vt=ma_vt, min_score=min_score)
+    if not results and not is_manual and keyword:
+        clean_kw = keyword.split("\n")[0].split("-")[0].strip()
+        results = imis_core.search_erp_baseline(clean_kw, min_score=40)
+        
+    cfg = imis_core.load_erp_mapping_config()
+    mapping = cfg.get("mapping", {})
+    
+    use_average = req.get("use_average", False) or selected_record == "AVERAGE"
+    summary_data = imis_core.generate_erp_summary_text(item, results, dg_trinh=dg_trinh, selected_record=selected_record, use_average=use_average)
+    return jsonify({
+        "success": True,
+        "results": results,
+        "mapping": mapping,
+        "summary": summary_data,
+        "summary_text": summary_data.get("summary_text", "")
+    })
+
+
 @app.route("/api/quotes/browse-folders", methods=["GET", "POST"])
 def api_quotes_browse_folders():
     """Duyệt danh sách thư mục con để hiển thị cây thư mục trên UI."""
@@ -727,14 +857,17 @@ def api_msc_status():
 
 
 @app.route("/api/msc/search", methods=["POST"])
+@app.route("/api/msc/search-item", methods=["POST"])
 def api_msc_search():
     """Tra cứu đơn giá trúng thầu Mua Sắm Công cho 1 mục và tự động lưu vết chứng cứ."""
     req = request.get_json() or {}
     keyword = req.get("keyword", "").strip()
     item = req.get("item", {})
     save_evidence = req.get("save_evidence", True)
+    page_num = int(req.get("page_number") or req.get("page_num") or 0)
+    page_sz = int(req.get("page_size") or req.get("page_sz") or 20)
     
-    res = msc_matcher.search_muasamcong(keyword)
+    res = msc_matcher.search_muasamcong(keyword, page_number=page_num, page_size=page_sz)
     if not res.get("success"):
         return jsonify(res)
         
@@ -838,9 +971,24 @@ def api_search_sources():
     kw = req.get("keyword", "").strip()
     tu_ngay = req.get("tu_ngay", "2023-01-01")
     den_ngay = req.get("den_ngay")
+    ma_vt = req.get("ma_vt", "")
+    item = req.get("item", kw)
+    dg_trinh = float(req.get("dg_trinh") or 0)
+    selected_record = req.get("selected_record")
+    use_average = req.get("use_average", False)
+
     if not kw:
-        return jsonify({"imis": [], "erp": []})
-    result = imis_core.search_item_sources(kw, tu_ngay=tu_ngay, den_ngay=den_ngay)
+        return jsonify({"imis": [], "erp": [], "summary": None, "summary_text": ""})
+
+    result = imis_core.search_item_sources(kw, tu_ngay=tu_ngay, den_ngay=den_ngay, ma_vt=ma_vt)
+    imis_recs = result.get("imis", [])
+    
+    used_kw = result.get("used_keyword") or kw
+    summary_data = imis_core.generate_imis_summary_text(
+        item, imis_recs, dg_trinh=dg_trinh, selected_record=selected_record, use_average=use_average, tu_ngay=tu_ngay, den_ngay=den_ngay, search_keyword=used_kw
+    )
+    result["summary"] = summary_data
+    result["summary_text"] = summary_data.get("summary_text", "")
     return jsonify(result)
 
 

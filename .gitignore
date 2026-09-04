@@ -9,6 +9,9 @@ config/msc_session.json
 config/msc_cookies.json
 config/*.token
 config/*.session
+data/config/*.json
+data/config/*.xlsx
+data/config/*.token
 **/curl_command*.txt
 **/curl_*.json
 
