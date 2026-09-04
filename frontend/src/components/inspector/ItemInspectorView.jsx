@@ -1804,29 +1804,21 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
   const defaultKw = candidates[0]?.keyword || extractCleanImisKeyword(item?.ten_vt) || item?.ten_vt || '';
 
   const [searchKey, setSearchKey] = useState(defaultKw);
-  const [urlItems, setUrlItems] = useState(data?.items || [
-    {
-      id: 1,
-      title: item?.ten_vt || 'Sản phẩm tham khảo',
-      vendor: 'Misumi Việt Nam / Sieuthithietbi',
-      url: 'https://vn.misumi-ec.com/',
-      price: dgTrinh > 0 ? Math.round(dgTrinh * 0.95) : 0,
-      date: new Date().toLocaleDateString('vi-VN'),
-      notes: 'Giá niêm yết chưa bao gồm VAT 8%'
-    }
-  ]);
+  const [urlItems, setUrlItems] = useState(data?.items || []);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useEffect(() => {
     setSearchKey(defaultKw);
-  }, [item?.id]);
+    setUrlItems(data?.items || []);
+    setSelectedIdx(0);
+  }, [data, item?.id]);
 
   // Form input state for adding URL evidence
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle]   = useState(item?.ten_vt || '');
   const [newVendor, setNewVendor] = useState('');
   const [newUrl, setNewUrl]       = useState('');
-  const [newPrice, setNewPrice]   = useState(dgTrinh > 0 ? String(Math.round(dgTrinh)) : '');
+  const [newPrice, setNewPrice]   = useState('');
   const [newNotes, setNewNotes]   = useState('');
 
   // Quick preset vendors
@@ -1848,6 +1840,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
     const pVal = parseFloat(newPrice) || 0;
     const newItemObj = {
       id: Date.now(),
+      search_keyword: searchKey,
       title: newTitle || item?.ten_vt || 'Mục tham khảo',
       vendor: newVendor || 'Website Thương mại điện tử',
       url: newUrl.startsWith('http') ? newUrl : (newUrl ? `https://${newUrl}` : '#'),
@@ -1887,7 +1880,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
       summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
     }
   } else {
-    summaryText = `Đã tra cứu từ khóa [${searchKey}] nhưng chưa ghi nhận đường link giá Thương mại điện tử tham chiếu cho vật tư này.`;
+    summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Thương mại điện tử (eBay, Misumi, Google Web) nhưng chưa ghi nhận/nạp đường link giá TMĐT tham chiếu thực tế cho vật tư này.`;
   }
 
   const copyToClipboard = () => {
@@ -1901,7 +1894,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
     <div className="space-y-4">
       <PillarHeader icon={ShoppingBag} color="cyan" title="KHỐI 5: THƯƠNG MẠI ĐIỆN TỬ & GIÁ THỊ TRƯỜNG INTERNET (LINK URL)" loading={loading} />
 
-      {/* Thanh Nhập Từ Khóa Tra Cứu TMĐT & Tích Hợp eBay / Google */}
+      {/* Thanh Nhập Từ Khóa Tra Cứu TMĐT & Tích Hợp eBay / Misumi / Google */}
       <div className="bg-cyan-50/70 p-3 rounded-xl border border-cyan-200 space-y-2.5">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1">
@@ -1919,9 +1912,18 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
               window.open(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchKey)}`, '_blank');
             }}
             className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0"
-            title="Mở trang kết quả tìm kiếm trên eBay.com theo từ khóa"
+            title="Mở trang kết quả tìm kiếm thực tế trên eBay.com theo từ khóa"
           >
             🛒 Tìm Giá trên eBay.com ↗
+          </button>
+          <button
+            onClick={() => {
+              window.open(`https://vn.misumi-ec.com/vona2/result/?Keyword=${encodeURIComponent(searchKey)}`, '_blank');
+            }}
+            className="px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0"
+            title="Mở trang kết quả tìm kiếm thực tế trên Misumi Việt Nam"
+          >
+            🔎 Tìm Giá Misumi ↗
           </button>
           <button
             onClick={() => {
@@ -2159,7 +2161,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved }) {
           </table>
         </div>
       ) : (
-        <EmptyState text="Chưa có đường link chứng cứ giá TMĐT nào. Hãy bấm 'Thêm URL Chứng Cứ Mới' để bổ sung." />
+        <EmptyState text="Chưa có đường link chứng cứ giá TMĐT nào cho từ khóa này. Hãy bấm '🛒 Tìm Giá trên eBay.com', '🔎 Tìm Giá Misumi' hoặc '🌐 Tìm Google Web' để mở trang tra cứu thực tế và nạp chứng cứ giá thực bằng nút '+ Thêm URL Chứng Cứ Mới'." />
       )}
 
       <SaveFooter
