@@ -447,7 +447,11 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarErp
                 loading={loading.erp} saving={saving}
                 data={erpResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={() => saveStep('erp', { results: erpResults?.results || [], keyword: currentItem.ten_vt }, 'imis')}
+                onSave={(payload) => saveStep('erp', payload || { results: erpResults?.results || [], keyword: currentItem.ten_vt }, 'imis')}
+                onAutoSave={(payload) => {
+                  setErpResults(payload);
+                  autoSaveStep('erp', payload);
+                }}
                 saved={evSt.has_erp}
                 onOpenErpConfig={onOpenErpConfig}
               />
@@ -457,7 +461,11 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarImis
                 loading={loading.imis} saving={saving}
                 data={imisResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={() => saveStep('imis', { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt }, 'msc')}
+                onSave={(payload) => saveStep('imis', payload || { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt }, 'msc')}
+                onAutoSave={(payload) => {
+                  setImisResults(payload);
+                  autoSaveStep('imis', payload);
+                }}
                 saved={evSt.has_imis}
                 onOpenImisConfig={onOpenImisConfig}
                 imisStatus={imisStatus}
@@ -468,7 +476,11 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarMsc
                 loading={loading.msc} saving={saving}
                 data={mscResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={() => saveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt }, 'ecom')}
+                onSave={(payload) => saveStep('muasamcong', payload || { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt }, 'ecom')}
+                onAutoSave={(payload) => {
+                  setMscResults(payload);
+                  autoSaveStep('muasamcong', payload);
+                }}
                 saved={evSt.has_msc}
                 onOpenMscConfig={onOpenMscConfig}
                 mscStatus={mscStatus}
@@ -616,12 +628,12 @@ function PillarQuotes({ loading, saving, minQuote, supplierMatches, dgTrinh, onO
 }
 
 // ── Pillar 2: ERP ─────────────────────────────────────────────────────────────
-function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpenErpConfig }) {
+function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenErpConfig }) {
   const toast = useToast();
   const [erpResults, setErpResults] = useState(data?.results || []);
   const [mapping, setMapping] = useState(data?.mapping || {});
   const [summaryData, setSummaryData] = useState(data?.summary || {});
-  const [searchKey, setSearchKey] = useState(item?.ten_vt || item?.ma_vt || '');
+  const [searchKey, setSearchKey] = useState(data?.used_keyword || data?.keyword || item?.ten_vt || item?.ma_vt || '');
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [searching, setSearching] = useState(false);
 
@@ -629,7 +641,7 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
     setErpResults(data?.results || []);
     setMapping(data?.mapping || {});
     setSummaryData(data?.summary || {});
-    setSearchKey(item?.ten_vt || item?.ma_vt || '');
+    setSearchKey(data?.used_keyword || data?.keyword || item?.ten_vt || item?.ma_vt || '');
     setSelectedIdx(0);
   }, [data, item]);
 
@@ -638,14 +650,15 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
   const isWarning = status === 'ERP_WARN_RECENT_INCREASE';
 
   const handleManualSearch = async () => {
-    if (!searchKey.trim()) return;
+    const cleanKw = searchKey.trim();
+    if (!cleanKw) return;
     setSearching(true);
     try {
       const res = await fetch('/api/erp/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword: searchKey.trim(),
+          keyword: cleanKw,
           ma_vt: item?.ma_vt || '',
           item,
           dg_trinh: dgTrinh,
@@ -653,11 +666,24 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         })
       });
       const resp = await res.json();
-      setErpResults(resp.results || []);
+      const resList = resp.results || [];
+      const sumData = resp.summary || {};
+      setErpResults(resList);
       setMapping(resp.mapping || {});
-      setSummaryData(resp.summary || {});
+      setSummaryData(sumData);
       setSelectedIdx(0);
-      toast.success(`Đã tìm thấy ${resp.results?.length || 0} kết quả ERP cho từ khóa [${searchKey.trim()}]`);
+      toast.success(`Đã tìm thấy ${resList.length} kết quả ERP cho từ khóa [${cleanKw}]`);
+      if (onAutoSave) {
+        onAutoSave({
+          results: resList,
+          mapping: resp.mapping || {},
+          summary: sumData,
+          summary_text: sumData?.summary_text || resp.summary_text || '',
+          keyword: cleanKw,
+          used_keyword: cleanKw,
+          selected_record: resList[0] || null
+        });
+      }
     } catch (e) {
       toast.error('Lỗi tìm kiếm ERP thủ công');
     } finally {
@@ -681,8 +707,20 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         })
       });
       const resp = await res.json();
-      setSummaryData(resp.summary || {});
+      const sumData = resp.summary || {};
+      setSummaryData(sumData);
       toast.success(`Đã chọn hợp đồng ${rec.soHopDong || 'ERP'} làm căn cứ thuyết minh!`);
+      if (onAutoSave) {
+        onAutoSave({
+          results: erpResults,
+          mapping: mapping,
+          summary: sumData,
+          summary_text: sumData?.summary_text || summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: rec
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -702,8 +740,21 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         })
       });
       const resp = await res.json();
-      setSummaryData(resp.summary || {});
-      toast.success(`Đã chọn phương án Đơn Giá Trung Bình (${resp.summary?.count_n || erpResults.length} đợt) làm căn cứ thuyết minh!`);
+      const sumData = resp.summary || {};
+      setSummaryData(sumData);
+      toast.success(`Đã chọn phương án Đơn Giá Trung Bình (${sumData?.count_n || erpResults.length} đợt) làm căn cứ thuyết minh!`);
+      if (onAutoSave) {
+        onAutoSave({
+          results: erpResults,
+          mapping: mapping,
+          summary: sumData,
+          summary_text: sumData?.summary_text || summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: null,
+          use_average: true
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -908,18 +959,32 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
       ) : (
         <EmptyState text="Không tìm thấy kết quả lịch sử ERP phù hợp (hoặc có tỷ lệ match cao). Hãy thử nhập từ khóa khác ở thanh tra cứu thủ công." />
       )}
-      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ results: erpResults, selected_record: erpResults[selectedIdx] })} nextLabel="Cơ sở 3 (IMIS)" prevLabel="Cơ sở 1 (BG)" />
+      <SaveFooter
+        saving={saving}
+        saved={saved}
+        onSave={() => onSave({
+          results: erpResults,
+          mapping: mapping,
+          summary: summaryData,
+          summary_text: summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: erpResults[selectedIdx]
+        })}
+        nextLabel="Cơ sở 3 (IMIS)"
+        prevLabel="Cơ sở 1 (BG)"
+      />
     </div>
   );
 }
 
 // ── Pillar 3: IMIS ────────────────────────────────────────────────────────────
-function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpenImisConfig, imisStatus }) {
+function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenImisConfig, imisStatus }) {
   const toast = useToast();
   const [imisResults, setImisResults] = useState(data?.imis || []);
   const [summaryData, setSummaryData] = useState(data?.summary || {});
   
-  const initialCleanKw = data?.used_keyword || getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
+  const initialCleanKw = data?.used_keyword || data?.keyword || getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
   const [searchKey, setSearchKey] = useState(initialCleanKw);
   const [tuNgay, setTuNgay] = useState('2023-01-01');
   const [denNgay, setDenNgay] = useState(new Date().toISOString().split('T')[0]);
@@ -935,7 +1000,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
     setImisResults(data?.imis || []);
     setSummaryData(data?.summary || {});
     const defaultKw = getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
-    setSearchKey(data?.used_keyword || defaultKw);
+    setSearchKey(data?.used_keyword || data?.keyword || defaultKw);
     setSelectedIdx(0);
     setFilterKw('');
     setFilterUnit('');
@@ -949,7 +1014,8 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
     : generateKeywordCandidates(item?.ten_vt || '');
 
   const triggerSearchWithKw = async (targetKw, customTu, customDen) => {
-    if (!targetKw.trim()) return;
+    const cleanKw = (targetKw || '').trim();
+    if (!cleanKw) return;
     const startD = customTu || tuNgay;
     const endD = customDen || denNgay;
     setSearching(true);
@@ -958,7 +1024,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword: targetKw.trim(),
+          keyword: cleanKw,
           ma_vt: item?.ma_vt || '',
           item,
           dg_trinh: dgTrinh,
@@ -967,13 +1033,26 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
         })
       });
       const resp = await res.json();
-      setImisResults(resp.imis || []);
-      setSummaryData(resp.summary || {});
+      const imisList = resp.imis || [];
+      const sumData = resp.summary || {};
+      setImisResults(imisList);
+      setSummaryData(sumData);
       setSelectedIdx(0);
       setFilterKw('');
       setFilterUnit('');
       setPriceFilter('ALL');
-      toast.success(`Đã tìm thấy ${resp.imis?.length || 0} kết quả IMIS cho từ khóa [${targetKw.trim()}] (${startD} -> ${endD})`);
+      toast.success(`Đã tìm thấy ${imisList.length} kết quả IMIS cho từ khóa [${cleanKw}] (${startD} -> ${endD})`);
+      if (onAutoSave) {
+        onAutoSave({
+          imis: imisList,
+          erp: resp.erp || [],
+          summary: sumData,
+          summary_text: sumData?.summary_text || resp.summary_text || '',
+          keyword: cleanKw,
+          used_keyword: cleanKw,
+          selected_record: imisList[0] || null
+        });
+      }
     } catch (e) {
       toast.error('Lỗi tìm kiếm IMIS thủ công');
     } finally {
@@ -1005,8 +1084,19 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
         })
       });
       const resp = await res.json();
-      setSummaryData(resp.summary || {});
+      const sumData = resp.summary || {};
+      setSummaryData(sumData);
       toast.success(`Đã chọn hợp đồng ${rec.so_hop_dong || rec.so_hd || 'IMIS'} làm căn cứ thuyết minh!`);
+      if (onAutoSave) {
+        onAutoSave({
+          imis: imisResults,
+          summary: sumData,
+          summary_text: sumData?.summary_text || summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: rec
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -1028,8 +1118,20 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
         })
       });
       const resp = await res.json();
-      setSummaryData(resp.summary || {});
-      toast.success(`Đã chọn phương án Đơn Giá Trung Bình EVN (${resp.summary?.count_n || imisResults.length} đợt) làm căn cứ thuyết minh!`);
+      const sumData = resp.summary || {};
+      setSummaryData(sumData);
+      toast.success(`Đã chọn phương án Đơn Giá Trung Bình EVN (${sumData?.count_n || imisResults.length} đợt) làm căn cứ thuyết minh!`);
+      if (onAutoSave) {
+        onAutoSave({
+          imis: imisResults,
+          summary: sumData,
+          summary_text: sumData?.summary_text || summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: null,
+          use_average: true
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -1422,17 +1524,30 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
       ) : (
         <EmptyState text="Nhấn vào tab IMIS để tra cứu toàn ngành EVN..." />
       )}
-      <SaveFooter saving={saving} saved={saved} onSave={() => onSave({ imis: imisResults, selected_record: imisResults[selectedIdx] })} nextLabel="Cơ sở 4 (MSC)" prevLabel="Cơ sở 2 (ERP)" />
+      <SaveFooter
+        saving={saving}
+        saved={saved}
+        onSave={() => onSave({
+          imis: imisResults,
+          summary: summaryData,
+          summary_text: summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: imisResults[selectedIdx]
+        })}
+        nextLabel="Cơ sở 4 (MSC)"
+        prevLabel="Cơ sở 2 (ERP)"
+      />
     </div>
   );
 }
 
 // ── Pillar 4: MSC ─────────────────────────────────────────────────────────────
 // ── Pillar 4: MSC ─────────────────────────────────────────────────────────────
-function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpenMscConfig, mscStatus }) {
+function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenMscConfig, mscStatus }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
-  const defaultKw = data?.used_keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
+  const defaultKw = data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
@@ -1455,13 +1570,14 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
   }, [data]);
 
   useEffect(() => {
+    const defaultKw = data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
     setSearchKey(defaultKw);
     setSelectedIdx(0);
     setPageNumber(0);
     setFilterKw('');
     setFilterOrigin('');
     setPriceFilter('ALL');
-  }, [item?.id]);
+  }, [data, item?.id]);
 
   const triggerSearch = async (kw, pNum = 0, pSz = pageSize) => {
     const targetKw = (kw || searchKey || '').trim();
@@ -1484,6 +1600,18 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
         setPageNumber(pNum);
         setPageSize(pSz);
         toast.success(`Đã tra cứu e-GP với từ khóa [${targetKw}]`);
+        const resAnalysis = resData.analysis || resData;
+        const resItems = resAnalysis.items || resData.items || [];
+        if (onAutoSave) {
+          onAutoSave({
+            analysis: resAnalysis,
+            items: resItems,
+            keyword: targetKw,
+            used_keyword: targetKw,
+            tu_khoa_tra_cuu: targetKw,
+            selected_record: resItems[0] || null
+          });
+        }
       } else {
         toast.error(resData.message || 'Không thể tra cứu e-GP');
       }
@@ -1873,7 +2001,15 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
       <SaveFooter
         saving={saving}
         saved={saved}
-        onSave={() => onSave({ analysis, items: itemsList, selected_record: selectedRecord })}
+        onSave={() => onSave({
+          analysis,
+          items: itemsList,
+          summary_text: summaryText,
+          keyword: searchKey,
+          used_keyword: searchKey,
+          tu_khoa_tra_cuu: searchKey,
+          selected_record: selectedRecord
+        })}
         nextLabel="Cơ sở 5 (TMĐT)"
         prevLabel="Cơ sở 3 (IMIS)"
       />
