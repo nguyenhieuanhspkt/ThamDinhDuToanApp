@@ -57,6 +57,15 @@ const generateKeywordCandidates = (raw) => {
   return candidates;
 };
 
+const getDefaultImisKeyword = (raw) => {
+  if (!raw) return '';
+  const cands = generateKeywordCandidates(raw);
+  const modelCand = cands.find(c => c.tier === 2);
+  const partCand = cands.find(c => c.tier === 3);
+  const coreCand = cands.find(c => c.tier === 1);
+  return modelCand?.keyword || partCand?.keyword || coreCand?.keyword || extractCleanImisKeyword(raw);
+};
+
 const PILLAR_CFG = {
   quotes:    { key: 'quotes',    label: 'Cơ sở 1: Báo Giá Gốc',                  color: 'emerald', icon: FileCheck2,  saveKey: 'quotes'     },
   erp:       { key: 'erp',       label: 'Cơ sở 2: ERP Vĩnh Tân 4',               color: 'blue',    icon: Building2,   saveKey: 'erp'        },
@@ -76,11 +85,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
   const [evidenceStatus, setEvidenceStatus] = useState({}); // { itemId: { has_quotes, has_erp, ... } }
 
   // Per-pillar data
-  const [quoteEvidence, setQuoteEvidence]   = useState(null);
-  const [erpResults, setErpResults]         = useState(null);
-  const [imisResults, setImisResults]       = useState(null);
-  const [mscResults, setMscResults]         = useState(null);
-  const [ecomResults, setEcomResults]       = useState(null);
+  const [quoteEvidence, setQuoteEvidence]       = useState(null);
+  const [erpResults, setErpResults]             = useState(null);
+  const [imisResults, setImisResults]           = useState(null);
+  const [mscResults, setMscResults]             = useState(null);
+  const [ecomResults, setEcomResults]           = useState(null);
+  const [synthesisResults, setSynthesisResults] = useState(null);
 
   // Loading states
   const [loading, setLoading] = useState({ quotes: false, erp: false, imis: false, msc: false, ecom: false });
@@ -119,6 +129,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
         if (ev.imis) setImisResults(ev.imis);
         if (ev.muasamcong) setMscResults(ev.muasamcong);
         if (ev.ecom) setEcomResults(ev.ecom);
+        if (ev.synthesis) setSynthesisResults(ev.synthesis);
       }
     } catch (e) {
       console.error('Lỗi đọc chứng cứ đã lưu:', e);
@@ -147,6 +158,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     setImisResults(null);
     setMscResults(null);
     setEcomResults(null);
+    setSynthesisResults(null);
     setActivePillar('quotes');
     if (currentItem?.id) {
       loadSavedEvidence(currentItem.id);
@@ -479,6 +491,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
             {activePillar === 'synthesis' && (
               <PillarSynthesis
                 loading={saving} saving={saving}
+                data={synthesisResults}
                 dgTrinh={dgTrinh} item={currentItem}
                 quoteEvidence={quoteEvidence} erpResults={erpResults}
                 imisResults={imisResults} mscResults={mscResults}
@@ -906,7 +919,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
   const [imisResults, setImisResults] = useState(data?.imis || []);
   const [summaryData, setSummaryData] = useState(data?.summary || {});
   
-  const initialCleanKw = extractCleanImisKeyword(item?.ten_vt || item?.ma_vt || '');
+  const initialCleanKw = data?.used_keyword || getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
   const [searchKey, setSearchKey] = useState(initialCleanKw);
   const [tuNgay, setTuNgay] = useState('2023-01-01');
   const [denNgay, setDenNgay] = useState(new Date().toISOString().split('T')[0]);
@@ -921,8 +934,8 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
   useEffect(() => {
     setImisResults(data?.imis || []);
     setSummaryData(data?.summary || {});
-    const cleanKw = extractCleanImisKeyword(item?.ten_vt || item?.ma_vt || '');
-    setSearchKey(data?.used_keyword || cleanKw);
+    const defaultKw = getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
+    setSearchKey(data?.used_keyword || defaultKw);
     setSelectedIdx(0);
     setFilterKw('');
     setFilterUnit('');
@@ -1096,7 +1109,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
           </button>
           <button
             onClick={() => {
-              const resetKw = extractCleanImisKeyword(item?.ten_vt || item?.ma_vt || '');
+              const resetKw = getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
               setSearchKey(resetKw);
               triggerSearchWithKw(resetKw);
             }}
@@ -1419,7 +1432,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, saved, onOpe
 function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpenMscConfig, mscStatus }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
-  const defaultKw = candidates[0]?.keyword || extractCleanImisKeyword(item?.ten_vt) || item?.ten_vt || '';
+  const defaultKw = data?.used_keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
@@ -1872,7 +1885,7 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, saved, onOpen
 function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAutoSave }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
-  const defaultKw = candidates[0]?.keyword || extractCleanImisKeyword(item?.ten_vt) || item?.ten_vt || '';
+  const defaultKw = data?.keyword || data?.search_keyword || getDefaultImisKeyword(item?.ten_vt);
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [urlItems, setUrlItems] = useState(data?.items || []);
@@ -2254,7 +2267,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
 }
 
 // ── Pillar 6: Synthesis & Evaluation (5 Pillars Matrix & Scoring) ──────────────
-function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
+function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
   const toast = useToast();
 
   // Extract prices from 5 pillars (live results or saved evidence)
@@ -2314,12 +2327,16 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
   }
 
   // Selection state for final approved price
-  const [approvedPrice, setApprovedPrice] = useState(minBaseline > 0 ? minBaseline : dgTrinh);
-  const [editingText, setEditingText]     = useState('');
+  const [approvedPrice, setApprovedPrice] = useState(data?.approved_price || (minBaseline > 0 ? minBaseline : dgTrinh));
+  const [editingText, setEditingText]     = useState(data?.summary_text || '');
 
   useEffect(() => {
-    if (minBaseline > 0) setApprovedPrice(minBaseline);
-  }, [minBaseline]);
+    if (data?.approved_price) {
+      setApprovedPrice(data.approved_price);
+    } else if (minBaseline > 0) {
+      setApprovedPrice(minBaseline);
+    }
+  }, [data?.approved_price, minBaseline]);
 
   const qty = parseFloat(item?.so_luong || 1);
   const savingsPerUnit = dgTrinh - approvedPrice;
@@ -2328,6 +2345,11 @@ function PillarSynthesis({ loading, saving, dgTrinh, item, quoteEvidence, erpRes
 
   // Auto-generate aggregated justification text with full detailed justification breakdown
   useEffect(() => {
+    if (data?.summary_text) {
+      setEditingText(data.summary_text);
+      return;
+    }
+
     let text = `TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: ${item?.ten_vt || ''} (Mã ERP: ${item?.ma_vt || '—'}).\n`;
     text += `• Đơn giá trình thẩm định: ${fmt(dgTrinh)} VNĐ (Số lượng: ${qty} ${item?.dvt || 'Cái'}).\n`;
     text += `• Đánh giá Chứng cứ Thẩm định: Đạt ${coverageScore}/100 điểm (${coverageRank} - ${activeCount}/5 cơ sở chứng cứ đã nạp).\n`;

@@ -4,21 +4,20 @@
 # ======================================================
 
 # --- THÔNG TIN NHẠY CẢM (Curl, Token, Session) ---
-config/evn_imis_token.json
-config/msc_session.json
-config/msc_cookies.json
-config/*.token
-config/*.session
+config/
 data/config/*.json
 data/config/*.xlsx
 data/config/*.token
 **/curl_command*.txt
 **/curl_*.json
+**/muasamcong_session.json
 
 # --- CACHE LỚN ---
+.erp_cache.json
 config/.erp_cache.json
 data/.quotes_cache.json
 *.cache.json
+.*cache.json
 
 # --- DỮ LIỆU DỰ ÁN (data cụ thể, không đưa lên github) ---
 data/projects/*/

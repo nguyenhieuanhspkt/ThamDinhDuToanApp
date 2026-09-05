@@ -4,13 +4,13 @@
   "dossier_name": "ThamDinhDot8_lân2",
   "items": [
     {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 13559000,
+      "co_so_thong_nhat": "Báo giá thấp nhất DTL (Khối 1) & Khung giá ERP VT4 (Khối 2)",
+      "danh_gia_ttd": "Thống nhất đơn giá 13.559.000 đ theo Báo giá thấp nhất của DTL; phù hợp khung dao động lịch sử ERP Vĩnh Tân 4 (HĐ 115/2023: 6.015.000 đ - HĐ 132/2023: 17.670.000 đ).",
+      "don_gia_thong_nhat": 13559000.0,
       "don_gia_trinh": 13559000,
       "dvt": "Cái",
       "ghi_chu": "3.82.63.134.ENG.00.000 | Khắc phục tồn tại thiết bị | BBKT 23/2026/PXH-VT4. Vật tư không có trong KH SXKD 2026",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 1,
       "ma_vt": "3.82.63.134.ENG.00.000",
@@ -20,11 +20,35 @@
       "so_luong": 4,
       "ten_vt": "Module đầu vào input IUX 760 MI - Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax",
       "ten_vt_goc": "Module đầu vào input IUX 760 MI",
-      "thanh_tien_thong_nhat": 54236000,
+      "thanh_tien_thong_nhat": 54236000.0,
       "thanh_tien_trinh": 54236000,
       "thong_so_kt": "Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax",
       "thue": "0.08",
-      "tien_thue": 4338880
+      "tien_thue": 4338880,
+      "attachments": [
+        {
+          "name": "clip_20260903_142645.png",
+          "rel_path": "item_1/clip_20260903_142645.png",
+          "type": "image",
+          "size": 70,
+          "created_at": "2026-09-03 14:26:45"
+        },
+        {
+          "name": "Báo giá  DTL 19.8.2026. xlsx fn.pdf",
+          "rel_path": "item_1/Báo giá  DTL 19.8.2026. xlsx fn.pdf",
+          "type": "pdf",
+          "size": 510768,
+          "created_at": "2026-09-03 14:38:35"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://www.se.com/vn/vi/product/IUX760MI/",
+          "title": "Catalog chính hãng Schneider Foxboro IUX 760 MI",
+          "created_at": "2026-09-03 14:26:45"
+        }
+      ],
+      "ai_analysis_md": "### 🤖 BẢN PHÂN TÍCH THẨM ĐỊNH GIÁ (AI)\n- **Tên thiết bị**: Module input IUX 760 MI Foxboro\n- **Kết luận**: Đơn giá dự toán đề nghị 13.559.000 đ là có thể chấp nhận được do tính chất đặc thù thay thế tủ DCS.\n\n> 👉 **Khuyến nghị thẩm định**: Thống nhất mức giá 13.559.000 đ theo đề xuất."
     },
     {
       "co_so_thong_nhat": "",
