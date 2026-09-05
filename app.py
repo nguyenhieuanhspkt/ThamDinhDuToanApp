@@ -14,6 +14,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 import imis_core
 import quote_matcher
 import msc_matcher
+import ai_synthesis
 
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.config['JSON_AS_ASCII'] = False
@@ -961,6 +962,120 @@ def api_get_item_evidence(item_id=None):
             evidence[s] = None
             
     return jsonify({"success": True, "evidence": evidence})
+
+
+@app.route("/api/items/<int:item_id>/run-ai-synthesis", methods=["POST"])
+def api_run_ai_synthesis(item_id):
+    """Trực tiếp gọi Lõi Dịch Vụ ai_synthesis để sinh Thuyết minh Chuyên gia Độc lập cho một mục vật tư."""
+    try:
+        dossier = load_dossier_data()
+        items = dossier.get("items", [])
+        item = next((i for i in items if i.get("id") == item_id), None)
+        if not item:
+            return jsonify({"success": False, "error": f"Không tìm thấy item_id={item_id}"}), 404
+
+        p_dir = get_project_files_dir()
+        item_dir = os.path.join(p_dir, f"item_{item_id}")
+        os.makedirs(item_dir, exist_ok=True)
+
+        # 1. Đọc dữ liệu chứng cứ thô từ các Khối
+        q_file = os.path.join(item_dir, "chung_cu_quotes.json")
+        erp_file = os.path.join(item_dir, "chung_cu_erp.json")
+        imis_file = os.path.join(item_dir, "chung_cu_imis.json")
+        msc_file = os.path.join(item_dir, "chung_cu_muasamcong.json")
+        ecom_file = os.path.join(item_dir, "chung_cu_ecom.json")
+
+        p1_price, p2_price, p3_price, p4_price = 0, 0, 0, 0
+        p1_desc, p2_desc, p3_desc, p4_desc, p5_desc = "", "", "", "", ""
+
+        if os.path.exists(q_file):
+            try:
+                with open(q_file, "r", encoding="utf-8") as f:
+                    qd = json.load(f)
+                    p1_price = float(qd.get("min_price") or 0)
+                    p1_supplier = qd.get("matched_supplier", {}).get("company", "Nhà thầu chào")
+                    p1_desc = f"Đã đối chiếu các báo giá thương mại; đơn giá chào thấp nhất là {p1_price:,.0f} đ từ {p1_supplier}.".replace(",", ".")
+            except Exception: pass
+
+        if os.path.exists(erp_file):
+            try:
+                with open(erp_file, "r", encoding="utf-8") as f:
+                    ed = json.load(f)
+                    recs = ed.get("results") or ed.get("hop_dong") or []
+                    if recs: p2_price = float(recs[0].get("donGia") or recs[0].get("don_gia") or 0)
+                    p2_desc = ed.get("summary_text", "")
+            except Exception: pass
+
+        if os.path.exists(imis_file):
+            try:
+                with open(imis_file, "r", encoding="utf-8") as f:
+                    imd = json.load(f)
+                    res_list = imd.get("imis", [])
+                    if res_list: p3_price = float(res_list[0].get("don_gia") or 0)
+                    p3_desc = imd.get("summary_text", "")
+            except Exception: pass
+
+        if os.path.exists(msc_file):
+            try:
+                with open(msc_file, "r", encoding="utf-8") as f:
+                    mscd = json.load(f)
+                    p4_price = float(mscd.get("don_gia_tham_chieu") or 0)
+                    p4_desc = mscd.get("summary_text", "")
+            except Exception: pass
+
+        if os.path.exists(ecom_file):
+            try:
+                with open(ecom_file, "r", encoding="utf-8") as f:
+                    ecd = json.load(f)
+                    p5_desc = ecd.get("summary_text", "")
+            except Exception: pass
+
+        pillars_dict = {
+            "p1_price": p1_price, "p2_price": p2_price, "p3_price": p3_price, "p4_price": p4_price,
+            "p1_desc": p1_desc, "p2_desc": p2_desc, "p3_desc": p3_desc, "p4_desc": p4_desc, "p5_desc": p5_desc
+        }
+
+        # 2. Gọi trực tiếp Lõi Nghiệp vụ ai_synthesis
+        sme_result = ai_synthesis.generate_ai_synthesis(item, pillars_dict)
+
+        approved_price = sme_result["suggested_price"]
+        savings = sme_result["estimated_savings"]
+        price_score = sme_result["price_score"]
+        synthesis_text = sme_result["summary_text"]
+        risk_flag = sme_result["risk_flag"]
+
+        p6_payload = {
+            "item_id": item_id,
+            "approved_price": approved_price,
+            "total_savings": savings,
+            "coverage_score": 100,
+            "price_score": price_score,
+            "risk_flag": risk_flag,
+            "used_ai": sme_result["used_ai"],
+            "summary_text": synthesis_text,
+            "pillars": {
+                "p1": {"name": "Cơ sở 1: Báo Giá Gốc", "price": p1_price, "has": p1_price > 0},
+                "p2": {"name": "Cơ sở 2: ERP Vĩnh Tân 4", "price": p2_price, "has": p2_price > 0},
+                "p3": {"name": "Cơ sở 3: EVN IMIS", "price": p3_price, "has": p3_price > 0},
+                "p4": {"name": "Cơ sở 4: Mua Sắm Công e-GP", "price": p4_price, "has": p4_price > 0},
+                "p5": {"name": "Cơ sở 5: Thương Mại Điện Tử", "price": 0, "has": True}
+            },
+            "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # 3. Lưu chứng cứ synthesis
+        with open(os.path.join(item_dir, "chung_cu_synthesis.json"), "w", encoding="utf-8") as f:
+            json.dump(p6_payload, f, ensure_ascii=False, indent=2)
+
+        item["don_gia_thong_nhat"] = approved_price
+        item["gia_tri_giam"] = savings
+        item["danh_gia_ttd"] = synthesis_text
+        save_dossier_data(dossier)
+
+        return jsonify({"success": True, "synthesis": p6_payload})
+    except Exception as e:
+        print(f"Lỗi chạy AI synthesis cho item {item_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/evidence/status/<int:item_id>", methods=["GET"])

@@ -13,6 +13,14 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "config", "ai_config.json")
 ONEDRIVE_CACHE_CONFIG = r"D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache\config\ai_config.json"

@@ -2329,6 +2329,31 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
   // Selection state for final approved price
   const [approvedPrice, setApprovedPrice] = useState(data?.approved_price || (minBaseline > 0 ? minBaseline : dgTrinh));
   const [editingText, setEditingText]     = useState(data?.summary_text || '');
+  const [runningAi, setRunningAi]         = useState(false);
+
+  const handleRunAiSynthesis = async () => {
+    if (!item?.id) return;
+    setRunningAi(true);
+    try {
+      const res = await fetch(`/api/items/${item.id}/run-ai-synthesis`, { method: 'POST' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.synthesis) {
+          const syn = json.synthesis;
+          if (syn.summary_text) setEditingText(syn.summary_text);
+          if (syn.approved_price) setApprovedPrice(syn.approved_price);
+          toast.success('✨ AI Chuyên Gia đã sinh Thuyết minh Độc lập & Đánh giá rủi ro thành công!');
+        }
+      } else {
+        toast.error('Lỗi kết nối API AI Synthesis!');
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Không thể kết nối đến máy chủ AI!');
+    } finally {
+      setRunningAi(false);
+    }
+  };
 
   useEffect(() => {
     if (data?.approved_price) {
@@ -2865,6 +2890,20 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
             <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (BIÊN SOẠN TỰ ĐỘNG 5 CƠ SỞ)
           </h5>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleRunAiSynthesis}
+              disabled={runningAi}
+              className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white text-[11px] px-3 py-1 rounded-md font-bold flex items-center gap-1.5 shadow-2xs transition"
+            >
+              {runningAi ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-200" />
+                  <span>Đang chạy AI Chuyên gia...</span>
+                </>
+              ) : (
+                <span>🤖 Chạy AI Chuyên Gia (1-Click)</span>
+              )}
+            </button>
             <button
               onClick={copyToClipboard}
               className="bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
