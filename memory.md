@@ -1,168 +1,147 @@
-# 🧠 MEMORY.MD — ThamDinhDuToanApp
-> Cập nhật: 2026-09-03 16:52 | Tác giả: Nguyễn Anh Hiếu (hieuna)
+﻿# 🧠 MEMORY.MD — ThamDinhDuToanApp
+> **Cập nhật ngày:** 2026-09-05 08:15 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
+> **Repository GitHub:** `https://github.com/nguyenhieuanhspkt/ThamDinhDuToanApp.git`  
+> **Thư mục dự án khuyến nghị:** `D:\TaskApp_kiet\thamdinhdutoanApp`  
+> **Thư mục Backup Cache/Dữ liệu ngoài Git:** `F:\ThamDinhDuToanAppCache`
 
 ---
 
-## 1. MÔ TẢ DỰ ÁN
+## 1. TỔNG QUAN & KIẾN TRÚC ỨNG DỤNG
 
-**ThamDinhDuToanApp** là ứng dụng web nội bộ hỗ trợ **Tổ Thẩm định Dự toán – NMNĐ Vĩnh Tân 4** đối chiếu, kiểm tra và ra kết luận thẩm định đơn giá vật tư thiết bị trong dự toán.
+**ThamDinhDuToanApp** là ứng dụng thẩm định dự toán chuyên sâu phục vụ **Tổ Thẩm định Dự toán – NMNĐ Vĩnh Tân 4**, thực hiện đối chiếu đa tầng 5 cơ sở giá thị trường và sinh báo cáo kết luận thẩm định chính xác, minh bạch.
 
-- **Framework**: Flask (Python)
-- **Frontend**: Tailwind CSS + Lucide icons + vanilla JS
-- **Port mặc định**: `5555` (`python app.py` hoặc chạy `run.bat`)
-- **URL local**: `http://localhost:5555`
+### Cấu trúc công nghệ kép (Dual Architecture):
+- **Backend API**: Python Flask (Port `5555`), các lõi kỹ thuật: `imis_core.py`, `quote_matcher.py`, `msc_matcher.py`, `app.py`.
+- **Frontend UI**: React 19 + Vite + TailwindCSS v4 + Lucide Icons (Port `5173`), thư mục `frontend/`.
+- **Khởi động nhanh**: Nhấp đúp `run.bat` (tự động bật Flask 5555, Vite 5173 và mở trình duyệt `http://localhost:5173`).
+- **Kịch bản tự động hóa (CLI Pipeline)**: `pipeline_runner.py` (chạy thẩm định tự động từ Khối 1 đến Khối 6 bằng terminal mà không cần bấm tay trên web).
 
 ---
 
-## 2. CẤU TRÚC THƯ MỤC
+## 2. QUY TRÌNH THẨM ĐỊNH 6 CƠ SỞ (6 PILLARS)
+
+| Cơ sở | Tên gọi | Nguồn dữ liệu & Cơ chế | File chứng cứ lưu |
+| :--- | :--- | :--- | :--- |
+| **Cơ sở 1** | **Báo Giá Gốc (PDF)** | Quét các file PDF báo giá trong thư mục `Các Báo giá gửi Thẩm định/`, tự động bóc tách bằng `pdfplumber`, lọc đơn giá thấp nhất (`min_price`), kiểm tra chống nhầm họ hàng hóa (Product Families). | `chung_cu_quotes.json` |
+| **Cơ sở 2** | **CSDL ERP Vĩnh Tân 4** | Tra cứu vào CSDL Kế toán nội bộ nhà máy (file `ERP.xlsx` & cache 14.5MB `.erp_cache.json`). Đánh giá hợp đồng trong/ngoài 12 tháng, biên độ giá lịch sử, hoặc tính giá trung bình (AVG). | `chung_cu_erp.json` |
+| **Cơ sở 3** | **Hệ thống EVN IMIS** | Tra cứu Live API Hợp đồng toàn ngành EVN (2023-2026). **Mặc định sử dụng từ khóa Tier Model rút gọn**. | `chung_cu_imis.json` |
+| **Cơ sở 4** | **Mua Sắm Công e-GP** | Tra cứu Cổng Mạng Đấu thầu Quốc gia qua session cURL. **Mặc định sử dụng từ khóa Tier Model rút gọn**. | `chung_cu_muasamcong.json` |
+| **Cơ sở 5** | **TMĐT & Giá Web** | Tra cứu các sàn TMĐT quốc tế/trong nước (eBay, Google Shopping, Misumi). **Mặc định sử dụng từ khóa Tier Model rút gọn**. | `chung_cu_ecom.json` |
+| **Cơ sở 6** | **Tổng Hợp & Chốt Mức Giá** | Thu thập 5 cơ sở, tính **Điểm Phủ Chứng Cứ (Coverage 0-100)** & **Điểm Hợp Lý Giá (Price Score 0-100)**; sinh **Bản Thuyết Minh Hoàn Chỉnh**; đề xuất mức giá phê duyệt thống nhất; hỗ trợ **Xuất file Word (.docx) & In PDF**. | `chung_cu_synthesis.json` |
+
+---
+
+## 3. CÁC NÂNG CẤP QUAN TRỌNG ĐÃ HOÀN THÀNH (05/09/2026)
+
+1. **Chuẩn hóa Từ khóa Tier Model (Mã Model / Thiết bị)**:
+   - Thay vì dùng tên dài kèm thông số lằng nhằng khiến việc tìm kiếm ở IMIS, MSC, TMĐT bị 0 kết quả hoặc sai lệch, hệ thống đã trích xuất bộ từ khóa 4 cấp độ và **mặc định ưu tiên chọn Tier Model** (ví dụ: `IUX 760 MI`) cho toàn bộ các khối phía sau IMIS (Khối 3, Khối 4, Khối 5).
+   - Đã đồng bộ cả trong script Python `pipeline_runner.py` và giao diện React `ItemInspectorView.jsx`.
+
+2. **Tự động hóa hoàn chỉnh Pipeline Runner (`pipeline_runner.py`)**:
+   - Cho phép chạy tự động từ Khối 1 &rarr; Khối 6 chỉ với 1 dòng lệnh:  
+     `python pipeline_runner.py 1` (cho STT 1) hoặc `python pipeline_runner.py <item_id>`
+   - Tự động sinh file chứng cứ `chung_cu_*.json` cho từng cơ sở.
+   - Tự động cập nhật `don_gia_thong_nhat`, `co_so_thong_nhat`, `danh_gia_ttd` vào `current_dossier.json` và file dự án `data/projects/ThamDinhDot8_lân2.json`.
+
+3. **Cơ chế Khôi phục Thuyết minh đã lưu (Auto-Restore Synthesis)**:
+   - Nâng cấp `ItemInspectorView.jsx`: Khi mở lại ứng dụng web, hệ thống tự động đọc file `chung_cu_synthesis.json` đã lưu và khôi phục nguyên vẹn nội dung thuyết minh chi tiết của Cơ sở 6 vào ô soạn thảo, hiển thị đầy đủ 5/5 badge xanh trên sidebar.
+
+4. **Kết quả Thẩm định mẫu STT 1**:
+   - Vật tư: `Module đầu vào input IUX 760 MI` (Mã ERP: `3.82.63.134.ENG.00.000`).
+   - Đơn giá trình: **13.559.000 đ** | Đơn giá thống nhất duyệt: **13.559.000 đ**.
+   - Căn cứ: Báo giá thấp nhất DTL (Khối 1: 13.559.000 đ) và nằm trong khung dao động ERP lịch sử Nhà máy (Khối 2: HĐ 115/2023 giá 6.015.000 đ đến HĐ 132/2023 giá 17.670.000 đ, thấp hơn -23.3% so với HĐ 132/2023).
+   - Điểm số: 100/100 điểm Hạng A (5/5 cơ sở đã nạp).
+
+---
+
+## 4. HƯỚNG DẪN BÀN GIAO & CHẠY TIẾP TRÊN MÁY KHÁC (HOME / OFFICE PC)
+
+Do tính bảo mật dữ liệu nội bộ EVN và dung lượng file CSDL lớn, cấu hình `.gitignore` đã loại trừ thư mục `data/projects/`, `config/` và file `.erp_cache.json`. Để chuyển sang máy khác làm việc tiếp:
+
+### Bước 1: Lấy mã nguồn mới nhất từ GitHub
+```bash
+git clone https://github.com/nguyenhieuanhspkt/ThamDinhDuToanApp.git
+# Hoặc nếu đã có sẵn repo:
+git pull origin master
+```
+
+### Bước 2: Cài đặt thư viện (nếu máy mới chưa có)
+```bash
+# Thư viện Python:
+pip install flask-cors pdfplumber openpyxl requests
+
+# Thư viện Frontend React:
+cd frontend
+npm install
+cd ..
+```
+
+### Bước 3: Khôi phục Dữ liệu & Cache từ `F:\ThamDinhDuToanAppCache`
+Chép toàn bộ nội dung từ thư mục backup `F:\ThamDinhDuToanAppCache` vào thư mục dự án trên máy mới:
+- `ERP.xlsx` &rarr; Chép vào thư mục gốc dự án.
+- `.erp_cache.json` &rarr; Chép vào thư mục gốc dự án và thư mục `config/.erp_cache.json`.
+- `config/` &rarr; Chép vào thư mục `config/` của dự án (chứa session Mua Sắm Công).
+- `data/` &rarr; Chép đè vào thư mục `data/` của dự án (chứa toàn bộ `projects/`, hồ sơ đợt 8 lần 2, các chứng cứ `item_1`).
+
+### Bước 4: Khởi động và làm tiếp
+- **Chạy giao diện Web**: Nhấp đúp `run.bat`.
+- **Chạy tự động hóa từng mục**:
+  ```bash
+  # Chạy thẩm định cho STT 1:
+  python pipeline_runner.py 1
+  # Chạy thẩm định cho STT 2:
+  python pipeline_runner.py 2
+  ```
+
+---
+
+## 5. CẤU TRÚC THƯ MỤC CHUẨN HIỆN TẠI
 
 ```
 ThamDinhDuToanApp/
-├── app.py                    # Flask app chính, toàn bộ API routes
-├── quote_matcher.py          # Engine đối chiếu báo giá (quan trọng!)
-├── imis_core.py              # Module tra cứu EVN IMIS
-├── msc_matcher.py            # Module tra cứu Mua Sắm Công e-GP
-├── run.bat                   # Script chạy nhanh
-├── templates/
-│   └── index.html            # Toàn bộ UI (~3095 dòng)
-├── config/
-│   ├── .erp_cache.json       # Cache ERP (không git - file lớn)
-│   ├── evn_imis_token.json   # Token IMIS (NHẠY CẢM - không git!)
-│   └── msc_session.json      # Session Mua Sắm Công (NHẠY CẢM - không git!)
-├── data/
-│   └── projects/             # Dữ liệu từng dự án (không git)
-│       └── <tên_dự_án>_files/
-│           ├── dossier.json                  # Danh mục vật tư
-│           ├── quote_overrides.json          # Override bóc tách PDF
-│           ├── item_<id>/
-│           │   ├── chung_cu_quotes.json      # Chứng cứ Khối 1 (Báo giá)
-│           │   ├── chung_cu_erp.json         # Chứng cứ Khối 2 (ERP)
-│           │   ├── chung_cu_imis.json        # Chứng cứ Khối 3 (IMIS)
-│           │   └── chung_cu_muasamcong.json  # Chứng cứ Khối 4 (MSC)
-│           └── Các Báo giá gửi Thẩm định/   # Thư mục chứa PDF báo giá gốc
-└── ERP.xlsx                  # File ERP (không git - 2.4MB)
+├── app.py                         # Flask Backend API (Port 5555)
+├── imis_core.py                   # Module lõi tra cứu ERP & EVN IMIS
+├── quote_matcher.py               # Module bóc tách & đối chiếu PDF báo giá
+├── msc_matcher.py                 # Module tra cứu Mua Sắm Công e-GP
+├── pipeline_runner.py             # Script tự động hóa thẩm định 6 Cơ sở
+├── run.bat                        # Script khởi động song song Flask + Vite React
+├── memory.md                      # Nhật ký kỹ thuật & hướng dẫn bàn giao
+├── ERP.xlsx                       # CSDL Kế toán ERP Vĩnh Tân 4 (2.4MB - Ngoài Git)
+├── .erp_cache.json                # Cache ERP đã parse (14.5MB - Ngoài Git)
+├── config/                        # Cấu hình Token & Session ngoài Git
+│   ├── .erp_cache.json            # Cache ERP dự phòng
+│   └── muasamcong_session.json   # Session cURL Mua Sắm Công
+├── data/                          # Thư mục dữ liệu hồ sơ
+│   ├── active_project.json        # Đang chỉ định dự án ThamDinhDot8_lân2
+│   ├── current_dossier.json       # Hồ sơ hiện tại đang làm việc (98 mục)
+│   ├── Bang_Tham_Dinh_Du_Toan.xlsx
+│   ├── Mau_Du_Toan_Tham_Dinh.xlsx
+│   └── projects/                  # Dữ liệu dự án (Ngoài Git)
+│       ├── ThamDinhDot8_lân2.json # Hồ sơ dự án
+│       └── ThamDinhDot8_lân2_files/
+│           ├── item_1/            # Các file chứng cứ đã hoàn thành của STT 1
+│           │   ├── chung_cu_quotes.json
+│           │   ├── chung_cu_erp.json
+│           │   ├── chung_cu_imis.json
+│           │   ├── chung_cu_muasamcong.json
+│           │   ├── chung_cu_ecom.json
+│           │   └── chung_cu_synthesis.json
+│           └── Các Báo giá gửi Thẩm định/ # Các file PDF báo giá gốc
+└── frontend/                      # Source code React Vite UI (Port 5173)
+    ├── package.json
+    ├── vite.config.js
+    └── src/
+        ├── App.jsx
+        └── components/
+            ├── HeaderNav.jsx
+            ├── grid/GridMatrixView.jsx
+            ├── inspector/ItemInspectorView.jsx  # Toàn bộ logic giao diện 6 Khối
+            └── modals/                         # ERP, IMIS, MSC Modals
 ```
 
 ---
 
-## 3. CÁC TÍNH NĂNG ĐÃ HOÀN THÀNH
-
-### 3.1 Màn hình Trình duyệt Chi tiết (Inspector)
-- **Lazy Loading 4 Khối**: Chỉ khởi chạy backend khi user bấm vào khối đó. Các khối chưa làm ẩn đi.
-- **Stepper Lưu & Đi Tiếp**: Mỗi khối có nút `[💾 Lưu & Đi Tiếp]`, tự động chuyển sang khối tiếp theo.
-- **Sidebar Tiến độ 4 Khối**: Mỗi thẻ mục trong sidebar hiển thị 4 badge `[1.BG] [2.ERP] [3.IMIS] [4.MSC]` với màu sắc phản ánh trạng thái (Đã lưu / Chưa làm). Hiển thị `x/4 khối`.
-
-### 3.2 Khối 1 — Báo Giá Gốc (PDF)
-- Quét tất cả PDF trong thư mục `Các Báo giá gửi Thẩm định/`.
-- Bóc tách bảng giá tự động bằng `pdfplumber`.
-- Giao diện sửa thủ công từng dòng (SL, Đơn giá, Thành tiền).
-- **Tổng tiền in trên PDF**: Ô nhập/khóa mốc chuẩn để đối chiếu (thay thế "Ban đầu bóc tách" cũ).
-- **Nút Xem PDF gốc**: View PDF trong browser qua endpoint `/api/quotes/view-pdf?path=<encoded_path>`.
-
-### 3.3 Thuật toán So khớp Báo giá (`quote_matcher.py`) — **Đã nâng cấp**
-- **Loại bỏ so khớp theo STT dòng** (bug cũ: dòng số 3 của bất kỳ báo giá = mục #3 của dự án).
-- **Phát hiện xung đột chủng loại hàng hóa** (PRODUCT_FAMILIES):
-  - `ACTUATOR`, `SOLENOID`, `GASKET`, `VALVE`, `TUBE`, `FITTING`, `MODULE`, `PUMP`...
-  - Nếu mục là `ACTUATOR` → tự động loại trừ các dòng `TUBE`, `GASKET`, `MODULE`... khỏi kết quả đối chiếu.
-- **Trích xuất mã định danh kỹ thuật** (`extract_meaningful_identifiers`):
-  - Part No. có dấu gạch ngang: `920830-113A0532`, `SS-T6-S-065-20`...
-  - Token chữ+số: `DN200`, `PN40`, `IUX760`, `TZIDC110`...
-  - Thương hiệu: `FLOWTEK`, `BRAY`, `SWAGELOK`, `PARKER`, `ABB`...
-- **Ngưỡng chấp nhận nâng lên Score ≥ 80** (cũ là 50).
-- **Loại bỏ từ phổ thông** (COMMON_STOPWORDS): `MODEL`, `TYPE`, `BAR`, `PRESSURE`, `TEST`, `BỘ`, `CÁI`...
-
-### 3.4 Khối 2 — ERP Vĩnh Tân 4
-- Tra cứu từ `ERP.xlsx` (cache vào `config/.erp_cache.json`).
-- Tìm theo mã vật tư và tên.
-
-### 3.5 Khối 3 — EVN IMIS
-- Tra cứu qua API IMIS, token lưu trong `config/evn_imis_token.json`.
-- Token được tự động refresh.
-
-### 3.6 Khối 4 — Mua Sắm Công e-GP
-- Tra cứu qua API e-GP, session lưu trong `config/msc_session.json`.
-- User dán cURL từ Chrome DevTools để cập nhật session.
-
-### 3.7 Tổng hợp 4 Khối → Kết luận TTĐ
-- Tổng hợp dữ liệu 4 khối → tự sinh văn bản kết luận thẩm định.
-- Lưu vào `dossier.json` field `danh_gia_ttd`, `don_gia_thong_nhat`, `co_so_thong_nhat`.
-
----
-
-## 4. CÁC API QUAN TRỌNG
-
-| Method | URL | Mô tả |
-|--------|-----|-------|
-| GET | `/api/evidence/all-status` | Lấy tiến độ 4 khối của toàn bộ mục |
-| GET | `/api/evidence/status/<item_id>` | Tiến độ 4 khối của 1 mục |
-| POST | `/api/evidence/save-step` | Lưu chứng cứ 1 khối (`step_type`: `quotes/erp/imis/muasamcong`) |
-| POST | `/api/quotes/match-item` | Đối chiếu báo giá cho 1 mục |
-| POST | `/api/quotes/get-full-quote` | Lấy toàn bộ bảng giá của 1 file PDF |
-| GET | `/api/quotes/view-pdf?path=<encoded>` | Xem PDF gốc trong browser |
-| POST | `/api/quotes/save-quote-edits` | Lưu chỉnh sửa bảng giá (override) |
-| POST | `/api/imis/search` | Tra cứu IMIS |
-| POST | `/api/msc/search-item` | Tra cứu Mua Sắm Công |
-| POST | `/api/msc/update-curl` | Cập nhật session MSC từ chuỗi cURL |
-
----
-
-## 5. VẤN ĐỀ ĐÃ BIẾT / CẦN LÀM TIẾP
-
-### ✅ Đã xong (hôm nay 2026-09-03)
-- [x] Lazy loading 4 khối, chỉ kích hoạt khi cần
-- [x] Nút Lưu & Đi Tiếp ở từng khối
-- [x] Sidebar mini badges 4 khối (cập nhật real-time)
-- [x] API `/api/evidence/all-status`
-- [x] Fix bug `TypeError: Cannot set properties of null (setting 'textContent')` trong openQuoteDetails
-- [x] Nâng cấp thuật toán so khớp báo giá (chống nhầm chủng loại, loại STT, dùng Part No & Brand)
-- [x] Fix lỗi URL view PDF gốc bị mất dấu `\` → `/api/quotes/view-pdf?path=<đúng>`
-- [x] Restore dữ liệu An Hiếu bị test script làm hỏng (Row 1 SL=5, ĐG=56tr, Total=6.852.250.000)
-- [x] Thiết kế header "Tổng tiền in trên PDF" thay thế "Ban đầu bóc tách"
-
-### 🔲 Chưa làm / Làm tiếp ở nhà
-- [ ] **OCR báo giá scan** (vd: Gia Lợi): App hiện chỉ đọc được PDF text-layer, chưa OCR ảnh quét. Tạm hoãn.
-- [ ] **Cải thiện bóc tách PDF đa dạng cấu trúc bảng** (một số PDF có header khác thường).
-- [ ] Thêm nhiều thương hiệu vào `PRODUCT_FAMILIES` khi gặp vật tư mới chưa phân loại được.
-- [ ] Xuất báo cáo thẩm định dạng Word/PDF chính thức.
-- [ ] Xử lý trường hợp 1 báo giá chào cùng 1 mục ở nhiều dòng (trùng lặp).
-
----
-
-## 6. GHI CHÚ KỸ THUẬT
-
-### Dữ liệu nhạy cảm — KHÔNG ĐƯA LÊN GIT
-- `config/evn_imis_token.json`: Token xác thực IMIS (username/password hash)
-- `config/msc_session.json`: Cookie session Mua Sắm Công e-GP
-- `data/projects/`: Dữ liệu dự án thực tế (thông tin tài chính nội bộ EVN)
-
-### Cài đặt môi trường tại nhà
-```bash
-pip install flask flask-cors pdfplumber openpyxl requests
-python app.py
-# Mở http://localhost:5555
-```
-
-### Cấu hình ERP (cần file ERP.xlsx)
-- Copy `ERP.xlsx` từ máy văn phòng vào thư mục gốc
-- Lần đầu chạy sẽ tự build cache `.erp_cache.json`
-
-### Cấu hình IMIS tại nhà
-- Đăng nhập lại IMIS trong app, nhập username/password để lấy token mới
-- Token lưu tự động vào `config/evn_imis_token.json`
-
-### Cấu hình Mua Sắm Công tại nhà
-- Vào `http://muasamcong.mpi.gov.vn`, mở Chrome DevTools → Network
-- Tìm bất kỳ request nào → Copy as cURL
-- Dán vào App tại Khối 4 → nút "Cập nhật cURL"
-
----
-
-## 7. PROJECT HIỆN TẠI ĐANG MỞ
-
-- **Dự án**: `ThamDinhDot8_lần2` (hoặc tên tương tự trong `data/projects/`)
-- **Thư mục báo giá**: `Các Báo giá gửi Thẩm định/` trong thư mục dự án
-- Các file báo giá đang có:
-  - `BÁO GIÁ An Hiếu.pdf` — An Hiếu
-  - `BG-EME -VT4.1.pdf` — EME
-  - `Báo giá DTL 19.8.2026.xlsx fn.pdf` — DTL
-  - `08-27-26. BV-VT 4...` — Thăng Long
+## 6. KẾ HOẠCH BƯỚC TIẾP THEO
+- [ ] Chạy kiểm thử tự động `pipeline_runner.py` cho các mục tiếp theo (STT 2, STT 3, STT 4...).
+- [ ] Xây dựng tính năng Batch Run (chạy 1 lần thẩm định tự động toàn bộ 98 mục vật tư trong hồ sơ Đợt 8 lần 2).
+- [ ] Hoàn thiện tính năng xuất biểu mẫu Excel báo cáo tổng hợp sau khi toàn bộ 98 mục hoàn tất.
