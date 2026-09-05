@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 # -*- coding: utf-8 -*-
@@ -20,6 +20,7 @@ if BASE_DIR not in sys.path:
 import imis_core
 import quote_matcher
 import msc_matcher
+import ai_synthesis
 
 DATA_DIR = os.path.join(BASE_DIR, "data")
 PROJECTS_DIR = os.path.join(DATA_DIR, "projects")
@@ -252,6 +253,7 @@ def run_pipeline_for_item(item_id=1, verbose=True):
         f"các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai "
         f"(yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote)."
     )
+    search_q_url = re.sub(r'\s+', '+', search_q)
     p5_payload = {
         "keyword": search_q,
         "search_keyword": search_q,
@@ -259,8 +261,8 @@ def run_pipeline_for_item(item_id=1, verbose=True):
         "tier": selected_cand.get("tier", 2) if selected_cand else 2,
         "items": [],
         "selected_record": None,
-        "ebay_search_url": f"https://www.ebay.com/sch/i.html?_nkw={re.sub(r'\s+', '+', search_q)}",
-        "google_search_url": f"https://www.google.com/search?q={re.sub(r'\s+', '+', search_q)}",
+        "ebay_search_url": f"https://www.ebay.com/sch/i.html?_nkw={search_q_url}",
+        "google_search_url": f"https://www.google.com/search?q={search_q_url}",
         "summary_text": ecom_summary,
         "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
@@ -269,17 +271,12 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     print(f"    ✓ Khối 5 hoàn tất: Đã lưu chứng cứ TMĐT & liên kết tra cứu web.")
 
     # -------------------------------------------------------------
-    # KHỐI 6: TỔNG HỢP 5 CƠ SỞ & CHỐT MỨC GIÁ THẨM ĐỊNH
+    # KHỐI 6: TỔNG HỢP 5 CƠ SỞ & CHỐT MỨC GIÁ THẨM ĐỊNH (AI SME EXPERT)
     # -------------------------------------------------------------
-    print("\n[6/6] Đang xử lý Khối 6: Tổng Hợp 5 Cơ Sở & Chốt Mức Giá...")
+    print("\n[5.5/6] Đang xử lý AI Chuyên Gia Vật Tư Kỹ Thuật Độc Lập tinh chế Thuyết minh...")
     active_count = 5
     coverage_score = 100
     coverage_rank = "Hạng A"
-
-    approved_price = dg_trinh
-    price_score = 100
-    price_eval = "🟢 Rất Hợp Lý (Đơn giá trình khớp giá thấp nhất Báo giá & nằm trong khung giá ERP lịch sử)"
-    savings = 0.0
 
     p1_desc = f"Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là {fmt_vnd(p1_price)} từ {p1_supplier} (Trang {p1_page} Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình."
     
@@ -295,26 +292,35 @@ def run_pipeline_for_item(item_id=1, verbose=True):
 
     p5_desc = ecom_summary
 
-    synthesis_text = (
-        f"TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: {ten_vt} (Mã ERP: {ma_vt}).\n"
-        f"• Đơn giá trình thẩm định: {fmt_vnd(dg_trinh)} (Số lượng: {qty} {dvt}).\n"
-        f"• Đánh giá Chứng cứ Thẩm định: Đạt {coverage_score}/100 điểm ({coverage_rank} - {active_count}/5 cơ sở chứng cứ đã nạp).\n"
-        f"• Đánh giá Mức độ Hợp lý Đơn giá: {price_score}/100 điểm ({price_eval}).\n\n"
-        f"CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n"
-        f"- Cơ sở 1 (Báo Giá Gốc): {p1_desc}\n"
-        f"- Cơ sở 2 (ERP Vĩnh Tân 4): {p2_desc}\n"
-        f"- Cơ sở 3 (EVN IMIS): {p3_desc}\n"
-        f"- Cơ sở 4 (Mua Sắm Công e-GP): {p4_desc}\n"
-        f"- Cơ sở 5 (Thương Mại Điện Tử): {p5_desc}\n\n"
-        f"KẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường, là mức giá thấp nhất giữa các báo giá hợp lệ và nằm trong khung dao động giá lịch sử ERP của Nhà máy. Đề xuất phê duyệt giữ nguyên đơn giá trình là {fmt_vnd(approved_price)}."
-    )
+    pillars_dict = {
+        "p1_price": p1_price,
+        "p2_price": p2_price,
+        "p3_price": p3_price,
+        "p4_price": p4_price,
+        "p1_desc": p1_desc,
+        "p2_desc": p2_desc,
+        "p3_desc": p3_desc,
+        "p4_desc": p4_desc,
+        "p5_desc": p5_desc
+    }
 
+    sme_result = ai_synthesis.generate_ai_synthesis(item, pillars_dict)
+
+    approved_price = sme_result["suggested_price"]
+    savings = sme_result["estimated_savings"]
+    price_score = sme_result["price_score"]
+    synthesis_text = sme_result["summary_text"]
+    risk_flag = sme_result["risk_flag"]
+
+    print("\n[6/6] Đang xử lý Khối 6: Tổng Hợp 5 Cơ Sở & Chốt Mức Giá...")
     p6_payload = {
         "item_id": item_id,
         "approved_price": approved_price,
         "total_savings": savings,
         "coverage_score": coverage_score,
         "price_score": price_score,
+        "risk_flag": risk_flag,
+        "used_ai": sme_result["used_ai"],
         "summary_text": synthesis_text,
         "pillars": {
             "p1": {"name": "Cơ sở 1: Báo Giá Gốc", "price": p1_price, "has": True},
@@ -334,12 +340,9 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     # -------------------------------------------------------------
     item["don_gia_thong_nhat"] = approved_price
     item["thanh_tien_thong_nhat"] = approved_price * qty
-    item["gia_tri_giam"] = (dg_trinh - approved_price) * qty
-    item["co_so_thong_nhat"] = "Báo giá thấp nhất DTL (Khối 1) & Khung giá ERP VT4 (Khối 2)"
-    item["danh_gia_ttd"] = (
-        f"Thống nhất đơn giá {fmt_vnd(approved_price)} theo Báo giá thấp nhất của DTL; "
-        f"phù hợp khung dao động lịch sử ERP Vĩnh Tân 4 (HĐ 115/2023: 6.015.000 đ - HĐ 132/2023: 17.670.000 đ)."
-    )
+    item["gia_tri_giam"] = savings
+    item["co_so_thong_nhat"] = "Ý kiến Chuyên gia AI & Báo giá thấp nhất DTL (Khối 1)"
+    item["danh_gia_ttd"] = synthesis_text
 
     with open(CURRENT_DOSSIER_FILE, "w", encoding="utf-8") as f:
         json.dump(dossier, f, ensure_ascii=False, indent=2)

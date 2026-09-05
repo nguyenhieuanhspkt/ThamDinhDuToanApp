@@ -1,8 +1,8 @@
-﻿# 🧠 MEMORY.MD — ThamDinhDuToanApp
+# 🧠 MEMORY.MD — ThamDinhDuToanApp
 > **Cập nhật ngày:** 2026-09-05 08:15 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
 > **Repository GitHub:** `https://github.com/nguyenhieuanhspkt/ThamDinhDuToanApp.git`  
 > **Thư mục dự án khuyến nghị:** `D:\TaskApp_kiet\thamdinhdutoanApp`  
-> **Thư mục Backup Cache/Dữ liệu ngoài Git:** `F:\ThamDinhDuToanAppCache`
+> **Thư mục Backup Cache/Dữ liệu ngoài Git (OneDrive EVN):** `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`
 
 ---
 
@@ -76,11 +76,11 @@ npm install
 cd ..
 ```
 
-### Bước 3: Khôi phục Dữ liệu & Cache từ `F:\ThamDinhDuToanAppCache`
-Chép toàn bộ nội dung từ thư mục backup `F:\ThamDinhDuToanAppCache` vào thư mục dự án trên máy mới:
+### Bước 3: Đồng bộ Dữ liệu & Cache từ OneDrive EVN (`D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`)
+Do OneDrive tự động đồng bộ liên tục trên mọi PC của bạn, toàn bộ dữ liệu bảo mật không đi qua Git đã có sẵn tại thư mục `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`:
 - `ERP.xlsx` &rarr; Chép vào thư mục gốc dự án.
 - `.erp_cache.json` &rarr; Chép vào thư mục gốc dự án và thư mục `config/.erp_cache.json`.
-- `config/` &rarr; Chép vào thư mục `config/` của dự án (chứa session Mua Sắm Công).
+- `config/` &rarr; Chép vào thư mục `config/` của dự án (chứa session Mua Sắm Công & `ai_config.json`).
 - `data/` &rarr; Chép đè vào thư mục `data/` của dự án (chứa toàn bộ `projects/`, hồ sơ đợt 8 lần 2, các chứng cứ `item_1`).
 
 ### Bước 4: Khởi động và làm tiếp
