@@ -24,6 +24,11 @@ ERP_EXCEL_FILE = os.path.join(BASE_DIR, "ERP.xlsx")
 ERP_CACHE_FILE = os.path.join(CONFIG_DIR, ".erp_cache.json")
 ERP_CONFIG_FILE = os.path.join(CONFIG_DIR, "erp_mapping_config.json")
 
+ONEDRIVE_CACHE_DIR = r"D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache"
+ONEDRIVE_CREDENTIALS_FILE = os.path.join(ONEDRIVE_CACHE_DIR, "config", "evn_imis_credentials.json")
+LOCAL_CREDENTIALS_FILE = os.path.join(CONFIG_DIR, "evn_imis_credentials.json")
+ENV_FILE = os.path.join(BASE_DIR, ".env")
+
 DEFAULT_API_URL = "https://api-imis.evn.com.vn/qlgia/GiaVttbNd/tonghop/muasam/toanbo"
 AUTH_API_URL = "https://api-imis.evn.com.vn/identity/account/authenticate"
 REFRESH_API_URL = "https://api-imis.evn.com.vn/identity/account/refresh-token"
@@ -193,6 +198,7 @@ def login_imis(username, password, remember_me=False):
         cfg["refresh_token_expire"] = res_obj.get("refreshTokenExpire")
     cfg["last_username"] = username
     save_config(cfg)
+    save_imis_credentials(username, password)
     return True, res_obj.get("fullName", username)
 
 
@@ -235,6 +241,136 @@ def refresh_imis_token():
     except Exception as e:
         return False, str(e)
     return False, "Lỗi gia hạn"
+
+
+def save_imis_credentials(username, password):
+    """Lưu thông tin tài khoản EVN IMIS an toàn vào OneDrive Cache, local config và file .env (không commit Git)."""
+    clean_user = username.replace("\\\\", "\\") if username else username
+    cred_data = {
+        "username": clean_user,
+        "password": password,
+        "auto_login": True,
+        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    # 1. Local config
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(LOCAL_CREDENTIALS_FILE, "w", encoding="utf-8") as f:
+            json.dump(cred_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[!] Lỗi ghi local credentials: {e}")
+
+    # 2. OneDrive Cache
+    try:
+        od_config_dir = os.path.join(ONEDRIVE_CACHE_DIR, "config")
+        os.makedirs(od_config_dir, exist_ok=True)
+        with open(ONEDRIVE_CREDENTIALS_FILE, "w", encoding="utf-8") as f:
+            json.dump(cred_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[!] Lỗi ghi OneDrive Cache credentials: {e}")
+
+    # 3. File .env
+    try:
+        env_lines = []
+        if os.path.exists(ENV_FILE):
+            with open(ENV_FILE, "r", encoding="utf-8") as f:
+                env_lines = f.readlines()
+        
+        has_user, has_pass = False, False
+        new_lines = []
+        for line in env_lines:
+            if line.startswith("EVN_IMIS_USERNAME="):
+                new_lines.append(f"EVN_IMIS_USERNAME={username}\n")
+                has_user = True
+            elif line.startswith("EVN_IMIS_PASSWORD="):
+                new_lines.append(f"EVN_IMIS_PASSWORD={password}\n")
+                has_pass = True
+            else:
+                new_lines.append(line)
+        if not has_user:
+            new_lines.append(f"EVN_IMIS_USERNAME={username}\n")
+        if not has_pass:
+            new_lines.append(f"EVN_IMIS_PASSWORD={password}\n")
+            
+        with open(ENV_FILE, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+    except Exception as e:
+        print(f"[!] Lỗi ghi file .env: {e}")
+
+
+def load_imis_credentials():
+    """Tải thông tin tài khoản EVN IMIS theo thứ tự ưu tiên: OneDrive Cache -> Local config -> .env -> os.environ."""
+    # 1. OneDrive Cache
+    if os.path.exists(ONEDRIVE_CREDENTIALS_FILE):
+        try:
+            with open(ONEDRIVE_CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("username") and data.get("password"):
+                    return data.get("username"), data.get("password")
+        except Exception:
+            pass
+
+    # 2. Local config
+    if os.path.exists(LOCAL_CREDENTIALS_FILE):
+        try:
+            with open(LOCAL_CREDENTIALS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("username") and data.get("password"):
+                    return data.get("username"), data.get("password")
+        except Exception:
+            pass
+
+    # 3. File .env
+    if os.path.exists(ENV_FILE):
+        try:
+            u, p = None, None
+            with open(ENV_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("EVN_IMIS_USERNAME="):
+                        u = line.split("=", 1)[1].strip('"\'')
+                    elif line.startswith("EVN_IMIS_PASSWORD="):
+                        p = line.split("=", 1)[1].strip('"\'')
+            if u and p:
+                return u, p
+        except Exception:
+            pass
+
+    # 4. os.environ
+    u = os.environ.get("EVN_IMIS_USERNAME")
+    p = os.environ.get("EVN_IMIS_PASSWORD")
+    if u and p:
+        return u, p
+
+    return None, None
+
+
+def auto_reauth_imis_if_needed():
+    """Tự động kiểm tra và đăng nhập ngầm EVN IMIS nếu Token hết hạn hoặc chưa khởi tạo."""
+    status_info = get_token_status_info()
+    if status_info.get("is_valid"):
+        return True, status_info.get("message")
+
+    # Thử gia hạn bằng refresh_token trước
+    ok_rf, msg_rf = refresh_imis_token()
+    if ok_rf:
+        print("[+] Tự động gia hạn IMIS token bằng Refresh Token thành công.")
+        return True, "Gia hạn Token thành công"
+
+    # Nếu refresh token không khả dụng hoặc thất bại, tự động đăng nhập ngầm
+    u, p = load_imis_credentials()
+    if u and p:
+        print(f"[i] Tiến hành tự động đăng nhập ngầm EVN IMIS với tài khoản: {u}")
+        ok_login, msg_login = login_imis(u, p)
+        if ok_login:
+            print(f"[+] Tự động đăng nhập ngầm EVN IMIS thành công cho {u}!")
+            return True, f"Đăng nhập thành công ({msg_login})"
+        else:
+            print(f"[!] Tự động đăng nhập ngầm EVN IMIS thất bại: {msg_login}")
+            return False, f"Đăng nhập ngầm thất bại: {msg_login}"
+
+    return False, "Chưa lưu thông tin tài khoản IMIS để đăng nhập tự động"
 
 
 def extract_items_from_json(data):
@@ -281,6 +417,7 @@ def normalize_api_record(r):
 
 
 def query_imis_api(keyword, tu_ngay="2023-01-01", den_ngay=None, don_vi=10000, timeout=20):
+    auto_reauth_imis_if_needed()
     cfg = load_config()
     token = cfg.get("bearer_token", "")
     cookies = cfg.get("cookies", "")
@@ -316,10 +453,11 @@ def query_imis_api(keyword, tu_ngay="2023-01-01", den_ngay=None, don_vi=10000, t
         return [], 0, f"Lỗi kết nối mạng: {e}"
         
     if resp.status_code in (401, 403):
-        ok, _ = refresh_imis_token()
+        ok, _ = auto_reauth_imis_if_needed()
         if ok:
             cfg = load_config()
             headers['authorization'] = cfg.get("bearer_token", "")
+            headers['cookie'] = cfg.get("cookies", "")
             try:
                 resp = requests.post(url, headers=headers, json=payload, verify=False, timeout=timeout)
             except Exception as e:
