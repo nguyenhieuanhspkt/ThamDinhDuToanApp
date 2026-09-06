@@ -254,8 +254,49 @@ def search_muasamcong(keyword, page_number=0, page_size=20):
         total_pages = page_info.get("totalPages", 1)
 
         cleaned_items = []
+        def build_smart_spec(it):
+            parts = []
+            cau_hinh = (it.get("cauHinh") or it.get("tenDacTinhKyThuat") or it.get("thongSoKyThuat") or it.get("moTa") or it.get("moTaChiTiet") or "").strip().replace('_x000D_', '')
+            if cau_hinh:
+                parts.append(cau_hinh)
+
+            xuat_xu = (it.get("xuatXu") or "").strip().replace('_x000D_', '')
+            if len(xuat_xu) > 25 and xuat_xu.lower() not in cau_hinh.lower():
+                parts.append(xuat_xu)
+
+            ky_ma_hieu = (it.get("kyMaHieu") or "").strip().replace('_x000D_', '')
+            if ky_ma_hieu and ky_ma_hieu.lower() not in (cau_hinh + " " + xuat_xu).lower():
+                parts.append(f"Model/Mã hiệu: {ky_ma_hieu}")
+
+            nam_sx = (it.get("namSanXuat") or "").strip().replace('_x000D_', '')
+            if nam_sx:
+                parts.append(f"Năm SX: {nam_sx}")
+
+            return " | ".join(parts).replace("\r\n", " ").replace("\n", " ")
+
         for it in raw_items:
             price = float(it.get("donGiaDuThau") or 0.0)
+            ben_moi_thau = (
+                it.get("tenCdtBmt") or 
+                it.get("tenBenMoiThau") or 
+                it.get("benMoiThau") or 
+                it.get("tenChuDauTu") or 
+                it.get("chuDauTu") or 
+                it.get("toChucDangTin") or 
+                ""
+            ).strip().replace('_x000D_', '')
+
+            winning_raw = it.get("winningName")
+            nha_thau_trung = ""
+            if isinstance(winning_raw, list) and len(winning_raw) > 0:
+                nha_thau_trung = str(winning_raw[0]).strip().replace('_x000D_', '')
+            elif isinstance(winning_raw, str):
+                nha_thau_trung = winning_raw.strip().replace('_x000D_', '')
+
+            ngay_trung = (it.get("ngayDangTaiKqlcnt") or "").split("T")[0]
+            so_quyet_dinh = (it.get("soQuyetDinh") or "").strip().replace('_x000D_', '')
+            hang_sx = (it.get("hangSanXuat") or it.get("nhanHieu") or "").strip().replace('_x000D_', '')
+
             cleaned_items.append({
                 "id": it.get("id"),
                 "ma_tbmt": it.get("maTbmt", ""),
@@ -264,7 +305,12 @@ def search_muasamcong(keyword, page_number=0, page_size=20):
                 "so_luong": float(it.get("khoiLuongDouble") or 1.0),
                 "don_gia": price,
                 "xuat_xu": (it.get("xuatXu") or "").strip().replace('_x000D_', ''),
-                "hang_sx": it.get("hangSanXuat", "")
+                "hang_sx": hang_sx,
+                "ben_moi_thau": ben_moi_thau,
+                "nha_thau_trung": nha_thau_trung,
+                "thong_so_kt": build_smart_spec(it),
+                "ngay_trung": ngay_trung,
+                "so_quyet_dinh": so_quyet_dinh
             })
 
         return {

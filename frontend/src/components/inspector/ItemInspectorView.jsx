@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronLeft, ChevronRight, FileCheck2, Building2, Network, Globe,
   ExternalLink, CheckCircle, AlertTriangle, FileText, Award,
@@ -191,11 +191,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (erpResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, erp: true }));
     try {
+      const erpKw = currentItem.ma_vt || currentItem.ten_vt;
       const res = await fetch('/api/erp/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword: currentItem.ten_vt,
+          keyword: erpKw,
           ma_vt: currentItem.ma_vt || '',
           item: currentItem,
           dg_trinh: currentItem.don_gia_trinh || 0
@@ -203,7 +204,13 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       });
       const data = await res.json();
       setErpResults(data);
-      autoSaveStep('erp', { results: data?.results || [], keyword: currentItem.ten_vt });
+      autoSaveStep('erp', {
+        results: data?.results || [],
+        mapping: data?.mapping || {},
+        summary: data?.summary || {},
+        summary_text: data?.summary_text || data?.summary?.summary_text || '',
+        keyword: erpKw
+      });
     } catch (e) { toast.error('Lỗi kết nối ERP'); }
     finally { setLoading(p => ({ ...p, erp: false })); }
   }, [erpResults, currentItem, autoSaveStep]);
@@ -212,7 +219,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (imisResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, imis: true }));
     try {
-      const cleanKw = extractCleanImisKeyword(currentItem.ten_vt);
+      const cleanKw = getDefaultImisKeyword(currentItem.ten_vt) || extractCleanImisKeyword(currentItem.ten_vt);
       const res = await fetch('/api/search-item-sources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -220,7 +227,14 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
       });
       const data = await res.json();
       setImisResults(data);
-      autoSaveStep('imis', { imis: data?.imis || [], erp: data?.erp || [], keyword: currentItem.ten_vt });
+      autoSaveStep('imis', {
+        imis: data?.imis || [],
+        erp: data?.erp || [],
+        summary: data?.summary || {},
+        summary_text: data?.summary_text || data?.summary?.summary_text || '',
+        keyword: cleanKw,
+        used_keyword: cleanKw
+      });
     } catch (e) { toast.error('Lỗi kết nối IMIS'); }
     finally { setLoading(p => ({ ...p, imis: false })); }
   }, [imisResults, currentItem, autoSaveStep]);
@@ -229,14 +243,21 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (mscResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, msc: true }));
     try {
+      const cleanKw = getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt;
       const res = await fetch('/api/msc/search-item', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: currentItem.ten_vt })
+        body: JSON.stringify({ keyword: cleanKw })
       });
       const data = await res.json();
       setMscResults(data);
-      autoSaveStep('muasamcong', { results: data?.analysis?.items || data?.items || [], keyword: data?.analysis?.keyword || currentItem.ten_vt });
+      autoSaveStep('muasamcong', {
+        results: data?.analysis?.items || data?.items || [],
+        summary: data?.summary || data?.analysis?.summary || {},
+        summary_text: data?.summary_text || data?.analysis?.summary_text || '',
+        keyword: cleanKw,
+        used_keyword: cleanKw
+      });
     } catch (e) { toast.error('Lỗi kết nối Mua Sắm Công'); }
     finally { setLoading(p => ({ ...p, msc: false })); }
   }, [mscResults, currentItem, autoSaveStep]);
@@ -260,11 +281,34 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (activePillar === 'quotes' && quoteEvidence) {
       autoSaveStep('quotes', { status: quoteEvidence?.status, min_price: quoteEvidence?.min_price, matches: quoteEvidence?.matches || [], summary_text: quoteEvidence?.summary_text });
     } else if (activePillar === 'erp' && erpResults) {
-      autoSaveStep('erp', { results: erpResults?.results || [], keyword: currentItem.ten_vt });
+      autoSaveStep('erp', {
+        results: erpResults?.results || (Array.isArray(erpResults) ? erpResults : []),
+        mapping: erpResults?.mapping || {},
+        summary: erpResults?.summary || {},
+        summary_text: erpResults?.summary_text || erpResults?.summary?.summary_text || '',
+        keyword: currentItem.ma_vt || currentItem.ten_vt
+      });
     } else if (activePillar === 'imis' && imisResults) {
-      autoSaveStep('imis', { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt });
+      const smartKw = getDefaultImisKeyword(currentItem.ten_vt);
+      const kw = (imisResults?.used_keyword && imisResults.used_keyword !== currentItem.ten_vt) ? imisResults.used_keyword : smartKw;
+      autoSaveStep('imis', {
+        imis: imisResults?.imis || [],
+        erp: imisResults?.erp || [],
+        summary: imisResults?.summary || {},
+        summary_text: imisResults?.summary_text || imisResults?.summary?.summary_text || '',
+        keyword: kw,
+        used_keyword: kw
+      });
     } else if (activePillar === 'msc' && mscResults) {
-      autoSaveStep('muasamcong', { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt });
+      const smartKw = getDefaultImisKeyword(currentItem.ten_vt);
+      const kw = (mscResults?.analysis?.keyword && mscResults.analysis.keyword !== currentItem.ten_vt) ? mscResults.analysis.keyword : smartKw;
+      autoSaveStep('muasamcong', {
+        results: mscResults?.analysis?.items || mscResults?.items || [],
+        summary: mscResults?.summary || mscResults?.analysis?.summary || {},
+        summary_text: mscResults?.summary_text || mscResults?.analysis?.summary_text || '',
+        keyword: kw,
+        used_keyword: kw
+      });
     } else if (activePillar === 'ecom') {
       const payload = ecomResults || {
         items: [],
@@ -447,7 +491,13 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarErp
                 loading={loading.erp} saving={saving}
                 data={erpResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('erp', payload || { results: erpResults?.results || [], keyword: currentItem.ten_vt }, 'imis')}
+                onSave={(payload) => saveStep('erp', payload || {
+                  results: erpResults?.results || (Array.isArray(erpResults) ? erpResults : []),
+                  mapping: erpResults?.mapping || {},
+                  summary: erpResults?.summary || {},
+                  summary_text: erpResults?.summary_text || erpResults?.summary?.summary_text || '',
+                  keyword: currentItem.ten_vt
+                }, 'imis')}
                 onAutoSave={(payload) => {
                   setErpResults(payload);
                   autoSaveStep('erp', payload);
@@ -461,7 +511,13 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarImis
                 loading={loading.imis} saving={saving}
                 data={imisResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('imis', payload || { imis: imisResults?.imis || [], erp: imisResults?.erp || [], keyword: currentItem.ten_vt }, 'msc')}
+                onSave={(payload) => saveStep('imis', payload || {
+                  imis: imisResults?.imis || [],
+                  erp: imisResults?.erp || [],
+                  summary: imisResults?.summary || {},
+                  summary_text: imisResults?.summary_text || imisResults?.summary?.summary_text || '',
+                  keyword: getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt
+                }, 'msc')}
                 onAutoSave={(payload) => {
                   setImisResults(payload);
                   autoSaveStep('imis', payload);
@@ -476,7 +532,12 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarMsc
                 loading={loading.msc} saving={saving}
                 data={mscResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('muasamcong', payload || { results: mscResults?.analysis?.items || mscResults?.items || [], keyword: mscResults?.analysis?.keyword || currentItem.ten_vt }, 'ecom')}
+                onSave={(payload) => saveStep('muasamcong', payload || {
+                  results: mscResults?.analysis?.items || mscResults?.items || [],
+                  summary: mscResults?.summary || mscResults?.analysis?.summary || {},
+                  summary_text: mscResults?.summary_text || mscResults?.analysis?.summary_text || '',
+                  keyword: mscResults?.analysis?.keyword || getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt
+                }, 'ecom')}
                 onAutoSave={(payload) => {
                   setMscResults(payload);
                   autoSaveStep('muasamcong', payload);
@@ -633,17 +694,55 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   const [erpResults, setErpResults] = useState(data?.results || []);
   const [mapping, setMapping] = useState(data?.mapping || {});
   const [summaryData, setSummaryData] = useState(data?.summary || {});
-  const [searchKey, setSearchKey] = useState(data?.used_keyword || data?.keyword || item?.ten_vt || item?.ma_vt || '');
+  const initialKw = item?.ma_vt ? item.ma_vt : (data?.used_keyword || data?.keyword || item?.ten_vt || '');
+  const [searchKey, setSearchKey] = useState(initialKw);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    setErpResults(data?.results || []);
+    const list = data?.results || (Array.isArray(data) ? data : []);
+    setErpResults(list);
     setMapping(data?.mapping || {});
     setSummaryData(data?.summary || {});
-    setSearchKey(data?.used_keyword || data?.keyword || item?.ten_vt || item?.ma_vt || '');
+    const kw = item?.ma_vt ? item.ma_vt : (data?.used_keyword || data?.keyword || item?.ten_vt || '');
+    setSearchKey(kw);
     setSelectedIdx(0);
   }, [data, item]);
+
+  // Tự động khôi phục thuyết minh ERP nếu dữ liệu đệm bị khuyết summary_text
+  useEffect(() => {
+    const list = erpResults || [];
+    const curSummaryText = summaryData?.summary_text || data?.summary_text;
+    if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt) {
+      fetch('/api/erp/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: searchKey || item?.ten_vt || '',
+          ma_vt: item?.ma_vt || '',
+          item,
+          dg_trinh: dgTrinh
+        })
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.summary) {
+          setSummaryData(resp.summary);
+          if (onAutoSave) {
+            onAutoSave({
+              results: resp.results || list,
+              mapping: resp.mapping || mapping,
+              summary: resp.summary,
+              summary_text: resp.summary?.summary_text || '',
+              keyword: searchKey || item?.ten_vt || '',
+              used_keyword: searchKey || item?.ten_vt || ''
+            });
+          }
+        }
+      })
+      .catch(console.error);
+    }
+  }, [erpResults, summaryData, data, item, dgTrinh, searchKey, searching, mapping, onAutoSave]);
 
   const summaryText = summaryData?.summary_text || data?.summary_text;
   const status = summaryData?.status;
@@ -789,33 +888,70 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
         </button>
       </div>
 
-      {/* Thanh Tra cứu ERP thủ công */}
-      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-2">
-        <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1">
-          <Search className="w-3.5 h-3.5 text-blue-700" /> Tra cứu ERP bằng tay:
-        </span>
-        <input
-          type="text"
-          value={searchKey}
-          onChange={e => setSearchKey(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
-          placeholder="Nhập tên vật tư hoặc mã ERP để tra cứu..."
-          className="flex-1 text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-500 font-medium"
-        />
-        <button
-          onClick={handleManualSearch}
-          disabled={searching}
-          className="bg-blue-800 hover:bg-blue-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition shadow-xs disabled:opacity-50 shrink-0"
-        >
-          {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Tra cứu ERP
-        </button>
-        <button
-          onClick={() => setSearchKey(item?.ten_vt || item?.ma_vt || '')}
-          title="Khôi phục từ khóa mặc định"
-          className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition shrink-0"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Đặt lại
-        </button>
+      {/* Thanh Tra cứu ERP thủ công & Chip gợi ý từ khóa */}
+      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1">
+            <Search className="w-3.5 h-3.5 text-blue-700" /> Tra cứu ERP bằng tay:
+          </span>
+          <input
+            type="text"
+            value={searchKey}
+            onChange={e => setSearchKey(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
+            placeholder="Nhập mã ERP hoặc tên vật tư để tra cứu..."
+            className="flex-1 text-xs px-3 py-1.5 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-blue-500 font-medium"
+          />
+          <button
+            onClick={handleManualSearch}
+            disabled={searching}
+            className="bg-blue-800 hover:bg-blue-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition shadow-xs disabled:opacity-50 shrink-0"
+          >
+            {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Tra cứu ERP
+          </button>
+          <button
+            onClick={() => setSearchKey(item?.ma_vt || item?.ten_vt || '')}
+            title="Khôi phục từ khóa mặc định (Mã ERP nếu có)"
+            className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> Đặt lại
+          </button>
+        </div>
+
+        {/* Chip chọn nhanh từ khóa gợi ý (Mã ERP & Tên Vật Tư) */}
+        {(item?.ma_vt || item?.ten_vt) && (
+          <div className="pt-1.5 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[11px] font-bold text-blue-950 shrink-0 flex items-center gap-1">
+              💡 Từ khóa gợi ý ERP:
+            </span>
+            {item?.ma_vt && (
+              <button
+                onClick={() => setSearchKey(item.ma_vt)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                  searchKey.trim() === item.ma_vt.trim()
+                    ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                    : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+                }`}
+                title={`Chọn tra cứu theo Mã ERP: ${item.ma_vt}`}
+              >
+                🏷️ Mã ERP: <span className="font-mono">{item.ma_vt}</span>
+              </button>
+            )}
+            {item?.ten_vt && (
+              <button
+                onClick={() => setSearchKey(item.ten_vt)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                  searchKey.trim() === item.ten_vt.trim()
+                    ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                    : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+                }`}
+                title="Chọn tra cứu theo Tên vật tư đầy đủ"
+              >
+                📝 Tên Vật Tư: <span className="font-semibold truncate max-w-[260px]">{item.ten_vt}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Thanh Chọn Phương Án Thẩm Định: Hợp Đồng Cụ Thể vs Giá Trung Bình */}
@@ -984,7 +1120,13 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
   const [imisResults, setImisResults] = useState(data?.imis || []);
   const [summaryData, setSummaryData] = useState(data?.summary || {});
   
-  const initialCleanKw = data?.used_keyword || data?.keyword || getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
+  const getSmartImisKw = (rawName, savedKw) => {
+    const smart = getDefaultImisKeyword(rawName);
+    if (!savedKw || savedKw === rawName) return smart || rawName;
+    return savedKw;
+  };
+
+  const initialCleanKw = getSmartImisKw(item?.ten_vt || '', data?.used_keyword || data?.keyword);
   const [searchKey, setSearchKey] = useState(initialCleanKw);
   const [tuNgay, setTuNgay] = useState('2023-01-01');
   const [denNgay, setDenNgay] = useState(new Date().toISOString().split('T')[0]);
@@ -999,13 +1141,51 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
   useEffect(() => {
     setImisResults(data?.imis || []);
     setSummaryData(data?.summary || {});
-    const defaultKw = getDefaultImisKeyword(item?.ten_vt || item?.ma_vt || '');
-    setSearchKey(data?.used_keyword || data?.keyword || defaultKw);
+    const smartKw = getSmartImisKw(item?.ten_vt || '', data?.used_keyword || data?.keyword);
+    setSearchKey(smartKw);
     setSelectedIdx(0);
     setFilterKw('');
     setFilterUnit('');
     setPriceFilter('ALL');
   }, [data, item]);
+
+  // Tự động khôi phục thuyết minh IMIS nếu dữ liệu đệm bị khuyết summary_text
+  useEffect(() => {
+    const list = imisResults || [];
+    const curSummaryText = summaryData?.summary_text || data?.summary_text;
+    if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt) {
+      const kwToUse = searchKey || getDefaultImisKeyword(item.ten_vt) || item.ten_vt;
+      fetch('/api/search-item-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: kwToUse,
+          ma_vt: item?.ma_vt || '',
+          item,
+          dg_trinh: dgTrinh,
+          tu_ngay: tuNgay,
+          den_ngay: denNgay
+        })
+      })
+      .then(r => r.json())
+      .then(resp => {
+        if (resp.summary) {
+          setSummaryData(resp.summary);
+          if (onAutoSave) {
+            onAutoSave({
+              imis: resp.imis || list,
+              erp: resp.erp || [],
+              summary: resp.summary,
+              summary_text: resp.summary?.summary_text || '',
+              keyword: kwToUse,
+              used_keyword: kwToUse
+            });
+          }
+        }
+      })
+      .catch(console.error);
+    }
+  }, [imisResults, summaryData, data, item, dgTrinh, searchKey, searching, tuNgay, denNgay, onAutoSave]);
 
   const summaryText = summaryData?.summary_text || data?.summary_text;
   const isConnected = imisStatus?.is_connected;
@@ -1547,7 +1727,13 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
 function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenMscConfig, mscStatus }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
-  const defaultKw = data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
+  const getSmartMscKw = (rawName, savedKw) => {
+    const smart = getDefaultImisKeyword(rawName);
+    if (!savedKw || savedKw === rawName) return smart || rawName;
+    return savedKw;
+  };
+
+  const defaultKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
@@ -1563,28 +1749,9 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   const [filterOrigin, setFilterOrigin] = useState('');
   const [priceFilter, setPriceFilter] = useState('ALL'); // ALL, LOWER, HIGHER
 
-  useEffect(() => {
-    if (data) {
-      setMscResponse(data);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    const defaultKw = data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu || getDefaultImisKeyword(item?.ten_vt);
-    setSearchKey(defaultKw);
-    setSelectedIdx(0);
-    setPageNumber(0);
-    setFilterKw('');
-    setFilterOrigin('');
-    setPriceFilter('ALL');
-  }, [data, item?.id]);
-
-  const triggerSearch = async (kw, pNum = 0, pSz = pageSize) => {
+  const triggerSearch = useCallback(async (kw, pNum = 0, pSz = pageSize) => {
     const targetKw = (kw || searchKey || '').trim();
-    if (!targetKw) {
-      toast.error('Vui lòng nhập từ khóa tra cứu Mua Sắm Công');
-      return;
-    }
+    if (!targetKw) return;
 
     setSearching(true);
     try {
@@ -1599,7 +1766,6 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
         setSelectedIdx(0);
         setPageNumber(pNum);
         setPageSize(pSz);
-        toast.success(`Đã tra cứu e-GP với từ khóa [${targetKw}]`);
         const resAnalysis = resData.analysis || resData;
         const resItems = resAnalysis.items || resData.items || [];
         if (onAutoSave) {
@@ -1612,15 +1778,37 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
             selected_record: resItems[0] || null
           });
         }
-      } else {
-        toast.error(resData.message || 'Không thể tra cứu e-GP');
       }
     } catch (e) {
-      toast.error('Lỗi khi tra cứu Mua Sắm Công e-GP');
+      console.error('Lỗi tra cứu Mua Sắm Công:', e);
     } finally {
       setSearching(false);
     }
-  };
+  }, [searchKey, pageSize, item, onAutoSave]);
+
+  const autoSearchedRef = useRef({});
+
+  useEffect(() => {
+    if (data) {
+      setMscResponse(data);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    const smartKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
+    setSearchKey(smartKw);
+    setSelectedIdx(0);
+    setPageNumber(0);
+    setFilterKw('');
+    setFilterOrigin('');
+    setPriceFilter('ALL');
+
+    // Single-trigger lock: Auto-search ONLY ONCE per item ID if no evidence data exists
+    if (!data && item?.id && item?.ten_vt && smartKw && !autoSearchedRef.current[item.id]) {
+      autoSearchedRef.current[item.id] = smartKw;
+      triggerSearch(smartKw);
+    }
+  }, [data, item?.id, item?.ten_vt]);
 
   const analysis = mscResponse?.analysis || (mscResponse?.items ? mscResponse : null);
   const itemsList = analysis?.items || mscResponse?.items || [];
@@ -1639,7 +1827,10 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
 
     if (filterKw.trim()) {
       const fkw = filterKw.trim().toLowerCase();
-      const matchName = (r.danh_muc || '').toLowerCase().includes(fkw) || (r.ma_tbmt || '').toLowerCase().includes(fkw);
+      const matchName = (r.danh_muc || '').toLowerCase().includes(fkw)
+        || (r.ma_tbmt || '').toLowerCase().includes(fkw)
+        || (r.ben_moi_thau || '').toLowerCase().includes(fkw)
+        || (r.thong_so_kt || '').toLowerCase().includes(fkw);
       if (!matchName) return false;
     }
 
@@ -1663,10 +1854,11 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   // Build justification text
   let summaryText = '';
   if (itemsList.length > 0 && selectedRecord) {
+    const benMoiThauStr = selectedRecord.ben_moi_thau ? `, Bên mời thầu: ${selectedRecord.ben_moi_thau}` : '';
     if (diffAmt <= 0) {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
     } else {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
     }
   } else if (mscResponse && !searching) {
     summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu} nhưng chưa ghi nhận kết quả trúng thầu tương tự.`;
@@ -1870,7 +2062,7 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
               type="text"
               value={filterKw}
               onChange={e => setFilterKw(e.target.value)}
-              placeholder="Lọc Tên hàng hóa / Mã TBMT..."
+              placeholder="Lọc Hàng hóa / Mã TBMT / Bên mời thầu / Thông số..."
               className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg flex-1 focus:outline-none focus:border-orange-500 font-medium"
             />
             <input
@@ -1934,8 +2126,9 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
             <thead className="bg-orange-50 text-orange-950 font-bold border-b border-orange-200">
               <tr>
                 <th className="py-2.5 px-2 border-r w-24 text-center">Căn Cứ</th>
-                <th className="py-2.5 px-3 border-r">Tên Danh Mục Hàng Hóa (e-GP)</th>
-                <th className="py-2.5 px-3 border-r font-mono">Mã TBMT</th>
+                <th className="py-2.5 px-3 border-r min-w-[180px]">Tên Danh Mục Hàng Hóa (e-GP)</th>
+                <th className="py-2.5 px-3 border-r min-w-[220px]">Thông Số Kỹ Thuật Chi Tiết</th>
+                <th className="py-2.5 px-3 border-r font-mono min-w-[200px]">Mã TBMT & Bên Mời Thầu / Chủ Đầu Tư</th>
                 <th className="py-2.5 px-3 border-r w-20 text-center">ĐVT</th>
                 <th className="py-2.5 px-3 border-r w-20 text-right">Khối Lượng</th>
                 <th className="py-2.5 px-3 border-r w-32 text-right font-mono bg-orange-100/50">Giá Dự Thầu (Trúng)</th>
@@ -1948,6 +2141,46 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
                 const isSelected = i === selectedIdx;
                 const dg = parseFloat(r.don_gia || 0);
                 const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+
+                // Smart Title-Spec Splitter logic
+                let rawName = r.danh_muc || r.danhMucHangHoa || r.ten_hang_hoa || r.ten_vt || '—';
+                let cleanName = rawName;
+                let specFromTitle = '';
+
+                const splitMatch = rawName.match(/^(.*?)\s+-\s+((?:Model|Yếu\s*tố|Dải\s*đo|Nguồn|Tiêu\s*chuẩn|Công\s*nghệ|Part|P\/N|KT|Kích\s*thước|Đặc\s*tính)[\s:].*)$/i);
+                if (splitMatch) {
+                  cleanName = splitMatch[1].trim();
+                  specFromTitle = splitMatch[2].trim();
+                }
+
+                const modelCode = r.ky_ma_hieu || r.kyMaHieu || '';
+                const modelBadge = modelCode ? `Model/Mã hiệu: ${modelCode}` : '';
+
+                let specParts = [];
+                if (r.thong_so_kt) specParts.push(r.thong_so_kt);
+                if (r.cauHinh && r.cauHinh !== 'Theo yêu cầu kỹ thuật' && !specParts.includes(r.cauHinh)) specParts.push(r.cauHinh);
+                if (r.cau_hinh && r.cau_hinh !== 'Theo yêu cầu kỹ thuật' && !specParts.includes(r.cau_hinh)) specParts.push(r.cau_hinh);
+                if (specFromTitle && !specParts.includes(specFromTitle)) specParts.push(specFromTitle);
+                if (modelBadge && !specParts.some(p => p.toLowerCase().includes(modelCode.toLowerCase()))) specParts.push(modelBadge);
+                if (r.xuat_xu && r.xuat_xu.length > 25 && !specParts.includes(r.xuat_xu)) specParts.push(r.xuat_xu);
+
+                const specText = Array.from(new Set(specParts)).join(' | ');
+                const benMoiThau = r.ben_moi_thau || r.tenCdtBmt || r.tenBenMoiThau || r.tenChuDauTu || r.chuDauTu || '';
+                const nhaThauTrung = r.nha_thau_trung || (Array.isArray(r.winningName) && r.winningName.length > 0 ? r.winningName[0] : (typeof r.winningName === 'string' ? r.winningName : ''));
+
+                let cleanOrigin = r.xuat_xu || '—';
+                if (r.xuat_xu && r.xuat_xu.length > 25) {
+                  const match = r.xuat_xu.match(/(?:Xuất\s*xứ|NSX\/Xuất\s*xứ|Origin)[\s:]*([^\n;]+)/i);
+                  if (match) {
+                    cleanOrigin = match[1].trim();
+                  } else if (r.xuat_xu.includes('/')) {
+                    const parts = r.xuat_xu.split('/');
+                    cleanOrigin = parts[parts.length - 1].trim();
+                  } else {
+                    cleanOrigin = 'Xem thông số';
+                  }
+                }
+
                 return (
                   <tr
                     key={i}
@@ -1968,11 +2201,43 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
                         {isSelected ? 'Đã Chọn' : 'Chọn'}
                       </button>
                     </td>
-                    <td className="py-2 px-3 border-r">
-                      <div className="font-bold text-slate-900">{r.danh_muc || r.ten_hang_hoa || r.ten_vt || '—'}</div>
+                    <td className="py-2.5 px-3 border-r min-w-[180px]">
+                      <div className="font-bold text-slate-900 text-xs">{cleanName}</div>
                     </td>
-                    <td className="py-2 px-3 border-r font-mono text-orange-950 font-bold">
-                      {r.ma_tbmt || '—'}
+                    <td className="py-2.5 px-3 border-r min-w-[220px] text-[10.5px]">
+                      {specText ? (
+                        <div className="text-slate-800 bg-orange-50/70 p-2 rounded border border-orange-200/80 leading-snug">
+                          <div className="font-bold text-orange-950 flex items-center gap-1 mb-1">
+                            ⚡ Thông số kỹ thuật / Đặc tính:
+                          </div>
+                          <div className="line-clamp-4 font-normal text-slate-800 whitespace-pre-line" title={specText}>
+                            {specText}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Theo TBMT</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3 border-r min-w-[210px]">
+                      <div className="flex items-center gap-1 font-mono text-orange-950 font-extrabold text-xs">
+                        <span className="bg-orange-100 text-orange-950 px-1 py-0.2 rounded text-[9.5px] border border-orange-300">TBMT</span>
+                        {r.ma_tbmt || '—'}
+                      </div>
+                      <div className="mt-1.5 text-[10.5px] text-blue-950 bg-blue-50/90 p-1.5 rounded border border-blue-200 leading-tight">
+                        <div className="font-bold text-blue-900 flex items-center gap-1 mb-0.5">
+                          <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          Chủ đầu tư / Bên mời thầu:
+                        </div>
+                        <div className="font-medium text-slate-800 line-clamp-2" title={benMoiThau || 'Chưa ghi nhận tên CĐT trên TBMT này'}>
+                          {benMoiThau || 'Chưa cập nhật tên CĐT trên TBMT'}
+                        </div>
+                        {nhaThauTrung && (
+                          <div className="mt-1 pt-1 border-t border-blue-200/60 flex items-center gap-1 text-[10px] text-emerald-900 font-semibold" title={`Nhà thầu trúng thầu: ${nhaThauTrung}`}>
+                            <Award className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span className="truncate">Trúng thầu: {nhaThauTrung}</span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 px-3 border-r text-center text-slate-700">{r.dvt || r.don_vi_tinh || '—'}</td>
                     <td className="py-2 px-3 border-r text-right font-mono text-slate-800">{fmt(r.so_luong || 1)}</td>
@@ -1984,7 +2249,7 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-3 border-r text-slate-700">{r.xuat_xu || '—'}</td>
+                    <td className="py-2 px-3 border-r text-slate-700 font-medium">{cleanOrigin}</td>
                     <td className="py-2 px-3 text-slate-800 font-medium">{r.hang_sx || r.hang_san_xuat || '—'}</td>
                   </tr>
                 );
@@ -2406,19 +2671,78 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
 function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
   const toast = useToast();
 
-  // Extract prices from 5 pillars (live results or saved evidence)
-  const p1_price = parseFloat(quoteEvidence?.min_price || quoteEvidence?.min_quote?.don_gia || quoteEvidence?.selected_record?.don_gia || 0);
-  const p2_price = parseFloat(erpResults?.selected_record?.don_gia || erpResults?.don_gia_tham_chieu || erpResults?.avg_price || erpResults?.min_price || 0);
-  const p3_price = parseFloat(imisResults?.selected_record?.don_gia || imisResults?.don_gia_tham_chieu || imisResults?.avg_price || 0);
-  const p4_price = parseFloat(mscResults?.selected_record?.don_gia || mscResults?.don_gia_tham_chieu || mscResults?.min_price || 0);
-  const p5_price = parseFloat(ecomResults?.selected_record?.price || ecomResults?.selected_record?.don_gia || ecomResults?.don_gia_tham_chieu || 0);
+  // Helper to extract first valid price from an array of records
+  const extractFirstPrice = (arr, keys = ['donGia', 'don_gia', 'price', 'trung_thau_don_gia', 'gia']) => {
+    if (!Array.isArray(arr)) return 0;
+    for (const r of arr) {
+      if (!r) continue;
+      for (const k of keys) {
+        const val = parseFloat(r[k] || 0);
+        if (val > 0) return val;
+      }
+    }
+    return 0;
+  };
+
+  // Extract prices from 5 pillars (live results or saved evidence with fallbacks)
+  const p1_price = parseFloat(
+    quoteEvidence?.selected_record?.don_gia ||
+    quoteEvidence?.min_price ||
+    quoteEvidence?.min_quote?.don_gia ||
+    extractFirstPrice(quoteEvidence?.matches) ||
+    0
+  );
+
+  const erpList = Array.isArray(erpResults) ? erpResults : (erpResults?.results || []);
+  const p2_price = parseFloat(
+    erpResults?.selected_record?.donGia ||
+    erpResults?.selected_record?.don_gia ||
+    erpResults?.don_gia_tham_chieu ||
+    erpResults?.summary?.avg_price ||
+    erpResults?.summary?.min_price ||
+    erpResults?.avg_price ||
+    erpResults?.min_price ||
+    extractFirstPrice(erpList) ||
+    0
+  );
+
+  const imisList = Array.isArray(imisResults) ? imisResults : (imisResults?.imis || []);
+  const p3_price = parseFloat(
+    imisResults?.selected_record?.don_gia ||
+    imisResults?.selected_record?.donGia ||
+    imisResults?.don_gia_tham_chieu ||
+    imisResults?.summary?.avg_price ||
+    imisResults?.summary?.min_price ||
+    imisResults?.avg_price ||
+    extractFirstPrice(imisList) ||
+    0
+  );
+
+  const mscList = mscResults?.analysis?.items || mscResults?.items || mscResults?.danh_sach_ket_qua || (Array.isArray(mscResults) ? mscResults : []);
+  const p4_price = parseFloat(
+    mscResults?.selected_record?.don_gia ||
+    mscResults?.selected_record?.donGia ||
+    mscResults?.don_gia_tham_chieu ||
+    mscResults?.min_price ||
+    extractFirstPrice(mscList) ||
+    0
+  );
+
+  const ecomList = ecomResults?.items || (Array.isArray(ecomResults) ? ecomResults : []);
+  const p5_price = parseFloat(
+    ecomResults?.selected_record?.price ||
+    ecomResults?.selected_record?.don_gia ||
+    ecomResults?.don_gia_tham_chieu ||
+    extractFirstPrice(ecomList) ||
+    0
+  );
 
   // Status checks for 5 pillars
-  const has_p1 = Boolean(quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || quoteEvidence?.summary_text || evidenceStatus?.has_quotes);
-  const has_p2 = Boolean(erpResults?.results?.length > 0 || erpResults?.thoi_gian_luu || erpResults?.summary_text || evidenceStatus?.has_erp);
-  const has_p3 = Boolean(imisResults?.imis?.length > 0 || imisResults?.thoi_gian_luu || imisResults?.summary_text || evidenceStatus?.has_imis);
-  const has_p4 = Boolean(mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || mscResults?.danh_sach_ket_qua?.length > 0 || mscResults?.thoi_gian_luu || mscResults?.summary_text || evidenceStatus?.has_msc);
-  const has_p5 = Boolean(ecomResults?.summary_text || ecomResults?.items || ecomResults?.thoi_gian_luu || evidenceStatus?.has_ecom);
+  const has_p1 = Boolean(p1_price > 0 || quoteEvidence?.min_price || quoteEvidence?.matches?.length > 0 || quoteEvidence?.summary_text || evidenceStatus?.has_quotes);
+  const has_p2 = Boolean(p2_price > 0 || erpResults?.results?.length > 0 || erpResults?.thoi_gian_luu || erpResults?.summary_text || evidenceStatus?.has_erp);
+  const has_p3 = Boolean(p3_price > 0 || imisResults?.imis?.length > 0 || imisResults?.thoi_gian_luu || imisResults?.summary_text || evidenceStatus?.has_imis);
+  const has_p4 = Boolean(p4_price > 0 || mscResults?.analysis?.items?.length > 0 || mscResults?.items?.length > 0 || mscResults?.danh_sach_ket_qua?.length > 0 || mscResults?.thoi_gian_luu || mscResults?.summary_text || evidenceStatus?.has_msc);
+  const has_p5 = Boolean(p5_price > 0 || ecomResults?.summary_text || ecomResults?.items || ecomResults?.thoi_gian_luu || evidenceStatus?.has_ecom);
 
   // 1. Evidence Coverage Score (0-100 points, 20 points per pillar)
   const activeCount = [has_p1, has_p2, has_p3, has_p4, has_p5].filter(Boolean).length;
@@ -2462,22 +2786,36 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     priceEval = '🔴 Chưa Hợp Lý (Đơn giá trình cao hơn >20% so với mốc giá tham chiếu)';
   }
 
-  // Selection state for final approved price
+  // Selection state for final approved price & transparent AI results
   const [approvedPrice, setApprovedPrice] = useState(data?.approved_price || (minBaseline > 0 ? minBaseline : dgTrinh));
   const [editingText, setEditingText]     = useState(data?.summary_text || '');
   const [runningAi, setRunningAi]         = useState(false);
+  const [aiStep, setAiStep]               = useState(0);
+  const [aiResultData, setAiResultData]   = useState(data?.ai_result_data || null);
 
   const handleRunAiSynthesis = async () => {
     if (!item?.id) return;
     setRunningAi(true);
+    setAiStep(1);
     try {
+      await new Promise(r => setTimeout(r, 350));
+      setAiStep(2);
+      await new Promise(r => setTimeout(r, 350));
+      setAiStep(3);
+
       const res = await fetch(`/api/items/${item.id}/run-ai-synthesis`, { method: 'POST' });
+      setAiStep(4);
+
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.synthesis) {
           const syn = json.synthesis;
+          setAiStep(5);
+          await new Promise(r => setTimeout(r, 300));
+
           if (syn.summary_text) setEditingText(syn.summary_text);
           if (syn.approved_price) setApprovedPrice(syn.approved_price);
+          setAiResultData(syn);
           toast.success('✨ AI Chuyên Gia đã sinh Thuyết minh Độc lập & Đánh giá rủi ro thành công!');
         }
       } else {
@@ -2487,7 +2825,10 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
       console.error(e);
       toast.error('Không thể kết nối đến máy chủ AI!');
     } finally {
-      setRunningAi(false);
+      setTimeout(() => {
+        setRunningAi(false);
+        setAiStep(0);
+      }, 500);
     }
   };
 
@@ -3018,6 +3359,106 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
           </div>
         </div>
       </div>
+
+      {/* Khung Báo Cáo Kết Quả AI Chuyên Gia Minh Bạch (AI Expert Results Dashboard) */}
+      {aiResultData && (
+        <div className={`p-4 rounded-xl border-2 shadow-sm transition space-y-3 ${
+          aiResultData.risk_flag === 'HIGH_PRICE_WARNING' || (aiResultData.diff_pct && aiResultData.diff_pct > 10)
+            ? 'bg-amber-50/90 border-amber-400 text-amber-950'
+            : 'bg-emerald-50/90 border-emerald-400 text-emerald-950'
+        }`}>
+          <div className="flex items-center justify-between border-b pb-2 border-slate-200/80">
+            <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-2">
+              <Award className="w-4 h-4 text-purple-700 animate-bounce" />
+              🤖 BẢNG TỔNG HỢP CHỈ SỐ KẾT QUẢ ĐẦU RA TỪ AI CHUYÊN GIA ĐỘC LẬP
+            </h5>
+            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+              aiResultData.risk_flag === 'HIGH_PRICE_WARNING' || (aiResultData.diff_pct && aiResultData.diff_pct > 10)
+                ? 'bg-red-100 text-red-800 border-red-300'
+                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+            }`}>
+              {aiResultData.risk_flag === 'HIGH_PRICE_WARNING' || (aiResultData.diff_pct && aiResultData.diff_pct > 10)
+                ? `🔴 CẢNH BÁO CAO (+${aiResultData.diff_pct?.toFixed(1)}%)`
+                : '🟢 MỨC RỦI RO: BÌNH THƯỜNG'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="bg-white/80 p-2.5 rounded-lg border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-500 block">Đơn giá AI Đề xuất Phê duyệt:</span>
+              <span className="text-base font-black font-mono text-blue-900">{fmt(aiResultData.suggested_price || approvedPrice)} đ</span>
+            </div>
+            <div className="bg-white/80 p-2.5 rounded-lg border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-500 block">Tiết kiệm Dự toán Dự kiến:</span>
+              <span className="text-base font-black font-mono text-emerald-700">
+                {(aiResultData.estimated_savings || totalSavings) > 0 ? `-${fmt(aiResultData.estimated_savings || totalSavings)} đ` : '0 đ (Giữ giá trình)'}
+              </span>
+            </div>
+            <div className="bg-white/80 p-2.5 rounded-lg border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-500 block">Nguồn Mô hình AI Thực thi:</span>
+              <span className="text-xs font-bold text-purple-900 flex items-center gap-1 mt-1">
+                {aiResultData.used_ai ? '🟢 Gemini LLM API (OpenRouter)' : '⚡ SME Expert Model (Local)'}
+              </span>
+            </div>
+          </div>
+
+          {aiResultData.expert_opinion && (
+            <div className="bg-white/80 p-3 rounded-lg border border-slate-200 text-xs">
+              <span className="font-bold text-slate-800 block mb-1">💡 Trích xuất Ý kiến Phân tích Kỹ thuật Nổi bật:</span>
+              <p className="text-[11.5px] leading-relaxed text-slate-700 whitespace-pre-wrap italic">
+                {aiResultData.expert_opinion}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal Tiến trình Chạy AI Chuyên Gia minh bạch */}
+      {runningAi && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-2xl border border-purple-200 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-3 border-b pb-3 border-slate-100">
+              <div className="p-2.5 bg-purple-100 text-purple-700 rounded-xl">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-purple-950">ĐANG PHÂN TÍCH TIẾN TRÌNH BỞI AI CHUYÊN GIA</h4>
+                <p className="text-xs text-slate-500 font-medium">Hệ thống đang xử lý độc lập dữ liệu 5 Khối chứng cứ...</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {[
+                { step: 1, title: 'Nạp & Tổng hợp dữ liệu 5 Khối chứng cứ', desc: 'Đã thu thập Báo Giá Gốc, CSDL ERP Vĩnh Tân 4, IMIS EVN, Mua Sắm Công & TMĐT.' },
+                { step: 2, title: 'Phân tích bản chất Kỹ thuật & Hãng sản xuất', desc: 'Đang đánh giá thông số thiết bị, model đặc thù và tính tương thích thương hiệu.' },
+                { step: 3, title: 'Truy vấn Mô hình AI Chuyên Gia Độc Lập (LLM/SME)', desc: 'Đang gửi yêu cầu phản biện độc lập đến Mô hình AI Chuyên gia.' },
+                { step: 4, title: 'Đánh giá Rủi ro Đơn giá & Tiết kiệm Dự toán', desc: 'Tính toán biên độ dao động lịch sử và số tiền tiết kiệm khả thi.' },
+                { step: 5, title: 'Hoàn tất Thuyết minh & Đề xuất Đơn giá Phê duyệt', desc: 'Biên soạn bài báo cáo độc lập và sẵn sàng phê duyệt.' },
+              ].map(s => {
+                const isDone = aiStep > s.step;
+                const isCurrent = aiStep === s.step;
+                return (
+                  <div key={s.step} className={`p-2.5 rounded-xl border text-xs transition flex items-start gap-3 ${
+                    isDone ? 'bg-emerald-50 border-emerald-200 text-emerald-950' :
+                    isCurrent ? 'bg-purple-50 border-purple-300 text-purple-950 ring-2 ring-purple-200 font-bold' :
+                    'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                  }`}>
+                    <div className="mt-0.5 shrink-0">
+                      {isDone ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> :
+                       isCurrent ? <Loader2 className="w-4 h-4 text-purple-700 animate-spin" /> :
+                       <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex items-center justify-center text-[9px] font-bold">{s.step}</div>}
+                    </div>
+                    <div>
+                      <div className="font-bold">{s.title}</div>
+                      <div className="text-[10.5px] opacity-80 font-medium">{s.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bản Thuyết Minh Tổng Hợp 5 Cơ Sở */}
       <div className="p-4 rounded-xl border-2 border-teal-400 bg-white text-slate-900 shadow-sm space-y-2">
