@@ -131,10 +131,10 @@ def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_pric
         eval_text = (
             f"- Đánh giá Tương quan Giá trị Kỹ thuật & Thương mại: Đơn giá trình {fmt_vnd(dg_trinh)} cao hơn +{diff_pct:.1f}% "
             f"so với đơn giá tham chiếu thấp nhất hợp lệ ({fmt_vnd(min_ref_price)}). Với đặc tính kỹ thuật vật tư hiện tại, "
-            f"mức chênh lệch này vượt quá biên độ an toàn và cần được Hội đồng Thẩm định xem xét điều chỉnh."
+            f"mức chênh lệch này vượt quá biên độ an toàn và Tổ Thẩm định đề xuất xem xét điều chỉnh."
         )
         recommendation = (
-            f"🔴 CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ: Đề xuất Hội đồng Thẩm định đàm phán điều chỉnh đơn giá phê duyệt "
+            f"🔴 CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ: Tổ Thẩm định đề xuất Lãnh đạo/Hội đồng Thẩm định đàm phán điều chỉnh đơn giá phê duyệt "
             f"về mức {fmt_vnd(suggested_price)} (Dự kiến tiết kiệm {fmt_vnd(savings)} cho Nhà máy)."
         )
     else:
@@ -143,15 +143,15 @@ def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_pric
             f"tương xứng với tiêu chuẩn chất lượng kỹ thuật [{brand}] và phù hợp với mặt bằng giá lịch sử ERP / báo giá chào cạnh tranh."
         )
         recommendation = (
-            f"🟢 KHUYẾN NGHỊ CHUYÊN GIA: Đơn giá trình đảm bảo tính hợp lý cả về Tiêu chuẩn Kỹ thuật thiết bị chính hãng "
-            f"lẫn Mặt bằng Giá thị trường. Đề xuất Hội đồng Thẩm định phê duyệt giữ nguyên đơn giá trình là {fmt_vnd(dg_trinh)}."
+            f"🟢 ĐỀ XUẤT CỦA TỔ THẨM ĐỊNH: Đơn giá trình đảm bảo tính hợp lý cả về Tiêu chuẩn Kỹ thuật thiết bị chính hãng "
+            f"lẫn Mặt bằng Giá thị trường. Tổ Thẩm định kính trình Lãnh đạo phê duyệt giữ nguyên đơn giá trình là {fmt_vnd(dg_trinh)}."
         )
 
     opinion_text = (
-        f"🔍 Ý KIẾN ĐÁNH GIÁ ĐỘC LẬP CỦA CHUYÊN GIA VẬT TƯ KỸ THUẬT:\n"
+        f"🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN:\n"
         f"{analysis_text}\n"
         f"{eval_text}\n\n"
-        f"💡 KHUYẾN NGHỊ CHUYÊN GIA CHO HỘI ĐỒNG THẨM ĐỊNH:\n"
+        f"💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO:\n"
         f"{recommendation}"
     )
 
@@ -160,7 +160,7 @@ def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_pric
 
 def call_openrouter_free_api(item, pillars, sme_opinion_context, config):
     """
-    Gọi OpenRouter API với mô hình Free để nhận bài Thuyết minh tinh chế từ AI Chuyên gia.
+    Gọi OpenRouter API với mô hình Free để nhận bài Thuyết minh tinh chế từ AI Hỗ trợ Thẩm định.
     """
     api_key = config.get("openrouter_api_key", "").strip()
     model = config.get("model", "qwen/qwen-2.5-coder-32b-instruct:free").strip()
@@ -169,9 +169,9 @@ def call_openrouter_free_api(item, pillars, sme_opinion_context, config):
 
     # 1. Kiểm tra nguyên tắc 100% Free AI
     if only_free and ":free" not in model.lower():
-        print(f"    [!] SKIP AI: Model [{model}] không thuộc danh mục Miễn phí (:free). Tự động dùng Chuyên gia Cục bộ.")
+        print(f"    [!] SKIP AI: Model [{model}] không thuộc danh mục Miễn phí (:free). Tự động dùng Quy tắc Cục bộ Tổ Thẩm định.")
     if not api_key:
-        print("    [!] SKIP AI: Chưa có API Key OpenRouter Free. Tự động dùng Chuyên gia Cục bộ.")
+        print("    [!] SKIP AI: Chưa có API Key OpenRouter Free. Tự động dùng Quy tắc Cục bộ Tổ Thẩm định.")
         return None
 
     candidate_models = [
@@ -191,10 +191,12 @@ def call_openrouter_free_api(item, pillars, sme_opinion_context, config):
             free_model_list.append(m)
 
     system_prompt = (
-        "Bạn là Chuyên gia Kỹ thuật và Vật tư Thiết bị Công nghiệp Nhiệt điện có 20 năm kinh nghiệm. "
+        "Bạn là Chuyên viên thuộc Tổ Thẩm định Dự toán - Nhà máy Nhiệt điện Vĩnh Tân 4. "
         "Nhiệm vụ của bạn là dựa trên bản chất kỹ thuật của vật tư (tên, thông số, hãng sản xuất) "
-        "và chứng cứ 5 cơ sở thẩm định để đưa ra 'Ý KIẾN ĐÁNH GIÁ ĐỘC LẬP CỦA CHUYÊN GIA VẬT TƯ KỸ THUẬT' "
-        "và 'KHUYẾN NGHỊ CHUYÊN GIA CHO HỘI ĐỒNG THẨM ĐỊNH' bài bài văn phong hành chính - kỹ thuật sắc bén, tự nhiên và chuyên nghiệp. "
+        "và chứng cứ 5 cơ sở thẩm định để lập 'Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH' "
+        "và 'KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO' bằng văn phong hành chính - kỹ thuật nội bộ sắc bén, tự nhiên và đúng thẩm quyền. "
+        "Xưng danh là 'Tổ Thẩm định' (ví dụ: 'Tổ Thẩm định qua đối chiếu nhận thấy...', 'Tổ Thẩm định đề xuất...'). "
+        "Không dùng từ ngữ tự xưng là 'Chuyên gia độc lập bên ngoài' hay 'Chuyên gia tư vấn'. "
         "Trả về kết quả thuyết minh trực tiếp, không sử dụng lời chào hay markdown dư thừa ngoài nội dung thuyết minh."
     )
 
@@ -209,13 +211,13 @@ def call_openrouter_free_api(item, pillars, sme_opinion_context, config):
         f"- Cơ sở 3 (EVN IMIS): {pillars.get('p3_desc', '')}\n"
         f"- Cơ sở 4 (Mua Sắm Công e-GP): {pillars.get('p4_desc', '')}\n"
         f"- Cơ sở 5 (Thương Mại Điện Tử): {pillars.get('p5_desc', '')}\n\n"
-        f"BẢN THẢO Ý KIẾN CHUYÊN GIA MẪU (Hãy nâng cấp văn phong chuyên sâu hơn):\n"
+        f"BẢN THẢO Ý KIẾN TỔ THẨM ĐỊNH MẪU (Hãy nâng cấp văn phong hành chính nội bộ chuyên sâu hơn):\n"
         f"{sme_opinion_context}\n\n"
         f"YÊU CẦU ĐẦU RA:\n"
         f"Viết bài Thuyết minh đầy đủ cấu trúc gồm 3 phần:\n"
         f"1. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\n"
-        f"2. 🔍 Ý KIẾN ĐÁNH GIÁ ĐỘC LẬP CỦA CHUYÊN GIA VẬT TƯ KỸ THUẬT & 5 CƠ SỞ CHỨNG CỨ\n"
-        f"3. 💡 KHUYẾN NGHỊ CHUYÊN GIA CHO HỘI ĐỒNG THẨM ĐỊNH & KẾT LUẬN THẨM ĐỊNH"
+        f"2. 🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN (5 CƠ SỞ CHỨNG CỨ)\n"
+        f"3. 💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO"
     )
 
     headers = {

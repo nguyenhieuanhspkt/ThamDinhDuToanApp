@@ -15,6 +15,7 @@ import imis_core
 import quote_matcher
 import msc_matcher
 import ai_synthesis
+import pdf_report_generator
 
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.config['JSON_AS_ASCII'] = False
@@ -1159,6 +1160,165 @@ def api_search_sources():
     return jsonify(result)
 
 
+def extract_default_keyword(ten_vt, part_no=""):
+    raw = (part_no or "") + " " + (ten_vt or "")
+    match = re.search(r'(?:Partno|Part\s*No|Model|Mã)[\s:]*([A-Za-z0-9\-_]{3,20})', raw, re.IGNORECASE)
+    if match and match.group(1):
+        return match.group(1).strip()
+    match2 = re.search(r'\b[A-Z0-9]{3,10}(?:[\-_/]\s*[A-Z0-9]{2,10})+\b', raw)
+    if match2:
+        return match2.group(0).strip()
+    clean = re.sub(r'[\-:;]', ' ', ten_vt or "").strip()
+    words = clean.split()
+    return " ".join(words[:4]) if words else (ten_vt or "")[:30]
+
+
+@app.route("/api/items/<int:item_id>/update-keyword", methods=["POST"])
+def api_update_item_keyword(item_id):
+    req = request.get_json() or {}
+    keyword = req.get("keyword", "").strip()
+    dossier = load_dossier_data()
+    items = dossier.get("items", [])
+    target = None
+    for it in items:
+        if it.get("id") == item_id or items.index(it) + 1 == item_id:
+            target = it
+            break
+    if target:
+        target["search_keyword"] = keyword
+        save_dossier_data(dossier)
+        return jsonify({"success": True, "keyword": keyword})
+    return jsonify({"success": False, "message": "Item not found"}), 404
+
+
+@app.route("/api/items/<int:item_id>/run-5-pillars", methods=["POST"])
+def api_run_5_pillars(item_id):
+    req = request.get_json() or {}
+    kw_input = req.get("keyword", "").strip()
+    
+    dossier = load_dossier_data()
+    items = dossier.get("items", [])
+    target_item = None
+    for it in items:
+        if it.get("id") == item_id or items.index(it) + 1 == item_id:
+            target_item = it
+            break
+            
+    if not target_item:
+        return jsonify({"success": False, "message": f"Không tìm thấy mục {item_id}"}), 404
+        
+    raw_ten = target_item.get("ten_vt", "")
+    raw_part = target_item.get("part_no", "")
+    keyword = kw_input or target_item.get("search_keyword") or extract_default_keyword(raw_ten, raw_part)
+    target_item["search_keyword"] = keyword
+    
+    p_dir = os.path.join(DATA_DIR, "current_dossier_files")
+    item_dir = os.path.join(p_dir, f"item_{item_id}")
+    os.makedirs(item_dir, exist_ok=True)
+    
+    # 1. Báo giá gốc
+    p1_desc = "Chưa nạp dữ liệu Báo giá gốc"
+    p1_price = 0
+    try:
+        q_folder = quote_matcher.DEFAULT_QUOTES_DIR
+        q_overrides = get_project_quote_overrides()
+        scanned_quotes = quote_matcher.scan_quotation_folder(q_folder, overrides=q_overrides)
+        q_matches = quote_matcher.match_item_in_quotes(target_item, scanned_quotes)
+        if q_matches and q_matches.get("min_price"):
+            p1_price = float(q_matches["min_price"])
+            p1_supplier = q_matches.get("matches", [{}])[0].get("company", "Nhà thầu chào") if q_matches.get("matches") else "Nhà thầu chào"
+            p1_desc = f"Báo giá chào thấp nhất: {p1_price:,.0f} đ/Cái ({p1_supplier})".replace(",", ".")
+            with open(os.path.join(item_dir, "chung_cu_quotes.json"), "w", encoding="utf-8") as f:
+                json.dump(q_matches, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Pillar 1 error for item {item_id}: {e}")
+
+    # 2. ERP Vĩnh Tân 4
+    p2_desc = "Chưa có dữ liệu ERP nội bộ"
+    p2_price = 0
+    try:
+        erp_res = imis_core.search_erp_baseline(keyword or target_item.get("ma_vt", ""), min_score=40)
+        recs = erp_res if isinstance(erp_res, list) else erp_res.get("results", [])
+        if recs:
+            p2_price = float(recs[0].get("don_gia") or recs[0].get("donGia") or 0)
+            p2_desc = f"Đơn giá ERP nhập kho lịch sử: {p2_price:,.0f} đ/Cái (HĐ {recs[0].get('so_hd') or recs[0].get('soHopDong') or 'N/A'})".replace(",", ".")
+            with open(os.path.join(item_dir, "chung_cu_erp.json"), "w", encoding="utf-8") as f:
+                json.dump(erp_res, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Pillar 2 error for item {item_id}: {e}")
+
+    # 3. EVN IMIS
+    p3_desc = "Chưa có dữ liệu EVN IMIS"
+    p3_price = 0
+    try:
+        imis_res = imis_core.search_item_sources(keyword, ma_vt=target_item.get("ma_vt", ""))
+        recs = imis_res.get("imis", [])
+        if recs:
+            p3_price = float(recs[0].get("don_gia") or 0)
+            p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
+            with open(os.path.join(item_dir, "chung_cu_imis.json"), "w", encoding="utf-8") as f:
+                json.dump(imis_res, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Pillar 3 error for item {item_id}: {e}")
+
+    # 4. Mua sắm công e-GP
+    p4_desc = "Chưa có dữ liệu Mua sắm công e-GP"
+    p4_price = 0
+    try:
+        msc_analysis = msc_matcher.search_muasamcong(keyword)
+        if msc_analysis and msc_analysis.get("success"):
+            comp = msc_matcher.analyze_msc_comparison(target_item, msc_analysis)
+            p4_price = float(comp.get("min_price") or 0)
+            if p4_price > 0:
+                p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/Cái (Kết quả trúng thầu)".replace(",", ".")
+            with open(os.path.join(item_dir, "chung_cu_muasamcong.json"), "w", encoding="utf-8") as f:
+                json.dump(comp, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Pillar 4 error for item {item_id}: {e}")
+
+    # 5. Thương mại điện tử
+    p5_desc = "Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)"
+    p5_price = 0
+    try:
+        ecom_res = {"keyword": keyword, "records": [], "note": "Contact for Quote"}
+        with open(os.path.join(item_dir, "chung_cu_ecom.json"), "w", encoding="utf-8") as f:
+            json.dump(ecom_res, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Pillar 5 error for item {item_id}: {e}")
+
+    # 6. Synthesis
+    pillars_dict = {
+        "p1_desc": p1_desc, "p1_price": p1_price,
+        "p2_desc": p2_desc, "p2_price": p2_price,
+        "p3_desc": p3_desc, "p3_price": p3_price,
+        "p4_desc": p4_desc, "p4_price": p4_price,
+        "p5_desc": p5_desc, "p5_price": p5_price
+    }
+    
+    sme_result = ai_synthesis.generate_ai_synthesis(target_item, pillars_dict)
+    synthesis_text = sme_result.get("summary_text", "")
+    with open(os.path.join(item_dir, "chung_cu_synthesis.json"), "w", encoding="utf-8") as f:
+        json.dump(sme_result, f, ensure_ascii=False, indent=2)
+        
+    target_item["danh_gia_ttd"] = synthesis_text
+    if sme_result.get("suggested_price"):
+        target_item["don_gia_thong_nhat"] = float(sme_result["suggested_price"])
+        sl = float(target_item.get("so_luong") or 1)
+        target_item["thanh_tien_thong_nhat"] = target_item["don_gia_thong_nhat"] * sl
+        dg_trinh = float(target_item.get("don_gia_trinh") or 0)
+        target_item["gia_tri_giam"] = (dg_trinh - target_item["don_gia_thong_nhat"]) * sl
+        
+    save_dossier_data(dossier)
+    
+    return jsonify({
+        "success": True,
+        "item_id": item_id,
+        "keyword": keyword,
+        "synthesis": sme_result,
+        "item": target_item
+    })
+
+
 @app.route("/api/import-excel", methods=["POST"])
 def api_import_excel():
     if 'file' not in request.files:
@@ -1508,7 +1668,39 @@ def api_download_template():
     return send_file(template_path, as_attachment=True, download_name="Mau_Du_Toan_Tham_Dinh.xlsx")
 
 
+@app.route("/api/items/<int:item_id>/export-pdf", methods=["GET"])
+@app.route("/api/export-pdf-item/<int:item_id>", methods=["GET"])
+def api_export_item_pdf(item_id):
+    dossier = load_dossier_data()
+    items = dossier.get("items", [])
+    target_item = None
+    for item in items:
+        if item.get("id") == item_id:
+            target_item = item
+            break
+            
+    if not target_item:
+        if items and 0 <= item_id - 1 < len(items):
+            target_item = items[item_id - 1]
+        else:
+            return jsonify({"error": f"Item {item_id} not found"}), 404
+            
+    raw_title = target_item.get('ten_vt', f'Muc_{item_id}')
+    clean_title = re.sub(r'[\r\n]+', ' ', raw_title)
+    safe_title = re.sub(r'[\\/*?:"<>|]', '_', clean_title)[:100].strip()
+    pdf_filename = f"Báo Cáo Thẩm Định - {safe_title}.pdf"
+    output_pdf_path = os.path.join(DATA_DIR, f"BaoCao_ThamDinh_Muc_{target_item.get('id', item_id):02d}.pdf")
+    
+    try:
+        pdf_report_generator.generate_item_pdf(target_item, dossier, output_pdf_path)
+        return send_file(output_pdf_path, as_attachment=True, download_name=pdf_filename)
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+
+
+
 if __name__ == "__main__":
+
     print("=" * 70)
     print("ThamDinhDuToanApp - To Tham Dinh Du Toan NMND Vinh Tan 4")
     print("Dia chi: http://localhost:5555")

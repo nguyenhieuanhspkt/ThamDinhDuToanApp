@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2 } from 'lucide-react';
+import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key } from 'lucide-react';
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
   const [items, setItems] = useState([]);
@@ -8,6 +8,11 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const [stats, setStats] = useState({ total_items: 0, total_trinh: 0, total_thong_nhat: 0 });
   const [quoteMatches, setQuoteMatches] = useState({});
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+
+  // States cho 1-click 5 cơ sở & keyword management
+  const [itemKeywords, setItemKeywords] = useState({});
+  const [runningItemIds, setRunningItemIds] = useState(new Set());
+  const [runningAllPillars, setRunningAllPillars] = useState(false);
 
   const fetchGridData = async () => {
     try {
@@ -20,7 +25,15 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       const total_thong_nhat = list.reduce((acc, it) => acc + (parseFloat(it.thanh_tien_thong_nhat) || ((it.so_luong || 1) * (it.don_gia_thong_nhat || 0)) || 0), 0);
       setStats({ total_items: list.length, total_trinh, total_thong_nhat });
 
-      // Tự động quét & bóc tách các file Báo giá gốc đính kèm
+      // Tự động khởi tạo map từ khóa
+      const kwMap = {};
+      list.forEach((it, idx) => {
+        const idKey = it.id || idx + 1;
+        kwMap[idKey] = it.search_keyword || extractDefaultKeyword(it);
+      });
+      setItemKeywords(kwMap);
+
+      // Quét & bóc tách báo giá gốc đính kèm
       fetchQuoteMatches();
     } catch (e) {
       console.error('Lỗi fetch grid data:', e);
@@ -44,16 +57,77 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
   useEffect(() => { fetchGridData(); }, []);
 
+  const extractDefaultKeyword = (it) => {
+    if (it.search_keyword) return it.search_keyword;
+    const raw = (it.part_no || '') + ' ' + (it.ten_vt || '');
+    const match = raw.match(/(?:Partno|Part\s*No|Model|Mã)[\s:]*([A-Za-z0-9\-_]{3,20})/i);
+    if (match && match[1]) return match[1].trim();
+    const match2 = raw.match(/\b[A-Z0-9]{3,10}(?:[\-_/]\s*[A-Z0-9]{2,10})+\b/);
+    if (match2) return match2[0].trim();
+    const clean = (it.ten_vt || '').replace(/[\-:;]/g, ' ').trim();
+    const words = clean.split(/\s+/);
+    return words.slice(0, 4).join(' ') || (it.ten_vt || '').slice(0, 30);
+  };
+
+  const handleKeywordChange = (itemId, val) => {
+    setItemKeywords(prev => ({ ...prev, [itemId]: val }));
+    fetch(`/api/items/${itemId}/update-keyword`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword: val })
+    }).catch(console.error);
+  };
+
+  const handleRun5Pillars = async (itemId) => {
+    setRunningItemIds(prev => new Set(prev).add(itemId));
+    try {
+      const kw = itemKeywords[itemId] || '';
+      const res = await fetch(`/api/items/${itemId}/run-5-pillars`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: kw })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchGridData();
+      }
+    } catch (e) {
+      console.error('Lỗi chạy 5 cơ sở cho item', itemId, e);
+    } finally {
+      setRunningItemIds(prev => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
+  };
+
+  const handleRunAll5Pillars = async () => {
+    setRunningAllPillars(true);
+    try {
+      for (const it of filteredItems) {
+        const itemId = it.id || items.indexOf(it) + 1;
+        await handleRun5Pillars(itemId);
+      }
+    } catch (e) {
+      console.error('Lỗi chạy tất cả 5 cơ sở:', e);
+    } finally {
+      setRunningAllPillars(false);
+    }
+  };
+
   const fmt = (val) => (!val && val !== 0 ? '—' : Math.round(val).toLocaleString('vi-VN'));
 
   const filteredItems = items.filter((it, idx) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
+    const kw = itemKeywords[it.id || idx + 1] || '';
     return (
       (it.ten_vt_goc || it.ten_vt || '').toLowerCase().includes(q) ||
       (it.ma_vt || '').toLowerCase().includes(q) ||
       (it.pycvt || '').toLowerCase().includes(q) ||
       (it.thong_so_kt || it.part_no || '').toLowerCase().includes(q) ||
+      kw.toLowerCase().includes(q) ||
       String(it.stt || idx + 1).includes(q)
     );
   });
@@ -132,13 +206,33 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Master 1-Click Automation Button */}
+            <button
+              onClick={handleRunAll5Pillars}
+              disabled={runningAllPillars}
+              className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer"
+              title="Chạy 1 mạch tự động 5 khối chứng cứ cho tất cả danh mục vật tư"
+            >
+              {runningAllPillars ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-200" />
+                  <span>Đang chạy tất cả...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                  <span>⚡ Tra Cứu Tự Động Tất Cả (1-Click All)</span>
+                </>
+              )}
+            </button>
+
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
               <input
                 type="text" value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Tìm tên vật tư, mã ERP, PYCVT..."
-                className="pl-8 pr-8 py-1.5 text-xs border border-slate-300 rounded-lg w-64 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                placeholder="Tìm từ khóa, tên vật tư, ERP..."
+                className="pl-8 pr-8 py-1.5 text-xs border border-slate-300 rounded-lg w-56 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs">✕</button>
@@ -155,14 +249,20 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
         {/* Scrollable Table */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-xs text-left border-collapse min-w-[1800px]">
+          <table className="w-full text-xs text-left border-collapse min-w-[1950px]">
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-300 shadow-sm">
               <tr>
                 {/* Fixed Common Columns 1..3 */}
                 <th className="py-3 px-2 text-center w-10 sticky left-0 bg-slate-100 border-r border-slate-200 z-30">1. STT</th>
                 <th className="py-3 px-2 text-center w-24 sticky left-10 bg-slate-100 border-r border-slate-200 z-30">2. PYCVT</th>
                 <th className="py-3 px-3 w-56 sticky left-[136px] bg-slate-100 border-r border-slate-200 z-30 shadow-sm">3. Tên vật tư</th>
-                <th className="py-3 px-3 w-56 border-r border-slate-200">4. Thông số KT</th>
+
+                {/* NEW COLUMN: Từ Khóa Tra Cứu Dùng Chung 5 Cơ Sở */}
+                <th className="py-3 px-3 w-48 border-r border-slate-200 bg-purple-100/80 text-purple-950 font-extrabold flex items-center gap-1">
+                  <Key className="w-3.5 h-3.5 text-purple-700" /> 🔑 Từ Khóa Tra Cứu (5 Cơ Sở)
+                </th>
+
+                <th className="py-3 px-3 w-52 border-r border-slate-200">4. Thông số KT</th>
                 <th className="py-3 px-2 text-center w-12 border-r border-slate-200">5. ĐVT</th>
                 <th className="py-3 px-2 text-right w-14 border-r border-slate-200">6. SL</th>
                 <th className="py-3 px-3 w-28 border-r border-slate-200">7. HSX/XX</th>
@@ -193,13 +293,14 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <tbody className="divide-y divide-slate-200/80">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={viewMode === 'standard' ? 14 : 13} className="text-center py-16 text-slate-400 text-xs italic">
+                  <td colSpan={viewMode === 'standard' ? 15 : 14} className="text-center py-16 text-slate-400 text-xs italic">
                     {searchQuery ? `Không tìm thấy mục nào khớp "${searchQuery}"` : 'Chưa có dòng dự toán. Hãy nạp file Excel.'}
                   </td>
                 </tr>
               ) : (
                 filteredItems.map((it, idx) => {
                   const origIdx = items.indexOf(it);
+                  const itemId = it.id || origIdx + 1;
                   const sl = parseFloat(it.so_luong) || 1;
 
                   // Trình
@@ -215,7 +316,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                   const pctGiam = hasTN && dgTrinh > 0 ? ((dgTrinh - dgTN) / dgTrinh * 100) : null;
 
                   // Lowest quote & match info from auto-scan backend
-                  const itemMatch = quoteMatches[it.id || origIdx + 1] || {};
+                  const itemMatch = quoteMatches[itemId] || {};
                   const lowestPrice = itemMatch.lowest_price || it.lowest_quote_price || it.don_gia_nha_thau_thap_nhat || it.don_gia_nhathau_min || null;
                   const lowestVendor = itemMatch.lowest_vendor || it.lowest_quote_vendor || it.ten_nha_thau_thap_nhat || it.ten_nhathau_min || '—';
                   const noteCoSo = itemMatch.co_so_don_gia || it.ghi_chu_co_so_don_gia || it.co_so_thong_nhat || it.danh_gia_ttd || it.ghi_chu || '—';
@@ -227,6 +328,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                     : 'increased';
 
                   const isEven = idx % 2 === 0;
+                  const isRunningThis = runningItemIds.has(itemId);
 
                   return (
                     <tr key={idx} className={`group transition hover:bg-teal-50/60 ${isEven ? 'bg-white' : 'bg-slate-50/30'}`}>
@@ -239,6 +341,18 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-slate-900 sticky left-[136px] bg-inherit group-hover:bg-teal-50 border-r border-slate-200 shadow-sm">
                         <div className="line-clamp-2" title={it.ten_vt_goc || it.ten_vt}>{it.ten_vt_goc || it.ten_vt || ''}</div>
+                      </td>
+
+                      {/* NEW COLUMN: Từ Khóa Tra Cứu Dùng Chung 5 Cơ Sở */}
+                      <td className="py-2.5 px-2 border-r border-slate-200 bg-purple-50/30 group-hover:bg-purple-50/60">
+                        <input
+                          type="text"
+                          value={itemKeywords[itemId] ?? (it.search_keyword || extractDefaultKeyword(it))}
+                          onChange={(e) => handleKeywordChange(itemId, e.target.value)}
+                          className="w-full px-2 py-1 text-[11.5px] font-mono font-bold text-purple-950 bg-white border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 shadow-2xs"
+                          placeholder="Nhập từ khóa tra cứu 5 khối..."
+                          title="Từ khóa dùng chung để tra cứu liên hoàn cả 5 cơ sở chứng cứ (Bấm sửa trực tiếp)"
+                        />
                       </td>
 
                       {/* Common Columns 4..9 */}
@@ -302,14 +416,30 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
                       {/* Action — Sticky Right */}
                       <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
-                        <div className="flex flex-col items-center gap-1">
-                          {status === 'pending' && <span className="text-[9px] text-slate-400 font-medium">Chưa TĐ</span>}
-                          {status === 'reduced'  && <span className="flex items-center gap-0.5 text-[9px] text-emerald-700 font-bold"><CheckCircle2 className="w-3 h-3" />Giảm trừ</span>}
-                          {status === 'same'     && <span className="flex items-center gap-0.5 text-[9px] text-blue-600 font-bold"><MinusCircle className="w-3 h-3" />Thống nhất</span>}
-                          {status === 'increased'&& <span className="flex items-center gap-0.5 text-[9px] text-red-600 font-bold"><AlertCircle className="w-3 h-3" />Tăng giá</span>}
+                        <div className="flex flex-col items-center gap-1.5">
+                          {/* 1-Click 5-Pillars Automation Button */}
+                          <button
+                            onClick={() => handleRun5Pillars(itemId)}
+                            disabled={isRunningThis}
+                            className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10.5px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                            title="Chạy 1 mạch tự động 5 khối chứng cứ theo từ khóa này"
+                          >
+                            {isRunningThis ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
+                                <span>Đang tra...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
+                                <span>⚡ Tra 5 Cơ Sở</span>
+                              </>
+                            )}
+                          </button>
+
                           <button
                             onClick={() => onSelectInspectorItem(origIdx)}
-                            className="px-2 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-[10px] font-bold transition shadow-sm"
+                            className="w-full px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-[9.5px] font-bold transition border border-slate-300"
                           >
                             Soi Chi Tiết
                           </button>

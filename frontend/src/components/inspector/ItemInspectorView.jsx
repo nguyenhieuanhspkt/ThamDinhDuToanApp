@@ -360,6 +360,11 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     return (it.ten_vt?.toLowerCase().includes(q) || it.ma_vt?.toLowerCase().includes(q) || String(idx + 1).includes(q));
   });
 
+  const handleExportPdf = () => {
+    const itemId = currentItem.id || selectedIndex + 1;
+    window.open(`/api/items/${itemId}/export-pdf`, '_blank');
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white h-full">
       {/* Navigator Bar */}
@@ -383,13 +388,23 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
             Tiếp theo <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-500">Đang duyệt:</span>
-          <strong className="text-slate-900 max-w-md truncate" title={currentItem.ten_vt}>
-            {currentItem.ten_vt || 'Chưa chọn'}
-          </strong>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Đang duyệt:</span>
+            <strong className="text-slate-900 max-w-xs truncate" title={currentItem.ten_vt}>
+              {currentItem.ten_vt || 'Chưa chọn'}
+            </strong>
+          </div>
+          <button
+            onClick={handleExportPdf}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            title="Xuất Báo Cáo Thẩm Định PDF A4 Chuyên Nghiệp"
+          >
+            <FileText className="w-4 h-4" /> Xuất Báo Cáo PDF
+          </button>
         </div>
       </div>
+
 
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
@@ -3055,128 +3070,7 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     toast.success('✨ Đã xuất file Báo cáo Thẩm định Word (.doc/.docx)!');
   };
 
-  const handleExportPdf = () => {
-    const printWin = window.open('', '_blank');
-    if (!printWin) {
-      toast.error('Vui lòng cho phép popup trình duyệt để mở giao diện in PDF!');
-      return;
-    }
-    const printHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Báo Cáo Thẩm Định - ${item?.ten_vt || ''}</title>
-        <meta charset="utf-8" />
-        <style>
-          @page { size: A4; margin: 20mm; }
-          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.4; color: #000; margin: 0; padding: 20px; }
-          h2 { font-size: 15pt; font-weight: bold; text-align: center; text-transform: uppercase; margin-top: 15px; margin-bottom: 15px; }
-          h3 { font-size: 13pt; font-weight: bold; margin-top: 15px; border-bottom: 1px solid #000; padding-bottom: 3px; text-transform: uppercase; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
-          th, td { border: 1px solid #000; padding: 6px 8px; font-size: 11pt; text-align: left; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-          .header-table { width: 100%; border: none; margin-bottom: 20px; }
-          .header-table td { border: none; padding: 0; }
-          .pre-text { font-family: 'Times New Roman', serif; white-space: pre-wrap; font-size: 11pt; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-top: 5px; }
-          @media print {
-            body { padding: 0; }
-            button { display: none !important; }
-          }
-        </style>
-      </head>
-      <body>
-        <div style="text-align: right; margin-bottom: 10px;">
-          <button onclick="window.print()" style="padding: 8px 16px; background: #003366; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">🖨️ In / Lưu PDF Ngay</button>
-        </div>
-        <table class="header-table">
-          <tr>
-            <td style="width: 45%; text-align: center;">
-              <strong>NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4</strong><br/>
-              <b>TỔ THẨM ĐỊNH DỰ TOÁN</b><br/>
-              -------------
-            </td>
-            <td style="width: 55%; text-align: center;">
-              <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong><br/>
-              <b>Độc lập - Tự do - Hạnh phúc</b><br/>
-              -----------------------
-            </td>
-          </tr>
-        </table>
 
-        <h2>BÁO CÁO TỔNG HỢP KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ VẬT TƯ</h2>
-
-        <p>
-          <strong>Tên vật tư:</strong> ${item?.ten_vt || '—'}<br/>
-          <strong>Mã VT (ERP):</strong> ${item?.ma_vt || '—'} &nbsp;|&nbsp; <strong>Số lượng:</strong> ${qty} ${item?.dvt || 'Cái'}<br/>
-          <strong>Đơn giá trình thẩm định:</strong> ${fmt(dgTrinh)} VNĐ
-        </p>
-
-        <h3>I. ĐÁNH GIÁ CHỨNG CỨ THẨM ĐỊNH (5 CƠ SỞ CHỨNG CỨ)</h3>
-        <p>
-          - Điểm số phủ chứng cứ: <strong>${coverageScore}/100 điểm</strong> (${coverageRank} - ${activeCount}/5 Cơ sở chứng cứ đã nạp).<br/>
-          - Điểm số hợp lý đơn giá trình: <strong>${priceScore}/100 điểm</strong> (${priceEval}).
-        </p>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Cơ Sở Chứng Cứ Thẩm Định</th>
-              <th style="text-align: right;">Đơn Giá Tham Chiếu</th>
-              <th style="text-align: center;">% Lệch vs Trình</th>
-              <th>Trạng Thái Chứng Cứ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Đơn Giá Dự Toán Trình</strong></td>
-              <td style="text-align: right;"><strong>${fmt(dgTrinh)} VNĐ</strong></td>
-              <td style="text-align: center;">0.0%</td>
-              <td>Mốc dự toán lập</td>
-            </tr>
-            ${pillarsList.map(p => `
-              <tr>
-                <td>${p.name}</td>
-                <td style="text-align: right;">${p.price > 0 ? `${fmt(p.price)} VNĐ` : '—'}</td>
-                <td style="text-align: center;">${p.price > 0 ? `${((p.price - dgTrinh)/dgTrinh*100).toFixed(1)}%` : '—'}</td>
-                <td>${p.has ? 'Đã nạp chứng cứ' : 'Chưa nạp dữ liệu'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-
-        <h3>II. BẢN THUYẾT MINH THẨM ĐỊNH THỐNG NHẤT</h3>
-        <div class="pre-text">${editingText}</div>
-
-        <h3>III. KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT</h3>
-        <p>
-          - <strong>Đơn giá phê duyệt đề xuất:</strong> <strong style="color: #003366; font-size: 13pt;">${fmt(approvedPrice)} VNĐ / ${item?.dvt || 'Cái'}</strong><br/>
-          - <strong>Tổng tiết kiệm dự toán:</strong> <strong>${totalSavings > 0 ? `${fmt(totalSavings)} VNĐ (-${savingsPct.toFixed(1)}%)` : '0 VNĐ (Giữ nguyên giá trình)'}</strong>
-        </p>
-
-        <table class="header-table" style="margin-top: 40px;">
-          <tr>
-            <td style="width: 50%; text-align: center;">
-              <strong>CHUYÊN VIÊN THẨM ĐỊNH</strong><br/>
-              <i>(Ký và ghi rõ họ tên)</i>
-            </td>
-            <td style="width: 50%; text-align: center;">
-              <strong>LÃNH ĐẠO PHÊ DUYỆT</strong><br/>
-              <i>(Ký và ghi rõ họ tên)</i>
-            </td>
-          </tr>
-        </table>
-
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-    printWin.document.write(printHtml);
-    printWin.document.close();
-  };
 
   const handleFinalApprove = () => {
     onSave({
@@ -3464,7 +3358,7 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
       <div className="p-4 rounded-xl border-2 border-teal-400 bg-white text-slate-900 shadow-sm space-y-2">
         <div className="flex items-center justify-between">
           <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-teal-950">
-            <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (BIÊN SOẠN TỰ ĐỘNG 5 CƠ SỞ)
+            <FileText className="w-4 h-4 text-teal-700" /> 📄 BẢN THUYẾT MINH TỔNG HỢP THẨM ĐỊNH (TỔ THẨM ĐỊNH LẬP)
           </h5>
           <div className="flex items-center gap-2">
             <button
@@ -3475,10 +3369,10 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
               {runningAi ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-200" />
-                  <span>Đang chạy AI Chuyên gia...</span>
+                  <span>Đang tổng hợp Thuyết minh...</span>
                 </>
               ) : (
-                <span>🤖 Chạy AI Chuyên Gia (1-Click)</span>
+                <span>🤖 Chạy AI Hỗ Trợ Thuyết Minh (1-Click)</span>
               )}
             </button>
             <button
@@ -3493,12 +3387,7 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
             >
               📄 Xuất File Word (.docx)
             </button>
-            <button
-              onClick={handleExportPdf}
-              className="bg-amber-600 hover:bg-amber-700 text-white text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
-            >
-              🖨️ Xuất / In PDF
-            </button>
+
           </div>
         </div>
         <textarea
