@@ -33,10 +33,12 @@ function AuditProgressModalContent({
 
   const result = auditData?.result || {};
   const steps = auditData?.steps || [];
-  const dgTrinh = result.don_gia_trinh || item?.don_gia_trinh || 0;
-  const dgTn = result.don_gia_thong_nhat || dgTrinh;
-  const giaTriGiam = result.gia_tri_giam || 0;
-  const pctGiam = result.pct_giam || 0;
+  const dgTrinh = auditData?.don_gia_trinh || result.don_gia_trinh || item?.don_gia_trinh || 0;
+  const dgTn = auditData?.don_gia_thong_nhat || result.don_gia_thong_nhat || item?.don_gia_thong_nhat || dgTrinh;
+  const giaTriGiam = auditData?.gia_tri_giam !== undefined ? auditData.gia_tri_giam : (result.gia_tri_giam !== undefined ? result.gia_tri_giam : (item?.gia_tri_giam || ((dgTrinh - dgTn) * (item?.so_luong || 1))));
+  const pctGiam = auditData?.pct_giam !== undefined ? auditData.pct_giam : (result.pct_giam !== undefined ? result.pct_giam : (dgTrinh > 0 ? (dgTrinh - dgTn) / dgTrinh * 100 : 0));
+  const danhGiaTtd = auditData?.synthesis?.summary_text || auditData?.danh_gia_ttd || result.danh_gia_ttd || item?.danh_gia_ttd || '';
+  const ttThongNhat = auditData?.thanh_tien_thong_nhat || result.thanh_tien_thong_nhat || (dgTn * (item?.so_luong || 1));
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -257,7 +259,7 @@ function AuditProgressModalContent({
                     <span className="text-xs text-emerald-700 font-semibold">/{item?.dvt || 'Cái'}</span>
                   </div>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
-                    Thành tiền thẩm định: <strong className="font-mono">{fmt(result.thanh_tien_thong_nhat)}</strong>
+                    Thành tiền thẩm định: <strong className="font-mono">{fmt(ttThongNhat)}</strong>
                   </p>
                 </div>
 
@@ -275,7 +277,7 @@ function AuditProgressModalContent({
               </div>
 
               {/* Trích Lược Bản Thuyết Minh Thẩm Định AI */}
-              {result.danh_gia_ttd && (
+              {danhGiaTtd && (
                 <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
                   <button
                     onClick={() => setShowFullSummary(!showFullSummary)}
@@ -293,7 +295,7 @@ function AuditProgressModalContent({
 
                   <div className={`p-3 text-[11.5px] leading-relaxed text-slate-800 ${showFullSummary ? '' : 'line-clamp-3'}`}>
                     <div className="whitespace-pre-line font-sans">
-                      {result.danh_gia_ttd}
+                      {danhGiaTtd}
                     </div>
                   </div>
                 </div>
