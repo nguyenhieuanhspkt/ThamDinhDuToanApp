@@ -1233,17 +1233,45 @@ def api_run_5_pillars(item_id):
     except Exception as e:
         print(f"Pillar 1 error for item {item_id}: {e}")
 
-    # 2. ERP Vĩnh Tân 4
+    # 2. ERP Vĩnh Tân 4 (Ưu tiên số 1 tuyệt đối: Mã ERP ma_vt)
     p2_desc = "Chưa có dữ liệu ERP nội bộ"
     p2_price = 0
+    recs = []
     try:
-        erp_res = imis_core.search_erp_baseline(keyword or target_item.get("ma_vt", ""), min_score=40)
-        recs = erp_res if isinstance(erp_res, list) else erp_res.get("results", [])
+        ma_vt = (target_item.get("ma_vt") or "").strip()
+        # Ưu tiên 1: Tra cứu trực tiếp theo Mã ERP
+        if ma_vt:
+            recs = imis_core.search_erp_baseline(keyword="", ma_vt=ma_vt, min_score=40)
+        
+        # Ưu tiên 2: Nếu chưa có, tra cứu theo Tên tiếng Việt chuẩn hóa của vật tư
+        if not recs:
+            clean_name = (target_item.get("ten_vt_goc") or target_item.get("ten_vt") or "").split("\n")[0].strip()
+            if clean_name:
+                recs = imis_core.search_erp_baseline(keyword=clean_name, ma_vt=ma_vt, min_score=40)
+                
+        # Ưu tiên 3: Fallback bằng keyword
+        if not recs and keyword:
+            recs = imis_core.search_erp_baseline(keyword=keyword, ma_vt=ma_vt, min_score=40)
+
+        if isinstance(recs, dict):
+            recs = recs.get("results", [])
+
         if recs:
             p2_price = float(recs[0].get("don_gia") or recs[0].get("donGia") or 0)
-            p2_desc = f"Đơn giá ERP nhập kho lịch sử: {p2_price:,.0f} đ/Cái (HĐ {recs[0].get('so_hd') or recs[0].get('soHopDong') or 'N/A'})".replace(",", ".")
+            hd_info = recs[0].get('so_hd') or recs[0].get('soHopDong') or recs[0].get('soPhieuNhap') or 'HĐ lưu trữ'
+            date_info = recs[0].get('ngayNhapKho') or recs[0].get('ngayKyHd') or ''
+            sl_info = recs[0].get('soLuong')
+            dvt_item = target_item.get('dvt', 'Cái')
+            sl_str = f", SL: {sl_info:g} {dvt_item}" if sl_info else ""
+            date_str = f" ngày {date_info}" if date_info else ""
+            
+            p2_desc = f"Lịch sử nhập kho ERP Vĩnh Tân 4: {p2_price:,.0f} đ/{dvt_item} (HĐ: {hd_info}{date_str}{sl_str})".replace(",", ".")
+            if len(recs) > 1:
+                other_prices = [f"{float(r.get('donGia') or r.get('don_gia') or 0):,.0f} đ".replace(",", ".") for r in recs[1:3]]
+                p2_desc += f"; Các đợt nhập khác: {', '.join(other_prices)}"
+                
             with open(os.path.join(item_dir, "chung_cu_erp.json"), "w", encoding="utf-8") as f:
-                json.dump(erp_res, f, ensure_ascii=False, indent=2)
+                json.dump(recs, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"Pillar 2 error for item {item_id}: {e}")
 
@@ -1252,10 +1280,10 @@ def api_run_5_pillars(item_id):
     p3_price = 0
     try:
         imis_res = imis_core.search_item_sources(keyword, ma_vt=target_item.get("ma_vt", ""))
-        recs = imis_res.get("imis", [])
-        if recs:
-            p3_price = float(recs[0].get("don_gia") or 0)
-            p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
+        imis_recs = imis_res.get("imis", [])
+        if imis_recs:
+            p3_price = float(imis_recs[0].get("don_gia") or 0)
+            p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({imis_recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
             with open(os.path.join(item_dir, "chung_cu_imis.json"), "w", encoding="utf-8") as f:
                 json.dump(imis_res, f, ensure_ascii=False, indent=2)
     except Exception as e:
@@ -1265,7 +1293,11 @@ def api_run_5_pillars(item_id):
     p4_desc = "Chưa có dữ liệu Mua sắm công e-GP"
     p4_price = 0
     try:
-        msc_analysis = msc_matcher.search_muasamcong(keyword)
+        clean_msc_kw = (target_item.get("ten_vt_goc") or target_item.get("ten_vt") or "").split("\n")[0].strip()
+        msc_analysis = msc_matcher.search_muasamcong(clean_msc_kw or keyword)
+        if (not msc_analysis or not msc_analysis.get("success")) and keyword and keyword != clean_msc_kw:
+            msc_analysis = msc_matcher.search_muasamcong(keyword)
+            
         if msc_analysis and msc_analysis.get("success"):
             comp = msc_matcher.analyze_msc_comparison(target_item, msc_analysis)
             p4_price = float(comp.get("min_price") or 0)
@@ -1329,8 +1361,8 @@ def api_run_5_pillars(item_id):
     p2_year = ""
     if 'recs' in locals() and recs:
         p2_count = len(recs)
-        p2_contract = recs[0].get("so_hd") or recs[0].get("soHopDong") or ""
-        p2_year = str(recs[0].get("nam") or recs[0].get("thang_nam") or "")
+        p2_contract = recs[0].get("so_hd") or recs[0].get("soHopDong") or recs[0].get("soPhieuNhap") or ""
+        p2_year = str(recs[0].get("ngayNhapKho") or recs[0].get("ngayKyHd") or recs[0].get("nam") or recs[0].get("thang_nam") or "")
 
     p3_count = 0
     p3_unit = ""
