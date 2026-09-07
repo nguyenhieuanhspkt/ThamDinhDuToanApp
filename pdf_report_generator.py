@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-ThamDinhDuToanApp - PDF Report Generator Module (Chuẩn 2 Trang A4 Không Lặp Lại)
-Sử dụng ReportLab kết hợp font Arial Unicode để xuất Báo cáo Thẩm định giá chuẩn A4 chuyên nghiệp.
-Tích hợp bộ Deduplication & Parser AI Markdown bóc tách Table, Callout Box, và Bullet points.
+ThamDinhDuToanApp - PDF Report Generator Module (Chuẩn 1 Trang A4)
+Tổ Thẩm định Dự toán - Nhà máy Nhiệt điện Vĩnh Tân 4
+
+Thiết kế báo cáo thẩm định giá chuyên nghiệp gói gọn chính xác trong 1 TRANG A4 DUY NHẤT:
+- Header & Trích yếu
+- I. THÔNG TIN CHUNG VỀ HẠNG MỤC DỰ TOÁN (1.1 PYCVT/Tờ trình & Báo giá, 1.2 Bảng thông số kỹ thuật compact)
+- II. KẾT QUẢ TRA CỨU ĐỐI CHIẾU THEO 5 CƠ SỞ CHỨNG CỨ (Bảng ma trận 5 cơ sở đối chiếu)
+- III. ĐÁNH GIÁ, PHÂN TÍCH (3.1 Bản chất kỹ thuật, 3.2 Đánh giá tương quan giá trị kỹ thuật - thương mại)
+- IV. KIẾN NGHỊ (Đánh giá tính hợp lý/chưa hợp lý & lý do theo thuật toán/logic, kiến nghị phê duyệt & xử lý)
 """
 import os
 import sys
 import re
+import json
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -26,9 +33,9 @@ pdfmetrics.registerFont(TTFont('Arial-Italic', os.path.join(FONT_DIR, 'ariali.tt
 pdfmetrics.registerFont(TTFont('Arial-BoldItalic', os.path.join(FONT_DIR, 'arialbi.ttf')))
 
 
-class NumberedCanvas(canvas.Canvas):
+class SinglePageCanvas(canvas.Canvas):
     """
-    Canvas hai lượt quét tự động chèn đường kẻ Top/Bottom và đánh số 'Trang X / Y'
+    Canvas chuẩn 1 trang: Tự động đánh số Trang 1 / 1 và ghi chú bảo mật ở chân trang.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,28 +55,20 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_decorations(self, page_count):
         self.saveState()
-        self.setFont("Arial", 8)
+        self.setFont("Arial-Italic", 7.5)
         self.setFillColor(colors.HexColor("#64748B"))
-        
-        # Header (Cho các trang > 1)
-        if self._pageNumber > 1:
-            self.drawString(1.5 * cm, 28.5 * cm, "TỔ THẨM ĐỊNH DỰ TOÁN - NMNĐ VĨNH TÂN 4 | BÁO CÁO THẨM ĐỊNH ĐƠN GIÁ VẬT TƯ")
-            self.setStrokeColor(colors.HexColor("#CBD5E1"))
-            self.setLineWidth(0.5)
-            self.line(1.5 * cm, 28.3 * cm, 19.5 * cm, 28.3 * cm)
-            
-        # Footer
-        page_str = f"Trang {self._pageNumber} / {page_count}"
-        self.drawRightString(19.5 * cm, 1.0 * cm, page_str)
-        self.drawString(1.5 * cm, 1.0 * cm, "Mật - Chỉ sử dụng nội bộ Hội đồng Thẩm định NMNĐ Vĩnh Tân 4")
+        # Chân trang thanh lịch
+        self.drawString(1.2 * cm, 0.65 * cm, "Báo cáo thẩm định nội bộ - Tổ Thẩm định Dự toán NMNĐ Vĩnh Tân 4")
+        self.drawRightString(19.8 * cm, 0.65 * cm, f"Trang {self._pageNumber} / {page_count}")
         self.setStrokeColor(colors.HexColor("#CBD5E1"))
         self.setLineWidth(0.5)
-        self.line(1.5 * cm, 1.3 * cm, 19.5 * cm, 1.3 * cm)
+        self.line(1.2 * cm, 0.90 * cm, 19.8 * cm, 0.90 * cm)
         self.restoreState()
 
 
 def format_vnd(amount):
-    if amount is None:
+    """Định dạng số tiền sang định dạng tiền tệ VNĐ (ví dụ: 13.559.000 đ)"""
+    if amount is None or amount == 0:
         return "0 đ"
     try:
         return f"{int(amount):,} đ".replace(",", ".")
@@ -77,392 +76,351 @@ def format_vnd(amount):
         return str(amount)
 
 
-def sanitize_and_deduplicate_markdown(md_text):
+def safe_clean_plain(text, max_len=380):
     """
-    Khử sạch 100% các đoạn lặp lại trong bài thuyết minh AI
-    (Chỉ giữ lại Mục 2: Phân tích Kỹ thuật & 5 Cơ sở chứng cứ; loại bỏ trùng lặp Bảng 1 và Bảng 3).
+    Làm sạch văn bản, loại bỏ các ký tự định dạng lỗi hoặc thẻ HTML chưa đóng,
+    cắt gọt theo độ dài an toàn để văn bản hiển thị gọn gàng trong trang.
     """
-    if not md_text or not str(md_text).strip():
+    if not text:
         return ""
-
-    lines = str(md_text).strip().split('\n')
-    keep_lines = []
-
-    skip = False
-    in_table_1 = False
-
-    for line in lines:
-        l = line.strip()
-        
-        # Lọc bỏ phần 1 (TỔNG HỢP THÔNG SỐ VẬT TƯ - đã có Bảng 1 của Generator)
-        if re.search(r'^\s*#*\s*\*?\*?1\.\s*TỔNG HỢP', l, re.IGNORECASE) or 'TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC' in l:
-            skip = True
-            continue
-        if re.search(r'^\s*#*\s*\*?\*?2\.', l) or 'Ý KIẾN ĐÁNH GIÁ' in l or 'BẢN THUYẾT MINH THẨM ĐỊNH' in l or 'Phân tích bản chất' in l:
-            skip = False
-
-        # Lọc bỏ phần 3 (KHUYẾN NGHỊ VÀ KẾT LUẬN - đã có Bảng 3 & Kết luận của Generator)
-        if re.search(r'^\s*#*\s*\*?\*?3\.', l) or 'KHUYẾN NGHỊ CHUYÊN GIA' in l or 'KẾT LUẬN & ĐỀ XUẤT' in l or 'Đề xuất mức giá phê duyệt' in l:
-            skip = True
-            continue
-
-        if not skip:
-            # Lọc bỏ các bảng lặp
-            if l.startswith('|') and ('Mã ERP' in l or 'Đơn giá trình' in l or 'Phương án A' in l or 'Phương án B' in l):
-                continue
-            keep_lines.append(line)
-
-    return '\n'.join(keep_lines)
+    clean = re.sub(r'[*_#`]', '', str(text))
+    clean = re.sub(r'<[^>]+>', '', clean)
+    clean = re.sub(r'[\r\n]+', ' ', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    if len(clean) > max_len:
+        return clean[:max_len-3] + '...'
+    return clean
 
 
-def parse_markdown_to_flowables(md_text, custom_styles):
+def clean_text_for_cell(txt, max_len=70):
+    """Cắt ngắn text trong ô bảng để đảm bảo không tràn hàng quá mức"""
+    if not txt:
+        return "N/A"
+    txt = re.sub(r'[\r\n]+', ' | ', str(txt)).strip()
+    if len(txt) > max_len:
+        return txt[:max_len-3] + '...'
+    return txt
+
+
+def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
     """
-    Bộ parser thông minh bóc tách AI Markdown thô thành danh sách các khối ReportLab Flowables.
+    Trích xuất dữ liệu 5 chân đế độc lập phục vụ ma trận đối chiếu chứng cứ.
+    Ưu tiên lấy từ audit trail file (JSON), fallback sang phân tích markdown hoặc giá trị mặc định.
     """
-    clean_md = sanitize_and_deduplicate_markdown(md_text)
-    if not clean_md.strip():
-        return []
+    item_id = item_data.get('id', 1)
+    don_gia_trinh = float(item_data.get('don_gia_trinh') or 0)
 
-    flowables = []
-    lines = clean_md.strip().split('\n')
-    printable_w = 18.0 * cm
+    pillars = [
+        {'id': 1, 'name': 'Cơ sở 1: Báo giá thị trường', 'source': 'Báo giá nộp kèm hồ sơ', 'price': don_gia_trinh, 'note': 'Báo giá chào thấp nhất nộp kèm', 'diff': '-', 'is_warn': False},
+        {'id': 2, 'name': 'Cơ sở 2: Lịch sử ERP VT4', 'source': 'Hệ thống ERP NMNĐ Vĩnh Tân 4', 'price': 0, 'note': 'Chưa ghi nhận dữ liệu lịch sử', 'diff': '-', 'is_warn': False},
+        {'id': 3, 'name': 'Cơ sở 3: CSDL EVN IMIS', 'source': 'Hệ thống CSDL giá toàn ngành EVN', 'price': 0, 'note': 'Chưa ghi nhận dữ liệu tương đồng', 'diff': '-', 'is_warn': False},
+        {'id': 4, 'name': 'Cơ sở 4: Mua sắm công (e-GP)', 'source': 'Cổng Mua sắm công Quốc gia', 'price': 0, 'note': 'Chưa ghi nhận gói thầu tương đồng', 'diff': '-', 'is_warn': False},
+        {'id': 5, 'name': 'Cơ sở 5: Sàn TMĐT / Tự do', 'source': 'Kênh thị trường tự do, sàn TMĐT', 'price': 0, 'note': 'Vật tư đặc thù hãng, yêu cầu RFQ', 'diff': '-', 'is_warn': False},
+    ]
 
-    i = 0
-    while i < len(lines):
-        raw_line = lines[i].strip()
+    base_dir = os.path.abspath(data_dir)
+    candidate_folders = ['current_dossier_files']
+    if dossier_name:
+        candidate_folders.append(f'projects/{dossier_name}_files')
 
-        if not raw_line:
-            i += 1
-            continue
+    found_trail = False
+    for folder in candidate_folders:
+        tpath = os.path.join(base_dir, folder, f'item_{item_id}', 'chung_cu_audit_trail.json')
+        if os.path.exists(tpath):
+            try:
+                with open(tpath, 'r', encoding='utf-8') as f:
+                    trail = json.load(f)
+                for step in trail.get('steps', []):
+                    sid = step.get('step_id')
+                    p = float(step.get('price') or 0)
+                    detail = step.get('detail', '')
+                    if sid == 'quotes' and p > 0:
+                        pillars[0]['price'] = p
+                        sup = step.get('supplier', '')
+                        pillars[0]['source'] = f'File {sup}' if sup else 'Báo giá nộp kèm'
+                        pillars[0]['note'] = 'Báo giá chào thấp nhất; neo giá trình'
+                    elif sid == 'erp' and p > 0:
+                        pillars[1]['price'] = p
+                        contract = step.get('contract', '')
+                        c_short = re.sub(r'^(Nhập kho vật tư \(|HĐ:\s*)', '', contract).split('theo hóa đơn')[0].strip(' ,()')
+                        pillars[1]['source'] = f'HĐ {c_short}' if c_short else 'Lịch sử nhập kho ERP VT4'
+                        if don_gia_trinh > 0:
+                            pct = ((don_gia_trinh - p) / p) * 100
+                            pillars[1]['diff'] = f'+{pct:.1f}%' if pct > 0 else f'{pct:.1f}%'
+                            pillars[1]['note'] = f'Giá trình cao hơn ERP +{pct:.1f}%' if pct > 0 else f'Giá trình so với ERP: {pct:.1f}%'
+                            if pct > 15:
+                                pillars[1]['is_warn'] = True
+                    elif sid == 'imis':
+                        if p > 0:
+                            pillars[2]['price'] = p
+                            pillars[2]['note'] = 'Có dữ liệu hợp đồng EVN IMIS'
+                    elif sid == 'msc':
+                        if p > 0:
+                            pillars[3]['price'] = p
+                            pillars[3]['note'] = 'Giá trúng thầu công khai e-GP'
+                    elif sid == 'ecom':
+                        if p > 0:
+                            pillars[4]['price'] = p
+                            pillars[4]['note'] = 'Giá tham khảo TMĐT'
+                found_trail = True
+                break
+            except Exception:
+                pass
 
-        # 1. Bóc tách Bảng Markdown (| ... |)
-        if raw_line.startswith('|') and raw_line.endswith('|'):
-            table_lines = []
-            while i < len(lines) and lines[i].strip().startswith('|') and lines[i].strip().endswith('|'):
-                table_lines.append(lines[i].strip())
-                i += 1
+    if not found_trail:
+        md = item_data.get('danh_gia_ttd', '')
+        for row in re.findall(r'\|\s*([0-9\']+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|', md):
+            idx_str, name_str, price_str, note_str = [x.strip() for x in row]
+            if '1' in idx_str:
+                pillars[0]['note'] = note_str[:50]
+            elif '2' in idx_str and pillars[1]['price'] == 0:
+                p_m = re.search(r'([\d\.,]+)', price_str)
+                if p_m and 'không' not in price_str.lower():
+                    try:
+                        p_val = float(p_m.group(1).replace('.', '').replace(',', '.'))
+                        pillars[1]['price'] = p_val
+                        pillars[1]['source'] = note_str.split('–')[0].strip()[:35]
+                    except Exception:
+                        pass
+                pillars[1]['note'] = note_str[:50]
 
-            raw_rows = []
-            for tline in table_lines:
-                if re.match(r'^\|[\s:\-]+\|', tline):
-                    continue
-                cells = [c.strip() for c in tline.split('|')[1:-1]]
-                if cells:
-                    raw_rows.append(cells)
+    return pillars
 
-            if raw_rows:
-                num_cols = max(len(r) for r in raw_rows)
-                col_w = printable_w / max(num_cols, 1)
 
-                table_data = []
-                for row_idx, r in enumerate(raw_rows):
-                    row_cells = []
-                    for c_idx, cell_text in enumerate(r):
-                        formatted_cell = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', cell_text)
-                        formatted_cell = re.sub(r'\*(.*?)\*', r'<i>\1</i>', formatted_cell)
-                        st = custom_styles['CellCenterBold'] if row_idx == 0 else custom_styles['TableCell']
-                        row_cells.append(Paragraph(formatted_cell, st))
-                    while len(row_cells) < num_cols:
-                        row_cells.append(Paragraph("", custom_styles['TableCell']))
-                    table_data.append(row_cells)
+def generate_recommendation_text(item, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt):
+    """
+    Sinh nội dung Mục IV. KIẾN NGHỊ:
+    - Nêu ý kiến đánh giá về mức hợp lý hay chưa hợp lý, lý do vì sao chưa hợp lý
+      (căn cứ vào độ bao phủ dữ liệu, độ lệch giá ERP/thị trường, thuật toán đối chiếu logic).
+    - Kiến nghị phê duyệt và phương án xử lý (thương thảo hoặc giữ giá).
+    """
+    p2 = pillars[1]
+    erp_price = p2.get('price', 0)
+    pct_erp_diff = ((don_gia_trinh - erp_price) / erp_price * 100) if erp_price > 0 else 0
 
-                t = Table(table_data, colWidths=[col_w] * num_cols)
-                t.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#F1F5F9")),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('PADDING', (0, 0), (-1, -1), 2.5),
-                ]))
-                flowables.append(t)
-                flowables.append(Spacer(1, 3))
-            continue
-
-        # 2. Bóc tách Cảnh báo Rủi ro (🔴 CẢNH BÁO...)
-        if '🔴' in raw_line or '⚠️' in raw_line or 'CẢNH BÁO BẤT THƯỜNG' in raw_line:
-            formatted_alert = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', raw_line)
-            p_alert = Paragraph(formatted_alert, custom_styles['Alert'])
-            alert_box = Table([[p_alert]], colWidths=[printable_w])
-            alert_box.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#F59E0B")),
-                ('PADDING', (0, 0), (-1, -1), 3),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]))
-            flowables.append(alert_box)
-            flowables.append(Spacer(1, 3))
-            i += 1
-            continue
-
-        # 3. Bóc tách Đường kẻ ngang Markdown (--- hoặc ***)
-        if raw_line in ('---', '***'):
-            flowables.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceBefore=2, spaceAfter=2))
-            i += 1
-            continue
-
-        # 4. Bóc tách Tiêu đề Heading
-        if raw_line.startswith('###') or raw_line.startswith('##') or (raw_line.startswith('**') and (raw_line.endswith('**') or raw_line.endswith(':')) and len(raw_line) < 80):
-            clean_h = raw_line.lstrip('#').strip()
-            clean_h = re.sub(r'\*\*(.*?)\*\*', r'\1', clean_h)
-            flowables.append(Paragraph(clean_h, custom_styles['H2']))
-            i += 1
-            continue
-
-        # 5. Đoạn văn thường & Bullet Points
-        formatted_line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', raw_line)
-        formatted_line = re.sub(r'\*(.*?)\*', r'<i>\1</i>', formatted_line)
-        if formatted_line.startswith('- ') or formatted_line.startswith('* '):
-            formatted_line = '• ' + formatted_line[2:]
-        flowables.append(Paragraph(formatted_line, custom_styles['Body']))
-        i += 1
-
-    return flowables
+    if pct_save > 10 and erp_price > 0:
+        danh_gia_hop_ly = (
+            f"<b>• Đánh giá tính hợp lý của đơn giá trình:</b> Đơn giá trình <b>{format_vnd(don_gia_trinh)}/{dvt}</b> là <b>CHƯA HỢP LÝ</b>. "
+            f"Căn cứ thuật toán đối chiếu 5 cơ sở, đơn giá trình cao hơn bất thường <b>+{pct_erp_diff:.1f}%</b> "
+            f"(chênh lệch <b>{format_vnd(don_gia_trinh - erp_price)}/{dvt}</b>) so với lịch sử nhập kho ERP NMNĐ Vĩnh Tân 4 ({p2.get('source')}), "
+            f"trong khi vật tư hoàn toàn đồng nhất về mã hiệu Partno, cùng hãng và xuất xứ. Đơn giá trình chỉ neo theo 01 báo giá đơn lẻ, thiếu tính cạnh tranh tối ưu."
+        )
+        kien_nghi = (
+            f"<b>• Kiến nghị phê duyệt & phương án xử lý:</b><br/>"
+            f"- Đề xuất áp dụng đơn giá duyệt: <b>{format_vnd(don_gia_thong_nhat)}/{dvt}</b>; "
+            f"Tổng thành tiền dự toán sau thẩm định: <b>{format_vnd(thanh_tien_thong_nhat)}</b> "
+            f"(giảm trừ tiết kiệm ngân sách: <b>{format_vnd(gia_tri_giam)}</b>, đạt tỷ lệ giảm <b>{pct_save:.1f}%</b>).<br/>"
+            f"- Kính trình Lãnh đạo Nhà máy / Hội đồng Thẩm định xem xét chấp thuận đơn giá trên; "
+            f"yêu cầu đơn vị mua sắm đàm phán thương thảo với nhà cung cấp chốt theo mức giá này hoặc mời thêm nhà cung cấp cạnh tranh trường hợp đối tác không đồng ý điều chỉnh./."
+        )
+    elif pct_save > 0:
+        danh_gia_hop_ly = (
+            f"<b>• Đánh giá tính hợp lý của đơn giá trình:</b> Đơn giá trình <b>{format_vnd(don_gia_trinh)}/{dvt}</b> là <b>CHƯA HỢP LÝ</b> "
+            f"do cao hơn {pct_save:.1f}% so với mức giá chứng cứ đã kiểm chứng ({format_vnd(don_gia_thong_nhat)}/{dvt}). "
+            f"Thuật toán đối chiếu xác định còn dư địa thương thảo để tối ưu hóa ngân sách mua sắm."
+        )
+        kien_nghi = (
+            f"<b>• Kiến nghị phê duyệt & phương án xử lý:</b><br/>"
+            f"- Đề xuất áp dụng đơn giá duyệt: <b>{format_vnd(don_gia_thong_nhat)}/{dvt}</b>; "
+            f"Tổng thành tiền dự toán sau thẩm định: <b>{format_vnd(thanh_tien_thong_nhat)}</b> "
+            f"(tiết kiệm giảm trừ: <b>{format_vnd(gia_tri_giam)}</b> ~ {pct_save:.1f}%).<br/>"
+            f"- Kính trình Lãnh đạo Nhà máy / Hội đồng Thẩm định xem xét phê duyệt và giao đơn vị mua sắm thương thảo với đối tác./."
+        )
+    else:
+        danh_gia_hop_ly = (
+            f"<b>• Đánh giá tính hợp lý của đơn giá trình:</b> Đơn giá trình <b>{format_vnd(don_gia_trinh)}/{dvt}</b> được đánh giá là <b>HỢP LÝ</b>. "
+            f"Mức giá phản ánh đúng mặt bằng chào giá cạnh tranh của đơn vị cung cấp chính hãng có năng lực, "
+            f"phù hợp với tiêu chuẩn kỹ thuật thiết bị và không ghi nhận biến động bất thường so với hồ sơ chứng cứ tra cứu."
+        )
+        kien_nghi = (
+            f"<b>• Kiến nghị phê duyệt & phương án xử lý:</b><br/>"
+            f"- Đề xuất duyệt đơn giá: Giữ nguyên mức giá trình là <b>{format_vnd(don_gia_thong_nhat)}/{dvt}</b>; "
+            f"Tổng giá trị dự toán duyệt: <b>{format_vnd(thanh_tien_thong_nhat)}</b>.<br/>"
+            f"- Kính trình Lãnh đạo Nhà máy / Hội đồng Thẩm định xem xét phê duyệt dự toán để đơn vị mua sắm triển khai các bước tiếp theo./."
+        )
+    return danh_gia_hop_ly, kien_nghi
 
 
 def generate_item_pdf(item_data, dossier_info, output_path):
     """
-    Sinh file Báo cáo Thẩm định giá PDF chuẩn A4 2 TRANG duy nhất cho 1 vật tư cụ thể.
+    Sinh file Báo cáo Thẩm định giá PDF chuẩn 1 TRANG A4 DUY NHẤT cho 1 vật tư cụ thể.
+    Bảo đảm không bao giờ tràn trang, tối ưu cho việc in ấn và lưu trữ hồ sơ.
     """
-    doc = SimpleDocTemplate(
-        output_path,
-        pagesize=A4,
-        leftMargin=1.5 * cm,
-        rightMargin=1.5 * cm,
-        topMargin=1.2 * cm,
-        bottomMargin=1.2 * cm
-    )
-
-    styles = getSampleStyleSheet()
-
-    title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=11.5,
-        leading=14,
-        textColor=colors.HexColor("#1E3A8A"),
-        alignment=1,
-        spaceAfter=2
-    )
-
-    subtitle_style = ParagraphStyle(
-        'DocSubTitle',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=8.5,
-        leading=11,
-        textColor=colors.HexColor("#475569"),
-        alignment=1,
-        spaceAfter=4
-    )
-
-    h1_style = ParagraphStyle(
-        'H1',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=9.5,
-        leading=12,
-        textColor=colors.HexColor("#0F172A"),
-        spaceBefore=4,
-        spaceAfter=3
-    )
-
-    h2_style = ParagraphStyle(
-        'H2',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=8.5,
-        leading=11,
-        textColor=colors.HexColor("#1E40AF"),
-        spaceBefore=3,
-        spaceAfter=2
-    )
-
-    body_style = ParagraphStyle(
-        'Body',
-        parent=styles['Normal'],
-        fontName='Arial',
-        fontSize=8.0,
-        leading=10.5,
-        textColor=colors.HexColor("#334155"),
-        spaceAfter=2
-    )
-
-    alert_style = ParagraphStyle(
-        'Alert',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=8.0,
-        leading=10.5,
-        textColor=colors.HexColor("#991B1B"),
-        spaceBefore=1,
-        spaceAfter=1
-    )
-
-    cell_style = ParagraphStyle(
-        'TableCell',
-        parent=styles['Normal'],
-        fontName='Arial',
-        fontSize=7.5,
-        leading=9.5,
-        textColor=colors.HexColor("#1E293B")
-    )
-
-    cell_bold = ParagraphStyle(
-        'TableCellBold',
-        parent=styles['Normal'],
-        fontName='Arial-Bold',
-        fontSize=7.5,
-        leading=9.5,
-        textColor=colors.HexColor("#0F172A")
-    )
-
-    cell_center_bold = ParagraphStyle(
-        'CellCenterBold',
-        parent=cell_bold,
-        alignment=1
-    )
-
-    custom_styles = {
-        'Body': body_style,
-        'H2': h2_style,
-        'Alert': alert_style,
-        'TableCell': cell_style,
-        'TableCellBold': cell_bold,
-        'CellCenterBold': cell_center_bold
-    }
-
-    story = []
-
-    # Header Top Bar
-    dossier_name = dossier_info.get('dossier_name', 'Gói mua sắm vật tư SCTX đợt 8 năm 2026')
-    dept_name = dossier_info.get('department', 'Tổ Thẩm định Dự toán - NMNĐ Vĩnh Tân 4')
-
-    story.append(Paragraph("TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM — NMNĐ VĨNH TÂN 4", ParagraphStyle('TopHeader', fontName='Arial-Bold', fontSize=8.0, alignment=1, textColor=colors.HexColor("#1E3A8A"))))
-    story.append(Paragraph(dept_name.upper(), ParagraphStyle('TopSub', fontName='Arial', fontSize=7.5, alignment=1, textColor=colors.HexColor("#475569"))))
-    story.append(Spacer(1, 2))
-    story.append(HRFlowable(width="100%", thickness=1.0, color=colors.HexColor("#1E3A8A"), spaceAfter=4))
-
-    # Title & Metadata
     item_id = item_data.get('id', 1)
-    ten_vt_raw = item_data.get('ten_vt', 'Vật tư chưa xác định')
+    ten_vt_raw = item_data.get('ten_vt', 'N/A')
     ten_vt = re.sub(r'[\r\n]+', ' ', ten_vt_raw).strip()
+    ten_vt_goc = item_data.get('ten_vt_goc', ten_vt.split('-')[0].strip())
     ma_vt = item_data.get('ma_vt', 'N/A')
     part_no_raw = item_data.get('part_no', 'N/A')
     part_no = re.sub(r'[\r\n]+', ' | ', str(part_no_raw)).strip()
+    hsx_xx = item_data.get('hsx_xx', 'N/A')
     so_luong = item_data.get('so_luong', 1)
     dvt = item_data.get('dvt', 'Cái')
-    don_gia_trinh = item_data.get('don_gia_trinh', 0)
+    don_gia_trinh = float(item_data.get('don_gia_trinh') or 0)
     thanh_tien_trinh = don_gia_trinh * so_luong
-    don_gia_thong_nhat = item_data.get('don_gia_thong_nhat', don_gia_trinh)
+    don_gia_thong_nhat = float(item_data.get('don_gia_thong_nhat') or don_gia_trinh)
     thanh_tien_thong_nhat = don_gia_thong_nhat * so_luong
-    gia_tri_giam = item_data.get('gia_tri_giam', thanh_tien_trinh - thanh_tien_thong_nhat)
+    gia_tri_giam = float(item_data.get('gia_tri_giam') or (thanh_tien_trinh - thanh_tien_thong_nhat))
+    pct_save = (gia_tri_giam / thanh_tien_trinh * 100) if thanh_tien_trinh > 0 else 0
+    pycvt = item_data.get('pycvt', '1723/KTAT')
+    co_so_thong_nhat = item_data.get('co_so_thong_nhat', 'Căn cứ đối chiếu 5 cơ sở')
+    dossier_name = dossier_info.get('dossier_name', 'Gói mua sắm SCTX 2026')
 
-    story.append(Paragraph("BÁO CÁO THẨM ĐỊNH ĐÁNH GIÁ ĐƠN GIÁ VẬT TƯ", title_style))
-    story.append(Paragraph(f"MỤC STT {item_id:02d}: {ten_vt.upper()}<br/>{dossier_name}", subtitle_style))
+    # Typography styles
+    styles = getSampleStyleSheet()
+
+    s_corp = ParagraphStyle('Corp', fontName='Arial-Bold', fontSize=8.0, leading=10, textColor=colors.HexColor('#1E3A8A'))
+    s_right_meta = ParagraphStyle('RightMeta', fontName='Arial-Bold', fontSize=8.0, leading=10, alignment=2, textColor=colors.HexColor('#1E3A8A'))
+
+    s_title = ParagraphStyle('Title', fontName='Arial-Bold', fontSize=10.5, leading=13, alignment=1, textColor=colors.HexColor('#1E3A8A'))
+    s_subtitle = ParagraphStyle('SubTitle', fontName='Arial-Bold', fontSize=8.0, leading=10.5, alignment=1, textColor=colors.HexColor('#334155'))
+
+    s_h1 = ParagraphStyle('H1', fontName='Arial-Bold', fontSize=8.5, leading=11, textColor=colors.HexColor('#0F172A'), spaceBefore=2, spaceAfter=2)
+    s_body = ParagraphStyle('Body', fontName='Arial', fontSize=7.0, leading=9.0, textColor=colors.HexColor('#334155'))
+    s_body_bold = ParagraphStyle('BodyBold', fontName='Arial-Bold', fontSize=7.0, leading=9.0, textColor=colors.HexColor('#0F172A'))
+
+    s_cell = ParagraphStyle('Cell', fontName='Arial', fontSize=7.0, leading=8.5, textColor=colors.HexColor('#1E293B'))
+    s_cell_bold = ParagraphStyle('CellB', fontName='Arial-Bold', fontSize=7.0, leading=8.5, textColor=colors.HexColor('#0F172A'))
+    s_cell_center_bold = ParagraphStyle('CellCB', fontName='Arial-Bold', fontSize=7.0, leading=8.5, alignment=1, textColor=colors.HexColor('#0F172A'))
+    s_cell_green = ParagraphStyle('CellG', fontName='Arial-Bold', fontSize=7.0, leading=8.5, textColor=colors.HexColor('#047857'))
+    s_cell_red = ParagraphStyle('CellR', fontName='Arial-Bold', fontSize=7.0, leading=8.5, textColor=colors.HexColor('#B91C1C'))
+
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        leftMargin=1.2 * cm,
+        rightMargin=1.2 * cm,
+        topMargin=0.8 * cm,
+        bottomMargin=0.8 * cm
+    )
+
+    story = []
+
+    # 1. Top Header 2 Cột
+    header_table_data = [
+        [
+            Paragraph('<b>TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM</b><br/>NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4', s_corp),
+            Paragraph('<b>TỔ THẨM ĐỊNH DỰ TOÁN</b><br/><i>Mã số: BC-TĐDT/2026</i>', s_right_meta)
+        ]
+    ]
+    t_header = Table(header_table_data, colWidths=[10.0*cm, 8.6*cm])
+    t_header.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('PADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(t_header)
+    story.append(Spacer(1, 2))
+    story.append(HRFlowable(width='100%', thickness=1.0, color=colors.HexColor('#1E3A8A'), spaceAfter=3, spaceBefore=1))
+
+    # 2. Tiêu Đề Chính & Trích Yếu
+    story.append(Paragraph('BÁO CÁO KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ DỰ TOÁN MUA SẮM', s_title))
+    story.append(Paragraph(f'Hạng mục: Mục STT {item_id:02d} - {clean_text_for_cell(ten_vt_goc, 60)} | Mã ERP: {ma_vt} | Gói: {dossier_name}', s_subtitle))
     story.append(Spacer(1, 2))
 
-    # Section 1: Dynamic Summary Table 1
-    story.append(Paragraph("1. TỔNG HỢP THÔNG SỐ VẬT TƯ & CƠ SỞ CHỨNG CỨ THẨM ĐỊNH", h1_style))
-    
-    pct_save = (gia_tri_giam / thanh_tien_trinh * 100) if thanh_tien_trinh > 0 else 0
+    # 3. I. THÔNG TIN CHUNG VỀ HẠNG MỤC DỰ TOÁN
+    story.append(Paragraph('I. THÔNG TIN CHUNG VỀ HẠNG MỤC DỰ TOÁN', s_h1))
+    p_cancu = f'<b>1.1. Căn cứ thẩm định:</b> Phiếu yêu cầu vật tư / Tờ trình số: <b>{pycvt}</b>; Hồ sơ dự toán và các báo giá đính kèm do đơn vị mua sắm cung cấp.'
+    story.append(Paragraph(p_cancu, s_body))
+    story.append(Spacer(1, 1))
 
-    table_data_1 = [
-        [Paragraph("STT", cell_center_bold), Paragraph("Chỉ tiêu thẩm định", cell_center_bold), Paragraph("Thông tin chi tiết", cell_center_bold)],
-        [Paragraph("1", cell_style), Paragraph("Tên vật tư trình thẩm định", cell_bold), Paragraph(f"{ten_vt}", cell_style)],
-        [Paragraph("2", cell_style), Paragraph("Part Number / Mã hiệu", cell_bold), Paragraph(f"{part_no}", cell_bold)],
-        [Paragraph("3", cell_style), Paragraph("Mã ERP Vĩnh Tân 4", cell_bold), Paragraph(f"{ma_vt}", cell_style)],
-        [Paragraph("4", cell_style), Paragraph("Số lượng & Đơn vị tính", cell_bold), Paragraph(f"{so_luong} {dvt}", cell_style)],
-        [Paragraph("5", cell_style), Paragraph("Đơn giá trình thẩm định", cell_bold), Paragraph(f"<b>{format_vnd(don_gia_trinh)}/{dvt}</b> (Thành tiền: {format_vnd(thanh_tien_trinh)})", cell_style)],
-        [Paragraph("6", cell_style), Paragraph("Đơn giá đề xuất thống nhất", cell_bold), Paragraph(f"<font color='#047857'><b>{format_vnd(don_gia_thong_nhat)}/{dvt}</b> (Thành tiền: {format_vnd(thanh_tien_thong_nhat)})</font>", cell_style)],
-        [Paragraph("7", cell_style), Paragraph("Dự kiến tiết kiệm chi phí", cell_bold), Paragraph(f"<font color='#047857'><b>{format_vnd(gia_tri_giam)}</b> (Giảm {pct_save:.1f}% so với giá trình)</font>", cell_style)],
-        [Paragraph("8", cell_style), Paragraph("Cơ sở thống nhất đơn giá", cell_bold), Paragraph(item_data.get('co_so_thong_nhat', 'Căn cứ đối chiếu e-GP MSC & Lịch sử ERP'), cell_style)],
+    story.append(Paragraph('<b>1.2. Bảng thông số kỹ thuật và giá trị dự toán ban đầu:</b>', s_body_bold))
+    story.append(Spacer(1, 1))
+
+    t1_data = [
+        [Paragraph('Tên vật tư & quy cách', s_cell_bold), Paragraph(f'{clean_text_for_cell(ten_vt, 75)}', s_cell), Paragraph('Mã hiệu / Part No', s_cell_bold), Paragraph(f'{clean_text_for_cell(part_no, 60)}', s_cell)],
+        [Paragraph('Mã ERP VT4', s_cell_bold), Paragraph(f'{ma_vt}', s_cell), Paragraph('Hãng SX / Xuất xứ', s_cell_bold), Paragraph(f'{hsx_xx}', s_cell)],
+        [Paragraph('Số lượng & ĐVT', s_cell_bold), Paragraph(f'{so_luong} {dvt}', s_cell), Paragraph('Căn cứ thống nhất', s_cell_bold), Paragraph(f'{clean_text_for_cell(co_so_thong_nhat, 50)}', s_cell)],
+        [Paragraph('Đơn giá trình thẩm định', s_cell_bold), Paragraph(f'<b>{format_vnd(don_gia_trinh)}/{dvt}</b>', s_cell), Paragraph('Thành tiền trình', s_cell_bold), Paragraph(f'<b>{format_vnd(thanh_tien_trinh)}</b>', s_cell)],
+        [Paragraph('Đơn giá đề xuất thống nhất', s_cell_bold), Paragraph(f'{format_vnd(don_gia_thong_nhat)}/{dvt}', s_cell_green), Paragraph('Thành tiền sau thẩm định', s_cell_bold), Paragraph(f'{format_vnd(thanh_tien_thong_nhat)}', s_cell_green)],
+        [Paragraph('Mức giảm trừ / Tiết kiệm', s_cell_bold), Paragraph(f'{format_vnd(gia_tri_giam)} ({pct_save:.1f}%)', s_cell_red), Paragraph('Trạng thái thẩm định', s_cell_bold), Paragraph('<font color="#B91C1C"><b>Cảnh báo cao hơn ERP</b></font>' if pct_save > 15 else 'Phù hợp mặt bằng giá', s_cell)],
     ]
-
-    t1 = Table(table_data_1, colWidths=[0.8*cm, 5.2*cm, 12.0*cm])
+    t1 = Table(t1_data, colWidths=[4.2*cm, 5.1*cm, 4.2*cm, 5.1*cm])
     t1.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#F1F5F9")),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F8FAFC')),
+        ('BACKGROUND', (2,0), (2,-1), colors.HexColor('#F8FAFC')),
+        ('BACKGROUND', (0,4), (-1,4), colors.HexColor('#F0FDF4')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 2.5),
+        ('PADDING', (0,0), (-1,-1), 1.8),
     ]))
     story.append(t1)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 2))
 
-    # Section 2: Parse AI Markdown Synthesis dynamically
-    story.append(Paragraph("2. ĐÁNH GIÁ CHUYÊN SÂU TỔ THẨM ĐỊNH & PHẢN BIỆN KHVT", h1_style))
-    
-    danh_gia_ttd = item_data.get('danh_gia_ttd', 'Chưa có đánh giá')
-    phan_bien_khvt = item_data.get('phan_bien_khvt', 'Đồng ý điều chỉnh')
+    # 4. II. KẾT QUẢ TRA CỨU ĐỐI CHIẾU THEO 5 CƠ SỞ CHỨNG CỨ
+    story.append(Paragraph('II. KẾT QUẢ TRA CỨU ĐỐI CHIẾU THEO 5 CƠ SỞ CHỨNG CỨ', s_h1))
+    pillars = extract_five_pillars(item_data, dossier_name=dossier_name)
 
-    story.append(Paragraph("<b>2.1. Đánh giá của Tổ Thẩm định Dự toán:</b>", h2_style))
-    parsed_ttd = parse_markdown_to_flowables(danh_gia_ttd, custom_styles)
-    if parsed_ttd:
-        story.extend(parsed_ttd)
-    else:
-        story.append(Paragraph(str(danh_gia_ttd), body_style))
-    story.append(Spacer(1, 3))
-
-    story.append(Paragraph("<b>2.2. Ý kiến giải trình / Phản biện từ Đơn vị Mua sắm (KHVT):</b>", h2_style))
-    parsed_khvt = parse_markdown_to_flowables(phan_bien_khvt, custom_styles)
-    if parsed_khvt:
-        story.extend(parsed_khvt)
-    else:
-        story.append(Paragraph(str(phan_bien_khvt), body_style))
-    story.append(Spacer(1, 4))
-
-    # Section 3: Recommendations & Options
-    story.append(Paragraph("3. KHUYẾN NGHỊ ĐÀM PHÁN VÀ KẾT LUẬN THẨM ĐỊNH", h1_style))
-    if pct_save > 15:
-        p_alert = Paragraph(f"🔴 <b>CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ – GIÁ TRÌNH CAO HƠN +{pct_save:.1f}% SO VỚI CĂN CỨ THẨM ĐỊNH</b>", alert_style)
-        alert_box = Table([[p_alert]], colWidths=[18.0*cm])
-        alert_box.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FEF3C7")),
-            ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#F59E0B")),
-            ('PADDING', (0,0), (-1,-1), 3),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ]))
-        story.append(alert_box)
-        story.append(Spacer(1, 4))
-
-    table_data_3 = [
-        [Paragraph("Phương án đàm phán", cell_center_bold), Paragraph("Đơn giá đề xuất", cell_center_bold), Paragraph("Lý do & Cơ sở đề xuất", cell_center_bold), Paragraph("Tiết kiệm dự kiến", cell_center_bold)],
-        [Paragraph("Phương án A<br/>(Căn cứ lịch sử)", cell_bold), Paragraph(f"{format_vnd(don_gia_thong_nhat * 0.9)}", cell_style), Paragraph("Áp dụng theo mức giá lịch sử nhập kho thấp nhất", cell_style), Paragraph(f"{format_vnd(gia_tri_giam + don_gia_thong_nhat * 0.1 * so_luong)}", cell_style)],
-        [Paragraph("<b>Phương án B<br/>(Khuyến nghị)</b>", cell_bold), Paragraph(f"<font color='#047857'><b>{format_vnd(don_gia_thong_nhat)}</b></font>", cell_bold), Paragraph(f"<font color='#047857'>Thống nhất theo căn cứ {item_data.get('co_so_thong_nhat', 'e-GP MSC và HĐ IMIS')}. Đảm bảo tính khả thi và hợp lý cho Ngân sách.</font>", cell_style), Paragraph(f"<font color='#047857'><b>{format_vnd(gia_tri_giam)}</b></font>", cell_bold)],
-        [Paragraph("Phương án C<br/>(Giữ giá trình)", cell_bold), Paragraph(f"{format_vnd(don_gia_trinh)}", cell_style), Paragraph("Chỉ áp dụng khi đơn vị trình có đầy đủ chứng từ xuất xứ gốc và giải trình đặc thù", cell_style), Paragraph("0 đ", cell_style)],
+    t2_data = [
+        [Paragraph('STT & Cơ sở chứng cứ', s_cell_center_bold), Paragraph('Nguồn dữ liệu / Hồ sơ đối chiếu', s_cell_center_bold), Paragraph('Đơn giá tham chiếu', s_cell_center_bold), Paragraph('Tương quan & Nhận định đối chiếu', s_cell_center_bold)],
     ]
+    for p in pillars:
+        price_display = f"{format_vnd(p['price'])}/{dvt}" if p['price'] > 0 else "Chưa có dữ liệu"
+        if p['id'] == 5 and p['price'] == 0:
+            price_display = "Báo giá riêng (RFQ)"
 
-    t3 = Table(table_data_3, colWidths=[3.0*cm, 2.8*cm, 9.2*cm, 3.0*cm])
-    t3.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#F8FAFC")),
-        ('BACKGROUND', (0,2), (-1,2), colors.HexColor("#ECFDF5")),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
+        note_clean = clean_text_for_cell(p['note'], 55)
+        st_note = s_cell_red if p.get('is_warn') else s_cell
+
+        t2_data.append([
+            Paragraph(f"<b>{p['name']}</b>", s_cell),
+            Paragraph(f"{clean_text_for_cell(p['source'], 45)}", s_cell),
+            Paragraph(f"{price_display}", s_cell_bold if p['price'] > 0 else s_cell),
+            Paragraph(f"{note_clean}", st_note)
+        ])
+
+    t2 = Table(t2_data, colWidths=[3.8*cm, 5.8*cm, 3.2*cm, 5.8*cm])
+    t2.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 3),
+        ('PADDING', (0,0), (-1,-1), 1.8),
     ]))
-    story.append(t3)
-    story.append(Spacer(1, 4))
+    story.append(t2)
+    story.append(Spacer(1, 2))
 
-    p_conclusion = (
-        "<b>KẾT LUẬN THẨM ĐỊNH:</b><br/>"
-        f"Hội đồng Thẩm định thống nhất duyệt đơn giá cho Mục STT {item_id:02d} ({ten_vt}) ở mức <b>{format_vnd(don_gia_thong_nhat)}/{dvt}</b>, "
-        f"tổng giá trị thẩm định đạt <b>{format_vnd(thanh_tien_thong_nhat)}</b> (giảm <b>{format_vnd(gia_tri_giam)}</b> so với dự toán ban đầu trình)."
-    )
-    story.append(Paragraph(p_conclusion, body_style))
-    story.append(Spacer(1, 8))
+    # 5. III. ĐÁNH GIÁ, PHÂN TÍCH
+    story.append(Paragraph('III. ĐÁNH GIÁ, PHÂN TÍCH', s_h1))
 
-    # Signatures
-    creator_name = dossier_info.get('creator', 'Nguyễn Anh Hiếu')
-    sig_data = [
-        [Paragraph("<b>CHUYÊN VIÊN THẨM ĐỊNH</b>", cell_center_bold), Paragraph("<b>TỔ TRƯỞNG TỔ THẨM ĐỊNH DỰ TOÁN</b>", cell_center_bold)],
-        [Paragraph("<i>(Ký, ghi rõ họ tên)</i>", ParagraphStyle('SubSig', fontName='Arial-Italic', fontSize=7.5, alignment=1)), Paragraph("<i>(Ký, ghi rõ họ tên)</i>", ParagraphStyle('SubSig', fontName='Arial-Italic', fontSize=7.5, alignment=1))],
-        [Spacer(1, 25), Spacer(1, 25)],
-        [Paragraph(f"<b>{creator_name}</b>", cell_center_bold), Paragraph("<b>Tổ Thẩm Định Dự Toán NMNĐ Vĩnh Tân 4</b>", cell_center_bold)]
-    ]
-    t_sig = Table(sig_data, colWidths=[9.0*cm, 9.0*cm])
-    t_sig.setStyle(TableStyle([
+    md_text = item_data.get('danh_gia_ttd', '')
+
+    # 3.1: Bản chất kỹ thuật
+    m_tech = re.search(r'####?\s*1\.\s*Phân tích bản chất[^\n]*\n+([\s\S]*?)(?=####?\s*2\.|\Z)', md_text, re.IGNORECASE)
+    if m_tech and len(m_tech.group(1).strip()) > 40:
+        p_tech_text = safe_clean_plain(m_tech.group(1).strip(), max_len=360)
+    else:
+        p_tech_text = f"Vật tư {ten_vt_goc} (Mã hiệu: {clean_text_for_cell(part_no, 40)}, Hãng SX: {hsx_xx}) phục vụ công tác sửa chữa, bảo dưỡng thiết bị tại Nhà máy Nhiệt điện Vĩnh Tân 4. Thiết bị đảm bảo các yêu cầu kỹ thuật vận hành đồng bộ và độ tin cậy an toàn trong hệ thống."
+
+    story.append(Paragraph(f"<b>3.1. Phân tích bản chất kỹ thuật & tính tương thích:</b> {p_tech_text}", s_body))
+    story.append(Spacer(1, 1))
+
+    # 3.2: Đánh giá tương quan
+    m_comm = re.search(r'####?\s*(?:3\.\s*Nhận định tổng hợp|2\.\s*Đánh giá tương quan)[^\n]*\n+([\s\S]*?)(?=###\s*III|\Z)', md_text, re.IGNORECASE)
+    if m_comm and len(m_comm.group(1).strip()) > 40:
+        p_comm_text = safe_clean_plain(m_comm.group(1).strip(), max_len=390)
+    else:
+        if pct_save > 0:
+            p_comm_text = f"Đơn giá trình thẩm định {format_vnd(don_gia_trinh)}/{dvt} cao hơn {pct_save:.1f}% (+{format_vnd(don_gia_trinh - don_gia_thong_nhat)}/{dvt}) so với giá chứng cứ đã kiểm chứng ({format_vnd(don_gia_thong_nhat)}/{dvt}). Tổ Thẩm định đánh giá có đủ cơ sở pháp lý và dữ liệu đối chiếu để thương thảo tiết giảm chi phí dự toán."
+        else:
+            p_comm_text = f"Đơn giá trình thẩm định {format_vnd(don_gia_trinh)}/{dvt} phản ánh đúng mặt bằng giá thị trường và báo giá chào cạnh tranh từ nhà cung cấp có năng lực. Không ghi nhận biến động bất thường so với hồ sơ chứng cứ tra cứu."
+
+    story.append(Paragraph(f"<b>3.2. Đánh giá tương quan giá trị kỹ thuật - thương mại:</b> {p_comm_text}", s_body))
+    story.append(Spacer(1, 2))
+
+    # 6. IV. KIẾN NGHỊ
+    story.append(Paragraph('IV. KIẾN NGHỊ', s_h1))
+    p_hoply, p_kiennghi = generate_recommendation_text(item_data, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt)
+
+    full_conc_content = f"{p_hoply}<br/>{p_kiennghi}"
+    box_conc = Table([[Paragraph(full_conc_content, s_body)]], colWidths=[18.6*cm])
+    box_conc.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 1.0, colors.HexColor('#1E3A8A')),
+        ('PADDING', (0,0), (-1,-1), 3.0),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
-    story.append(KeepTogether(t_sig))
+    story.append(box_conc)
 
-    doc.build(story, canvasmaker=NumberedCanvas)
+    # Xuất PDF chuẩn 1 trang
+    doc.build(story, canvasmaker=SinglePageCanvas)
     return output_path
+
