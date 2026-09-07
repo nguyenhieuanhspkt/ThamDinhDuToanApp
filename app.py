@@ -989,14 +989,24 @@ def api_get_item_evidence(item_id=None):
         
     p_dir = get_project_files_dir()
     item_dir = os.path.join(p_dir, f"item_{item_id}")
+    fallback_dir = os.path.join(DATA_DIR, "current_dossier_files", f"item_{item_id}")
+    
+    def resolve_step_file(step_name):
+        f1 = os.path.join(item_dir, f"chung_cu_{step_name}.json")
+        if os.path.exists(f1):
+            return f1
+        f2 = os.path.join(fallback_dir, f"chung_cu_{step_name}.json")
+        if os.path.exists(f2):
+            return f2
+        return None
     
     if step_type:
-        fname = f"chung_cu_{step_type}.json"
-        fpath = os.path.join(item_dir, fname)
-        if os.path.exists(fpath):
+        fpath = resolve_step_file(step_type)
+        if fpath and os.path.exists(fpath):
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
-                    return jsonify({"success": True, "data": json.load(f), "payload": json.load(f)})
+                    content = json.load(f)
+                    return jsonify({"success": True, "data": content, "payload": content})
             except Exception as e:
                 return jsonify({"success": False, "message": str(e)}), 500
         return jsonify({"success": True, "data": None, "payload": None})
@@ -1004,8 +1014,8 @@ def api_get_item_evidence(item_id=None):
     evidence = {}
     steps = ["quotes", "erp", "imis", "muasamcong", "ecom", "synthesis"]
     for s in steps:
-        fpath = os.path.join(item_dir, f"chung_cu_{s}.json")
-        if os.path.exists(fpath):
+        fpath = resolve_step_file(s)
+        if fpath and os.path.exists(fpath):
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
                     evidence[s] = json.load(f)
@@ -1348,8 +1358,16 @@ def api_run_5_pillars(item_id):
             if len(recs) > 1:
                 other_prices = [f"{float(r.get('donGia') or r.get('don_gia') or 0):,.0f} đ".replace(",", ".") for r in recs[1:3]]
                 p2_desc += f"; Các đợt nhập khác: {', '.join(other_prices)}"
-                
-            write_evidence("chung_cu_erp.json", recs)
+        else:
+            p2_desc = "Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4."
+            
+        erp_payload = {
+            "results": recs if isinstance(recs, list) else [],
+            "summary": {"status": "MATCHED" if recs else "NO_ERP_DATA", "summary_text": p2_desc},
+            "summary_text": p2_desc,
+            "keyword": ma_vt or keyword
+        }
+        write_evidence("chung_cu_erp.json", erp_payload)
     except Exception as e:
         print(f"Pillar 2 error for item {item_id}: {e}")
 
@@ -1362,7 +1380,18 @@ def api_run_5_pillars(item_id):
         if imis_recs:
             p3_price = float(imis_recs[0].get("don_gia") or 0)
             p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({imis_recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
-            write_evidence("chung_cu_imis.json", imis_res)
+        else:
+            p3_desc = f"Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [{keyword}], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS."
+            
+        imis_payload = {
+            "imis": imis_recs,
+            "erp": imis_res.get("erp", []),
+            "summary": {"status": "MATCHED" if imis_recs else "NO_IMIS_DATA", "summary_text": p3_desc},
+            "summary_text": p3_desc,
+            "keyword": keyword,
+            "used_keyword": keyword
+        }
+        write_evidence("chung_cu_imis.json", imis_payload)
     except Exception as e:
         print(f"Pillar 3 error for item {item_id}: {e}")
 
@@ -1380,7 +1409,16 @@ def api_run_5_pillars(item_id):
             p4_price = float(comp.get("min_price") or 0)
             if p4_price > 0:
                 p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/Cái (Kết quả trúng thầu)".replace(",", ".")
-            write_evidence("chung_cu_muasamcong.json", comp)
+            else:
+                p4_desc = f"Đã tra cứu từ khóa [{clean_msc_kw or keyword}] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự."
+            msc_payload = {
+                "results": comp.get("items", []),
+                "summary": comp.get("summary", {}),
+                "summary_text": p4_desc,
+                "keyword": clean_msc_kw or keyword,
+                "analysis": comp
+            }
+            write_evidence("chung_cu_muasamcong.json", msc_payload)
     except Exception as e:
         print(f"Pillar 4 error for item {item_id}: {e}")
 

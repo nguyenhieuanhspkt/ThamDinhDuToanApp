@@ -360,7 +360,12 @@ COMMON_STOPWORDS = {
     "CHIẾC", "CUỘN", "MÉT", "HỘP", "KÍCH", "THƯỚC", "CHIỀU", "TRONG", "NGOÀI", "HIỆU",
     "ÁP", "SUẤT", "VẬT", "TƯ", "THIẾT", "BỊ", "CUNG", "CẤP", "GỒM", "THÔNG", "SỐ", "KỸ", "THUẬT",
     "PHỤ", "KIỆN", "LOẠI", "BẢNG", "CHÀO", "GIÁ", "NGÀY", "ĐƠN", "THÀNH", "TIỀN", "ITEM", "PART",
-    "SIZE", "BAR", "VND", "VNĐ", "INCLUDE", "MANUFACTURER", "TEST", "PRESSURE"
+    "SIZE", "BAR", "VND", "VNĐ", "INCLUDE", "MANUFACTURER", "TEST", "PRESSURE",
+    "FLANGE", "STEEL", "CAST", "STAINLESS", "TEMPERATURE", "COMPLETE", "PISTON", "ROD",
+    "HOUSING", "CONNECTION", "WORKING", "LIQUID", "LENGTH", "WIDTH", "HEIGHT", "DIAMETER",
+    "MATERIAL", "CONTROLLED", "INCH", "SENSOR", "FIBER", "OPTIC", "CONDUCTOR", "TUBE",
+    # Từ khóa nhóm hàng không tính vào điểm trùng lặp tên
+    "VALVE", "VAN", "ACTUATOR", "SOLENOID", "GASKET", "GIOĂNG", "MODULE", "FITTING", "PUMP", "BƠM"
 }
 
 PRODUCT_FAMILIES = {
@@ -368,15 +373,27 @@ PRODUCT_FAMILIES = {
     "SOLENOID": ["SOLENOID", "ĐIỆN TỪ"],
     "GASKET": ["GASKET", "GIOĂNG", "SPIRAL WOUND"],
     "MODULE": ["MODULE", "MODUL", "ĐẦU VÀO INPUT"],
-    "VALVE": ["VALVE", "VAN", "BALL VALVE", "CHECK VALVE"],
+    "VALVE": ["VALVE", "VAN", "BALL VALVE", "CHECK VALVE", "SELECTOR VALVE"],
     "FITTING": ["FITTING", "UNION", "ELBOW", "TEE", "ĐẦU NỐI", "CÚT", "KHỚP NỐI"],
     "POSITIONER": ["POSITIONER", "ĐỊNH VỊ"],
     "TUBE": ["TUBE", "ỐNG KHÍ NÉN", "ỐNG INOX", "ỐNG ĐỒNG", "ỐNG THÉP"],
     "PUMP": ["PUMP", "BƠM"],
     "BASE": ["ĐẾ GẮN", "DE GAN"],
     "BUTTON": ["NÚT NHẤN", "NUT NHAN", "EMERGENCY"],
-    "RUBBER": ["CAO SU", "GIẤY CHỐNG DÍNH"]
+    "RUBBER": ["CAO SU", "GIẤY CHỐNG DÍNH"],
+    "CABLE_SENSOR": ["DÂY TÍN HIỆU", "CÁP QUANG", "CẢM BIẾN", "SENSOR", "OPTIC", "FIBER", "QUANG", "FLAME"]
 }
+
+def check_family_in_text(family_kws, text):
+    """Kiểm tra từ khóa nhóm hàng với ranh giới từ để tránh so khớp nhầm xâu con (VD: TEE trong STEEL)."""
+    for kw in family_kws:
+        if re.match(r'^[A-Za-z0-9_]+$', kw):
+            if re.search(r'\b' + re.escape(kw) + r'\b', text, re.IGNORECASE):
+                return True
+        else:
+            if kw in text:
+                return True
+    return False
 
 def extract_meaningful_identifiers(text):
     """Trích xuất mã hiệu kỹ thuật, part no và thương hiệu có giá trị định danh cao."""
@@ -414,7 +431,7 @@ def match_item_in_quotes(item, quotes_data):
     """
     Đối chiếu 1 mục dự toán đang thẩm định với dữ liệu báo giá đã quét:
     - Loại bỏ hoàn toàn việc cộng điểm theo STT dòng để tránh so sánh nhầm hàng hóa.
-    - Phát hiện xung đột nhóm hàng (VD: Actuator vs Tube/Gasket).
+    - Phát hiện xung đột nhóm hàng (VD: Actuator vs Tube/Gasket, Valve vs Cable Sensor).
     - Ưu tiên chính xác Part Number, Model và Brand.
     """
     quotes = quotes_data.get("quotes", [])
@@ -432,7 +449,7 @@ def match_item_in_quotes(item, quotes_data):
     target_codes = extract_meaningful_identifiers(target_combined)
 
     # Xác định nhóm sản phẩm của mục thẩm định
-    target_fams = [fam for fam, kws in PRODUCT_FAMILIES.items() if any(kw in target_combined for kw in kws)]
+    target_fams = [fam for fam, kws in PRODUCT_FAMILIES.items() if check_family_in_text(kws, target_combined)]
 
     supplier_matches = []
 
@@ -448,39 +465,54 @@ def match_item_in_quotes(item, quotes_data):
             cand_combined = f"{cand_name} {cand_tskt}".upper()
 
             # 1. KIỂM TRA XUNG ĐỘT CHỦNG LOẠI (Hard Conflict Exclusion)
-            cand_fams = [fam for fam, kws in PRODUCT_FAMILIES.items() if any(kw in cand_combined for kw in kws)]
+            cand_fams = [fam for fam, kws in PRODUCT_FAMILIES.items() if check_family_in_text(kws, cand_combined)]
             if target_fams and cand_fams:
                 if not any(f in cand_fams for f in target_fams):
                     continue
 
+            cand_codes = extract_meaningful_identifiers(cand_combined)
+            shared_codes = target_codes.intersection(cand_codes)
+
+            # 2. KIỂM TRA XUNG ĐỘT MODEL / PART NO
+            # Nếu cả hai đều có mã định danh kỹ thuật rõ ràng (chứa chữ và số >= 4 ký tự) nhưng không có mã nào giao nhau:
+            strict_target_codes = {c for c in target_codes if any(ch.isdigit() for ch in c) and len(c) >= 4}
+            strict_cand_codes = {c for c in cand_codes if any(ch.isdigit() for ch in c) and len(c) >= 4}
+            if strict_target_codes and strict_cand_codes and not (strict_target_codes & strict_cand_codes):
+                continue
+
             score = 0
             reasons = []
-            cand_codes = extract_meaningful_identifiers(cand_combined)
 
-            # 2. SO KHỚP MÃ KỸ THUẬT & PART NO (Trọng số cao nhất)
-            shared_codes = target_codes.intersection(cand_codes)
+            # 3. SO KHỚP MÃ KỸ THUẬT & PART NO (Trọng số cao nhất)
             if shared_codes:
                 score += len(shared_codes) * 120
                 reasons.append(f"Trùng mã Part No: {', '.join(shared_codes)}")
 
-            # 3. SO KHỚP CHỦNG LOẠI
+            # 4. SO KHỚP CHỦNG LOẠI
             common_fams = set(target_fams) & set(cand_fams)
             if target_fams and cand_fams and common_fams:
                 score += 60
                 reasons.append(f"Cùng chủng loại: {', '.join(common_fams)}")
 
-            # 4. SO KHỚP TÊN VẬT TƯ (Nếu tên chứa các từ đặc thù)
+            # 5. YÊU CẦU LIÊN KẾT THỰC CHẤT
+            has_strong_link = bool(shared_codes or (dg_trinh > 0 and cand_price > 0 and abs(dg_trinh - cand_price) < 1.0))
+            if not has_strong_link:
+                clean_name_tokens = [w for w in re.findall(r'[A-Za-z0-9]{4,}', ten_vt.upper()) if w not in COMMON_STOPWORDS]
+                matched_name_tokens = [w for w in clean_name_tokens if w in cand_combined]
+                if len(matched_name_tokens) < 2:
+                    continue
+
+            # 6. SO KHỚP TÊN VẬT TƯ (Nếu tên chứa các từ đặc thù)
             clean_name_tokens = [w for w in re.findall(r'[A-Za-z0-9]{4,}', ten_vt.upper()) if w not in COMMON_STOPWORDS]
             matched_name_tokens = [w for w in clean_name_tokens if w in cand_combined]
             if matched_name_tokens:
                 score += len(matched_name_tokens) * 40
                 reasons.append(f"Khớp từ khóa: {', '.join(matched_name_tokens[:3])}")
 
-            # 5. SO KHỚP ĐƠN GIÁ TRÌNH
+            # 7. SO KHỚP ĐƠN GIÁ TRÌNH
             if dg_trinh > 0 and cand_price > 0 and abs(dg_trinh - cand_price) < 1.0:
-                if score > 0 or not target_fams:
-                    score += 80
-                    reasons.append("Trùng khớp đơn giá trình")
+                score += 80
+                reasons.append("Trùng khớp đơn giá trình")
 
             if score > best_score:
                 best_score = score

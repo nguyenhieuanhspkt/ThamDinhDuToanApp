@@ -188,10 +188,22 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
   }, [currentItem?.id, autoSaveStep]);
 
   // Load on-demand for pillars 2/3/4/5
+  // Load on-demand for pillars 2/3/4/5
   const loadErp = useCallback(async () => {
     if (erpResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, erp: true }));
     try {
+      if (currentItem.id) {
+        const checkRes = await fetch(`/api/evidence/get?item_id=${currentItem.id}&step_type=erp`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.data || checkData.payload) {
+            setErpResults(checkData.data || checkData.payload);
+            setLoading(p => ({ ...p, erp: false }));
+            return;
+          }
+        }
+      }
       const erpKw = currentItem.ma_vt || currentItem.ten_vt;
       const res = await fetch('/api/erp/search', {
         method: 'POST',
@@ -220,6 +232,17 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (imisResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, imis: true }));
     try {
+      if (currentItem.id) {
+        const checkRes = await fetch(`/api/evidence/get?item_id=${currentItem.id}&step_type=imis`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.data || checkData.payload) {
+            setImisResults(checkData.data || checkData.payload);
+            setLoading(p => ({ ...p, imis: false }));
+            return;
+          }
+        }
+      }
       const cleanKw = getDefaultImisKeyword(currentItem.ten_vt) || extractCleanImisKeyword(currentItem.ten_vt);
       const res = await fetch('/api/search-item-sources', {
         method: 'POST',
@@ -244,6 +267,17 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (mscResults || !currentItem?.ten_vt) return;
     setLoading(p => ({ ...p, msc: true }));
     try {
+      if (currentItem.id) {
+        const checkRes = await fetch(`/api/evidence/get?item_id=${currentItem.id}&step_type=muasamcong`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.data || checkData.payload) {
+            setMscResults(checkData.data || checkData.payload);
+            setLoading(p => ({ ...p, msc: false }));
+            return;
+          }
+        }
+      }
       const cleanKw = getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt;
       const res = await fetch('/api/msc/search-item', {
         method: 'POST',
