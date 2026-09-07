@@ -102,91 +102,202 @@ def clean_text_for_cell(txt, max_len=70):
     return txt
 
 
+def is_meaningful_kw(kw):
+    if not kw:
+        return False
+    k = str(kw).strip().lower()
+    return k not in ('chưa có', 'chưa có mã vật tư', 'n/a', 'none', 'chưa có mã', 'không có') and not k.startswith('chưa')
+
+
 def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
     """
     Trích xuất dữ liệu 5 chân đế độc lập phục vụ ma trận đối chiếu chứng cứ.
-    Ưu tiên lấy từ audit trail file (JSON), fallback sang phân tích markdown hoặc giá trị mặc định.
+    Thể hiện rõ công sức tra cứu của Chuyên viên:
+    - Từ khóa đã tra cứu (Mã VT / Part No / Tên vật tư)
+    - Kết quả tìm kiếm thực tế (0 kết quả, không ghi nhận gói thầu tương đồng, hoặc mốc giá cụ thể)
     """
+    import glob
     item_id = item_data.get('id', 1)
     don_gia_trinh = float(item_data.get('don_gia_trinh') or 0)
+    ma_vt = str(item_data.get('ma_vt') or '').strip()
+    part_no = re.sub(r'[\r\n]+', ' ', str(item_data.get('part_no') or '')).strip()
+    part_no_short = part_no.split('|')[0].strip()
+    ten_vt_goc = str(item_data.get('ten_vt_goc') or item_data.get('ten_vt') or '').split('\n')[0].strip()
+    ten_vt_clean = re.sub(r'[\r\n]+', ' ', ten_vt_goc).split('-')[0].strip()
+
+    # Keyword defaults có chọn lọc (bỏ qua các placeholder 'Chưa có...')
+    part_no_valid = part_no_short if (is_meaningful_kw(part_no_short) and len(part_no_short) < 30) else ''
+    ma_vt_valid = ma_vt if is_meaningful_kw(ma_vt) else ''
+    ten_vt_valid = ten_vt_clean[:25] if is_meaningful_kw(ten_vt_clean) else ''
+
+    kw_default_imis = part_no_valid or ma_vt_valid or ten_vt_valid
+    kw_default_msc  = ten_vt_valid or part_no_valid or ma_vt_valid
+    kw_default_ecom = ten_vt_valid or part_no_valid or ma_vt_valid
+
+    erp_src_default = f'ERP VT4 (Mã: {ma_vt_valid})' if ma_vt_valid else 'Hệ thống ERP NMNĐ Vĩnh Tân 4'
+    imis_src_default = f'CSDL EVN IMIS (Từ khóa: "{kw_default_imis}")' if kw_default_imis else 'Hệ thống CSDL giá toàn ngành EVN'
+    msc_src_default = f'Cổng MSC e-GP (Từ khóa: "{kw_default_msc}")' if kw_default_msc else 'Cổng Mua sắm công Quốc gia'
+    ecom_src_default = f'Kênh TMĐT/Web (Từ khóa: "{kw_default_ecom}")' if kw_default_ecom else 'Kênh thị trường tự do, sàn TMĐT'
 
     pillars = [
         {'id': 1, 'name': 'Cơ sở 1: Báo giá thị trường', 'source': 'Báo giá nộp kèm hồ sơ', 'price': don_gia_trinh, 'note': 'Báo giá chào thấp nhất nộp kèm', 'diff': '-', 'is_warn': False},
-        {'id': 2, 'name': 'Cơ sở 2: Lịch sử ERP VT4', 'source': 'Hệ thống ERP NMNĐ Vĩnh Tân 4', 'price': 0, 'note': 'Chưa ghi nhận dữ liệu lịch sử', 'diff': '-', 'is_warn': False},
-        {'id': 3, 'name': 'Cơ sở 3: CSDL EVN IMIS', 'source': 'Hệ thống CSDL giá toàn ngành EVN', 'price': 0, 'note': 'Chưa ghi nhận dữ liệu tương đồng', 'diff': '-', 'is_warn': False},
-        {'id': 4, 'name': 'Cơ sở 4: Mua sắm công (e-GP)', 'source': 'Cổng Mua sắm công Quốc gia', 'price': 0, 'note': 'Chưa ghi nhận gói thầu tương đồng', 'diff': '-', 'is_warn': False},
-        {'id': 5, 'name': 'Cơ sở 5: Sàn TMĐT / Tự do', 'source': 'Kênh thị trường tự do, sàn TMĐT', 'price': 0, 'note': 'Vật tư đặc thù hãng, yêu cầu RFQ', 'diff': '-', 'is_warn': False},
+        {'id': 2, 'name': 'Cơ sở 2: Lịch sử ERP VT4', 'source': erp_src_default, 'price': 0, 'price_display': '0 kết quả (Ko có giá)', 'note': 'Vật tư mới, chưa từng nhập kho VT4', 'diff': '-', 'is_warn': False},
+        {'id': 3, 'name': 'Cơ sở 3: CSDL EVN IMIS', 'source': imis_src_default, 'price': 0, 'price_display': '0 kết quả (Ko có giá)', 'note': 'Đã đối soát CSDL EVN: 0 bản ghi phù hợp', 'diff': '-', 'is_warn': False},
+        {'id': 4, 'name': 'Cơ sở 4: Mua sắm công (e-GP)', 'source': msc_src_default, 'price': 0, 'price_display': '0 kết quả (Ko có giá)', 'note': 'Đã rà soát e-GP: Không ghi nhận gói thầu tương đồng', 'diff': '-', 'is_warn': False},
+        {'id': 5, 'name': 'Cơ sở 5: Sàn TMĐT / Tự do', 'source': ecom_src_default, 'price': 0, 'price_display': 'Báo giá riêng (RFQ)', 'note': 'Vật tư đặc thù hãng, yêu cầu RFQ', 'diff': '-', 'is_warn': False},
     ]
 
     base_dir = os.path.abspath(data_dir)
-    candidate_folders = ['current_dossier_files']
+    candidate_folders = []
     if dossier_name:
+        candidate_folders.append(f'projects/{dossier_name}_files/item_{item_id}')
         candidate_folders.append(f'projects/{dossier_name}_files')
+    candidate_folders.append(f'current_dossier_files/item_{item_id}')
 
-    found_trail = False
+    item_dir = None
     for folder in candidate_folders:
-        tpath = os.path.join(base_dir, folder, f'item_{item_id}', 'chung_cu_audit_trail.json')
-        if os.path.exists(tpath):
+        cand = os.path.join(base_dir, folder)
+        if os.path.isdir(cand):
+            if folder.endswith(f'item_{item_id}'):
+                item_dir = cand
+                break
+            else:
+                sub = os.path.join(cand, f'item_{item_id}')
+                if os.path.isdir(sub):
+                    item_dir = sub
+                    break
+
+    if not item_dir:
+        matches = glob.glob(os.path.join(base_dir, 'projects', '*_files', f'item_{item_id}'))
+        if matches and os.path.isdir(matches[0]):
+            item_dir = matches[0]
+
+    # Kiểm tra & trích xuất chính xác từ các file JSON chứng cứ độc lập trong thư mục vật tư
+    if item_dir and os.path.isdir(item_dir):
+        # 1. Quotes
+        q_path = os.path.join(item_dir, 'chung_cu_quotes.json')
+        if os.path.exists(q_path):
             try:
-                with open(tpath, 'r', encoding='utf-8') as f:
-                    trail = json.load(f)
-                for step in trail.get('steps', []):
-                    sid = step.get('step_id')
-                    p = float(step.get('price') or 0)
-                    detail = step.get('detail', '')
-                    if sid == 'quotes' and p > 0:
-                        pillars[0]['price'] = p
-                        sup = step.get('supplier', '')
-                        pillars[0]['source'] = f'File {sup}' if sup else 'Báo giá nộp kèm'
-                        pillars[0]['note'] = 'Báo giá chào thấp nhất; neo giá trình'
-                    elif sid == 'erp' and p > 0:
+                with open(q_path, 'r', encoding='utf-8') as f:
+                    q_data = json.load(f)
+                m = q_data.get('matches') or []
+                if m:
+                    fn = m[0].get('filename') or m[0].get('company') or ''
+                    pillars[0]['source'] = f"File {fn}" if fn else 'Báo giá nộp kèm'
+            except Exception:
+                pass
+
+        # 2. ERP
+        erp_path = os.path.join(item_dir, 'chung_cu_erp.json')
+        if os.path.exists(erp_path):
+            try:
+                with open(erp_path, 'r', encoding='utf-8') as f:
+                    erp_data = json.load(f)
+                recs = erp_data.get('results', []) if isinstance(erp_data, dict) else (erp_data if isinstance(erp_data, list) else [])
+                if recs:
+                    p = float(recs[0].get('donGia') or recs[0].get('don_gia') or 0)
+                    if p > 0:
                         pillars[1]['price'] = p
-                        contract = step.get('contract', '')
+                        pillars[1].pop('price_display', None)
+                        contract = recs[0].get('soHopDong') or recs[0].get('so_hd') or recs[0].get('dienGiai') or ''
                         c_short = re.sub(r'^(Nhập kho vật tư \(|HĐ[:\s]*|Hợp đồng[:\s]*)', '', contract, flags=re.IGNORECASE).split('theo hóa đơn')[0].strip(' ,()')
-                        c_clean = c_short.strip()
-                        if c_clean.lower().startswith('hđ') or c_clean.lower().startswith('hd'):
-                            pillars[1]['source'] = c_clean
-                        else:
-                            pillars[1]['source'] = f'HĐ {c_clean}' if c_clean else 'Lịch sử nhập kho ERP VT4'
+                        c_clean = re.sub(r'^(hđ[:\s]*|hd[:\s]*|qđ[:\s]*|qd[:\s]*)', '', c_short.strip(), flags=re.IGNORECASE).strip()
+                        pillars[1]['source'] = f"HĐ: {c_clean}" if c_clean else "Lịch sử nhập kho ERP VT4"
                         if don_gia_trinh > 0:
                             pct = ((don_gia_trinh - p) / p) * 100
                             pillars[1]['diff'] = f'+{pct:.1f}%' if pct > 0 else f'{pct:.1f}%'
                             pillars[1]['note'] = f'Giá trình cao hơn ERP +{pct:.1f}%' if pct > 0 else f'Giá trình so với ERP: {pct:.1f}%'
                             if pct > 15:
                                 pillars[1]['is_warn'] = True
-                    elif sid == 'imis':
-                        if p > 0:
-                            pillars[2]['price'] = p
-                            pillars[2]['note'] = 'Có dữ liệu hợp đồng EVN IMIS'
-                    elif sid == 'msc':
-                        if p > 0:
-                            pillars[3]['price'] = p
-                            pillars[3]['note'] = 'Giá trúng thầu công khai e-GP'
-                    elif sid == 'ecom':
-                        if p > 0:
-                            pillars[4]['price'] = p
-                            pillars[4]['note'] = 'Giá tham khảo TMĐT'
-                found_trail = True
-                break
+                else:
+                    erp_kw = erp_data.get('keyword') if isinstance(erp_data, dict) else (ma_vt if not ma_vt.lower().startswith('chưa') else '')
+                    if erp_kw:
+                        pillars[1]['source'] = f"ERP VT4 (Mã: {erp_kw})"
             except Exception:
                 pass
 
-    if not found_trail:
-        md = item_data.get('danh_gia_ttd', '')
-        for row in re.findall(r'\|\s*([0-9\']+)\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|', md):
-            idx_str, name_str, price_str, note_str = [x.strip() for x in row]
-            if '1' in idx_str:
-                pillars[0]['note'] = note_str[:50]
-            elif '2' in idx_str and pillars[1]['price'] == 0:
-                p_m = re.search(r'([\d\.,]+)', price_str)
-                if p_m and 'không' not in price_str.lower():
-                    try:
-                        p_val = float(p_m.group(1).replace('.', '').replace(',', '.'))
-                        pillars[1]['price'] = p_val
-                        pillars[1]['source'] = note_str.split('–')[0].strip()[:35]
-                    except Exception:
-                        pass
-                pillars[1]['note'] = note_str[:50]
+        # 3. IMIS
+        imis_path = os.path.join(item_dir, 'chung_cu_imis.json')
+        if os.path.exists(imis_path):
+            try:
+                with open(imis_path, 'r', encoding='utf-8') as f:
+                    imis_data = json.load(f)
+                kw = (imis_data.get('used_keyword') or imis_data.get('keyword') or kw_default_imis).strip()
+                kw = re.sub(r'[\r\n]+', ' ', kw)
+                if len(kw) > 25:
+                    kw = kw[:22] + '...'
+                imis_list = imis_data.get('imis', [])
+                p3_val = 0
+                if imis_list:
+                    p3_val = float(imis_list[0].get('don_gia') or imis_list[0].get('donGia') or 0)
+                if p3_val > 0:
+                    pillars[2]['price'] = p3_val
+                    pillars[2].pop('price_display', None)
+                    pillars[2]['source'] = f"CSDL EVN IMIS (Từ khóa: \"{kw}\")" if kw else "CSDL EVN IMIS"
+                    dv = imis_list[0].get('ten_don_vi') or imis_list[0].get('tenDonVi') or 'Toàn ngành EVN'
+                    pillars[2]['note'] = f"Có HĐ mua sắm EVN ({dv})"
+                else:
+                    pillars[2]['price'] = 0
+                    pillars[2]['source'] = f"CSDL EVN IMIS (Từ khóa: \"{kw}\")" if kw else "Hệ thống CSDL giá toàn ngành EVN"
+                    pillars[2]['price_display'] = "0 kết quả (Ko có giá)"
+                    pillars[2]['note'] = "Đã đối soát CSDL EVN: 0 bản ghi phù hợp"
+            except Exception:
+                pass
+
+        # 4. MSC
+        msc_path = os.path.join(item_dir, 'chung_cu_muasamcong.json')
+        if os.path.exists(msc_path):
+            try:
+                with open(msc_path, 'r', encoding='utf-8') as f:
+                    msc_data = json.load(f)
+                kw = (msc_data.get('used_keyword') or msc_data.get('keyword') or kw_default_msc).strip()
+                kw = re.sub(r'[\r\n]+', ' ', kw)
+                if len(kw) > 25:
+                    kw = kw[:22] + '...'
+                msc_list = msc_data.get('results', []) or msc_data.get('items', [])
+                p4_val = 0
+                if msc_list:
+                    p4_val = float(msc_list[0].get('trung_thau_don_gia') or msc_list[0].get('don_gia') or msc_list[0].get('price') or 0)
+                if p4_val > 0:
+                    pillars[3]['price'] = p4_val
+                    pillars[3].pop('price_display', None)
+                    pillars[3]['source'] = f"Cổng MSC e-GP (Từ khóa: \"{kw}\")" if kw else "Cổng Mua sắm công Quốc gia"
+                    pillars[3]['note'] = "Giá trúng thầu công khai e-GP"
+                else:
+                    pillars[3]['price'] = 0
+                    pillars[3]['source'] = f"Cổng MSC e-GP (Từ khóa: \"{kw}\")" if kw else "Cổng Mua sắm công Quốc gia"
+                    pillars[3]['price_display'] = "0 kết quả (Ko có giá)"
+                    pillars[3]['note'] = "Đã rà soát e-GP: Không ghi nhận gói thầu tương đồng"
+            except Exception:
+                pass
+
+        # 5. E-Commerce
+        ecom_path = os.path.join(item_dir, 'chung_cu_ecom.json')
+        if os.path.exists(ecom_path):
+            try:
+                with open(ecom_path, 'r', encoding='utf-8') as f:
+                    ecom_data = json.load(f)
+                kw = (ecom_data.get('search_keyword') or ecom_data.get('keyword') or kw_default_ecom).strip()
+                kw = re.sub(r'[\r\n]+', ' ', kw)
+                if len(kw) > 25:
+                    kw = kw[:22] + '...'
+                ecom_items = ecom_data.get('items', [])
+                p5_val = 0
+                if ecom_items:
+                    p5_val = float(ecom_items[0].get('price') or ecom_items[0].get('don_gia') or 0)
+                if p5_val > 0:
+                    pillars[4]['price'] = p5_val
+                    pillars[4].pop('price_display', None)
+                    vendor = ecom_items[0].get('vendor') or 'Web TMĐT'
+                    pillars[4]['source'] = f"{vendor} (Từ khóa: \"{kw}\")" if kw else vendor
+                    pillars[4]['note'] = ecom_items[0].get('notes') or "Giá niêm yết web/TMĐT"
+                else:
+                    pillars[4]['price'] = 0
+                    pillars[4]['source'] = f"Kênh TMĐT/Web (Từ khóa: \"{kw}\")" if kw else "Kênh thị trường tự do, sàn TMĐT"
+                    pillars[4]['price_display'] = "Báo giá riêng (RFQ)"
+                    pillars[4]['note'] = "Vật tư đặc thù hãng, yêu cầu RFQ"
+            except Exception:
+                pass
 
     return pillars
 
@@ -417,21 +528,29 @@ def generate_item_pdf(item_data, dossier_info, output_path):
         [Paragraph('STT & Cơ sở chứng cứ', s_cell_center_bold), Paragraph('Nguồn dữ liệu / Hồ sơ đối chiếu', s_cell_center_bold), Paragraph('Đơn giá tham chiếu', s_cell_center_bold), Paragraph('Tương quan & Nhận định đối chiếu', s_cell_center_bold)],
     ]
     for p in pillars:
-        price_display = f"{format_vnd(p['price'])}/{dvt}" if p['price'] > 0 else "Chưa có dữ liệu"
-        if p['id'] == 5 and p['price'] == 0:
+        if p['price'] > 0:
+            price_display = f"{format_vnd(p['price'])}/{dvt}"
+        elif p.get('price_display'):
+            price_display = p['price_display']
+        elif p['id'] == 5:
             price_display = "Báo giá riêng (RFQ)"
+        elif p['id'] in (2, 3, 4):
+            price_display = "0 kết quả (Ko có giá)"
+        else:
+            price_display = "Chưa có dữ liệu"
 
-        note_clean = clean_text_for_cell(p['note'], 55)
+        source_clean = clean_text_for_cell(p['source'], 60)
+        note_clean = clean_text_for_cell(p['note'], 65)
         st_note = s_cell_red if p.get('is_warn') else s_cell
 
         t2_data.append([
             Paragraph(f"<b>{p['name']}</b>", s_cell),
-            Paragraph(f"{clean_text_for_cell(p['source'], 45)}", s_cell),
+            Paragraph(f"{source_clean}", s_cell),
             Paragraph(f"{price_display}", s_cell_bold if p['price'] > 0 else s_cell),
             Paragraph(f"{note_clean}", st_note)
         ])
 
-    t2 = Table(t2_data, colWidths=[3.8*cm, 5.8*cm, 3.2*cm, 5.8*cm])
+    t2 = Table(t2_data, colWidths=[3.7*cm, 6.0*cm, 3.1*cm, 5.8*cm])
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),

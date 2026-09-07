@@ -3283,15 +3283,19 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     }
     text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${p2_desc}\n`;
 
+    const imisKw = imisResults?.used_keyword || imisResults?.keyword || (item?.part_no ? String(item.part_no).split('|')[0].trim() : '') || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '') || item?.ten_vt || '';
+    const mscKw  = mscResults?.used_keyword  || mscResults?.keyword  || item?.ten_vt_goc || item?.ten_vt || '';
+    const ecomKw = ecomResults?.search_keyword || ecomResults?.keyword || item?.ten_vt_goc || item?.ten_vt || '';
+
     // 3. Cơ sở 3: EVN IMIS
     let p3_desc = '';
     if (p3_price > 0) {
       const rec = imisResults?.selected_record || imisResults?.imis?.[0];
       const dvInfo = rec?.ten_dv_mua ? ` tại ${rec.ten_dv_mua}` : ' toàn ngành EVN';
       const hdInfo = rec?.so_hd ? ` theo HĐ ${rec.so_hd}` : '';
-      p3_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/Cái${dvInfo}${hdInfo}.`;
+      p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/Cái${dvInfo}${hdInfo}.`;
     } else if (has_p3) {
-      p3_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận không có dữ liệu hợp đồng mua sắm vật tư tương tự từ các Đơn vị Phát điện toàn Tập đoàn EVN.`;
+      p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).`;
     } else {
       p3_desc = `Chưa đối chiếu CSDL Hợp đồng mua sắm toàn ngành EVN IMIS.`;
     }
@@ -3302,9 +3306,9 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     if (p4_price > 0) {
       const rec = mscResults?.selected_record || mscResults?.analysis?.items?.[0] || mscResults?.items?.[0];
       const vendorInfo = rec?.hang_sx || rec?.nhà_thầu ? ` (Nhà thầu ${rec.hang_sx || rec.nhà_thầu})` : '';
-      p4_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là ${fmt(p4_price)} VNĐ/Cái${vendorInfo}.`;
+      p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là ${fmt(p4_price)} VNĐ/Cái${vendorInfo}.`;
     } else if (has_p4) {
-      p4_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận vật tư thuộc nhóm hàng đặc thù không có kết quả trúng thầu công khai tương tự trên Hệ thống e-GP.`;
+      p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.`;
     } else {
       p4_desc = `Chưa đối chiếu Cổng Mạng Đấu thầu Quốc gia e-GP.`;
     }
@@ -3316,9 +3320,9 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
       p5_desc = ecomResults.summary_text;
     } else if (p5_price > 0) {
       const rec = ecomResults?.selected_record || ecomResults?.items?.[0];
-      p5_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/Cái.`;
+      p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/Cái.`;
     } else {
-      p5_desc = `Tra cứu từ khóa [${item?.ten_vt || ''}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
+      p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
     }
     text += `- Cơ sở 5 (Thương Mại Điện Tử): ${p5_desc}\n`;
 
@@ -3465,12 +3469,17 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     toast.success('✨ Đã lưu & Phê duyệt Kết quả Thẩm định Mục!');
   };
 
+  const imisKw = imisResults?.used_keyword || imisResults?.keyword || (item?.part_no ? String(item.part_no).split('|')[0].trim() : '') || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '') || item?.ten_vt || '';
+  const mscKw  = mscResults?.used_keyword  || mscResults?.keyword  || item?.ten_vt_goc || item?.ten_vt || '';
+  const ecomKw = ecomResults?.search_keyword || ecomResults?.keyword || item?.ten_vt_goc || item?.ten_vt || '';
+  const erpKw  = erpResults?.keyword || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '');
+
   const pillarsList = [
-    { key: 'p1', name: 'Cơ sở 1: Báo Giá Gốc', price: p1_price, has: has_p1 },
-    { key: 'p2', name: 'Cơ sở 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2 },
-    { key: 'p3', name: 'Cơ sở 3: EVN IMIS', price: p3_price, has: has_p3 },
-    { key: 'p4', name: 'Cơ sở 4: Mua Sắm Công e-GP', price: p4_price, has: has_p4 },
-    { key: 'p5', name: 'Cơ sở 5: Thương Mại Điện Tử', price: p5_price, has: has_p5 },
+    { key: 'p1', name: 'Cơ sở 1: Báo Giá Gốc', price: p1_price, has: has_p1, kw: quoteEvidence?.min_quote?.company || 'Báo giá nộp kèm' },
+    { key: 'p2', name: 'Cơ sở 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2, kw: erpKw },
+    { key: 'p3', name: 'Cơ sở 3: EVN IMIS', price: p3_price, has: has_p3, kw: imisKw },
+    { key: 'p4', name: 'Cơ sở 4: Mua Sắm Công e-GP', price: p4_price, has: has_p4, kw: mscKw },
+    { key: 'p5', name: 'Cơ sở 5: Thương Mại Điện Tử', price: p5_price, has: has_p5, kw: ecomKw },
   ];
 
   return (
@@ -3523,19 +3532,24 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
         <table className="w-full text-xs text-left border-collapse min-w-[750px]">
           <thead className="bg-teal-50 text-teal-950 font-bold border-b border-teal-200">
             <tr>
-              <th className="py-2.5 px-3 border-r">Cơ Sở Chứng Cứ Thẩm Định</th>
+              <th className="py-2.5 px-3 border-r">Cơ Sở Chứng Cứ Thẩm Định (Kèm Từ Khóa Tra Cứu)</th>
               <th className="py-2.5 px-3 border-r w-36 text-right font-mono">Đơn Giá Tham Chiếu</th>
               <th className="py-2.5 px-3 border-r w-32 text-center">Chênh Lệch % vs Trình</th>
-              <th className="py-2.5 px-3 border-r text-center">Đánh Giá Độ Phù Hợp</th>
+              <th className="py-2.5 px-3 border-r text-center">Đánh Giá Độ Phù Hợp & Kết Quả</th>
               <th className="py-2.5 px-3 w-28 text-center">Trạng Thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             <tr className="bg-slate-100/80 font-bold">
-              <td className="py-2 px-3 border-r text-slate-900">📋 ĐƠN GIÁ DỰ TOÁN TRÌNH THẨM ĐỊNH</td>
+              <td className="py-2 px-3 border-r text-slate-900">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                  <span>📋 ĐƠN GIÁ DỰ TOÁN TRÌNH THẨM ĐỊNH</span>
+                </div>
+              </td>
               <td className="py-2 px-3 border-r text-right font-mono text-blue-950 font-black">{fmt(dgTrinh)} đ</td>
               <td className="py-2 px-3 border-r text-center font-mono text-slate-500">0.0% (Gốc)</td>
-              <td className="py-2 px-3 border-r text-center text-slate-700">Mốc dự toán lập</td>
+              <td className="py-2 px-3 border-r text-center text-slate-700">Mốc dự toán đơn vị trình</td>
               <td className="py-2 px-3 text-center"><span className="px-2 py-0.5 bg-blue-100 text-blue-900 rounded font-bold text-[10px]">Gốc Trình</span></td>
             </tr>
 
@@ -3545,12 +3559,25 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
               const isLower = dg > 0 && dg < dgTrinh;
               return (
                 <tr key={p.key} className="hover:bg-slate-50/80 text-[11px]">
-                  <td className="py-2 px-3 border-r font-bold text-slate-800 flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${p.has ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                    {p.name}
+                  <td className="py-2 px-3 border-r font-bold text-slate-800">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${p.has ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                      <span>{p.name}</span>
+                    </div>
+                    {p.kw && (
+                      <div className="text-[10px] text-teal-800 font-mono font-normal pl-3.5 mt-0.5">
+                        🔍 Từ khóa: <span className="font-semibold bg-teal-50 px-1 py-0.2 rounded border border-teal-200">"{p.kw}"</span>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 px-3 border-r text-right font-mono font-extrabold text-slate-900">
-                    {dg > 0 ? `${fmt(dg)} đ` : '—'}
+                    {dg > 0 ? (
+                      `${fmt(dg)} đ`
+                    ) : p.has ? (
+                      <span className="text-slate-500 font-normal italic text-[10.5px]">0 kết quả (Ko có giá)</span>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="py-2 px-3 border-r text-center font-mono font-bold">
                     {dg > 0 ? (
@@ -3566,6 +3593,12 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
                       <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">🟢 Thấp hơn trình ({fmt(dgTrinh - dg)} đ)</span>
                     ) : dg > 0 ? (
                       <span className="text-slate-700">⚪ Tương đương / Phù hợp</span>
+                    ) : p.key === 'p3' ? (
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã đối soát CSDL EVN: 0 bản ghi</span>
+                    ) : p.key === 'p4' ? (
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã rà soát e-GP: 0 gói thầu</span>
+                    ) : p.key === 'p5' ? (
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Vật tư đặc thù hãng, yêu cầu RFQ</span>
                     ) : (
                       <span className="text-slate-600 italic">Đã kiểm tra (Không có mốc giá)</span>
                     )}
