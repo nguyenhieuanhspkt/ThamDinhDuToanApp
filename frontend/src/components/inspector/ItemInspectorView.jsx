@@ -3274,16 +3274,19 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     0
   );
 
+  const isErpDeselected = Boolean(
+    erpResults?.is_deselected ||
+    erpResults?.selected_record === 'NONE' ||
+    erpResults?.summary?.status === 'ERP_DESELECTED' ||
+    erpResults?.summary?.is_deselected
+  );
+
   const erpList = Array.isArray(erpResults) ? erpResults : (erpResults?.results || []);
-  const p2_price = parseFloat(
-    erpResults?.selected_record?.donGia ||
-    erpResults?.selected_record?.don_gia ||
+  const p2_price = isErpDeselected ? 0 : parseFloat(
+    (typeof erpResults?.selected_record === 'object' && (erpResults.selected_record?.donGia || erpResults.selected_record?.don_gia)) ||
+    (erpResults?.use_average && (erpResults?.summary?.avg_price || erpResults?.avg_price)) ||
     erpResults?.don_gia_tham_chieu ||
-    erpResults?.summary?.avg_price ||
-    erpResults?.summary?.min_price ||
-    erpResults?.avg_price ||
-    erpResults?.min_price ||
-    extractFirstPrice(erpList) ||
+    (!erpResults?.selected_record && extractFirstPrice(erpList)) ||
     0
   );
 
@@ -3426,6 +3429,22 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
   const totalSavings   = savingsPerUnit * qty;
   const savingsPct     = dgTrinh > 0 ? ((dgTrinh - approvedPrice) / dgTrinh * 100) : 0;
 
+  const getCleanKw = (kw) => {
+    if (!kw || typeof kw !== 'string') return '';
+    const s = kw.trim();
+    if (s.toLowerCase().startsWith('chưa') || s.toLowerCase() === 'n/a' || s.toLowerCase() === 'none') return '';
+    return s;
+  };
+
+  const erpKw = getCleanKw(erpResults?.used_keyword) ||
+    getCleanKw(erpResults?.keyword) ||
+    (item?.ma_vt && isValidErpCode(item.ma_vt) ? item.ma_vt : '') ||
+    getErpDefaultKw(item, erpResults);
+
+  const imisKw = imisResults?.used_keyword || imisResults?.keyword || (item?.part_no ? String(item.part_no).split('|')[0].trim() : '') || (item?.ma_vt && isValidErpCode(item?.ma_vt) ? item.ma_vt : '') || item?.ten_vt || '';
+  const mscKw  = mscResults?.used_keyword  || mscResults?.keyword  || item?.ten_vt_goc || item?.ten_vt || '';
+  const ecomKw = ecomResults?.search_keyword || ecomResults?.keyword || item?.ten_vt_goc || item?.ten_vt || '';
+
   // Auto-generate aggregated justification text with full detailed justification breakdown
   useEffect(() => {
     if (data?.summary_text) {
@@ -3455,21 +3474,19 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
 
     // 2. Cơ sở 2: ERP Vĩnh Tân 4
     let p2_desc = '';
-    if (p2_price > 0) {
-      const rec = erpResults?.selected_record || erpResults?.results?.[0];
-      const poInfo = rec?.so_hd ? ` theo HĐ/PO ${rec.so_hd}` : '';
-      const dateInfo = rec?.ngay_hd || rec?.nam_nhap ? ` năm ${rec.nam_nhap || rec.ngay_hd}` : '';
-      p2_desc = `Tra cứu mã VT/từ khóa [${item?.ma_vt || item?.ten_vt || ''}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/Cái${poInfo}${dateInfo}.`;
+    if (isErpDeselected) {
+      p2_desc = `Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [${erpKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.`;
+    } else if (p2_price > 0) {
+      const rec = (typeof erpResults?.selected_record === 'object' && erpResults?.selected_record) || erpResults?.results?.[0];
+      const poInfo = rec?.soHopDong || rec?.so_hd ? ` theo HĐ ${rec.soHopDong || rec.so_hd}` : '';
+      const dateInfo = rec?.ngayKyHd || rec?.ngayNhapKho ? ` ngày ${rec.ngayKyHd || rec.ngayNhapKho}` : '';
+      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/Cái${poInfo}${dateInfo}.`;
     } else if (has_p2) {
-      p2_desc = `Tra cứu mã VT [${item?.ma_vt || '—'}] / từ khóa [${item?.ten_vt || ''}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đây là vật tư mới, chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4.`;
+      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; kết quả đã đối soát CSDL ERP: 0 bản ghi phù hợp (vật tư chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4).`;
     } else {
       p2_desc = `Chưa đối chiếu CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4.`;
     }
     text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${p2_desc}\n`;
-
-    const imisKw = imisResults?.used_keyword || imisResults?.keyword || (item?.part_no ? String(item.part_no).split('|')[0].trim() : '') || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '') || item?.ten_vt || '';
-    const mscKw  = mscResults?.used_keyword  || mscResults?.keyword  || item?.ten_vt_goc || item?.ten_vt || '';
-    const ecomKw = ecomResults?.search_keyword || ecomResults?.keyword || item?.ten_vt_goc || item?.ten_vt || '';
 
     // 3. Cơ sở 3: EVN IMIS
     let p3_desc = '';
@@ -3653,11 +3670,6 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     toast.success('✨ Đã lưu & Phê duyệt Kết quả Thẩm định Mục!');
   };
 
-  const imisKw = imisResults?.used_keyword || imisResults?.keyword || (item?.part_no ? String(item.part_no).split('|')[0].trim() : '') || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '') || item?.ten_vt || '';
-  const mscKw  = mscResults?.used_keyword  || mscResults?.keyword  || item?.ten_vt_goc || item?.ten_vt || '';
-  const ecomKw = ecomResults?.search_keyword || ecomResults?.keyword || item?.ten_vt_goc || item?.ten_vt || '';
-  const erpKw  = erpResults?.keyword || (item?.ma_vt && !String(item.ma_vt).toLowerCase().startsWith('chưa') ? item.ma_vt : '');
-
   const pillarsList = [
     { key: 'p1', name: 'Cơ sở 1: Báo Giá Gốc', price: p1_price, has: has_p1, kw: quoteEvidence?.min_quote?.company || 'Báo giá nộp kèm' },
     { key: 'p2', name: 'Cơ sở 2: ERP Vĩnh Tân 4', price: p2_price, has: has_p2, kw: erpKw },
@@ -3777,6 +3789,10 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
                       <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">🟢 Thấp hơn trình ({fmt(dgTrinh - dg)} đ)</span>
                     ) : dg > 0 ? (
                       <span className="text-slate-700">⚪ Tương đương / Phù hợp</span>
+                    ) : p.key === 'p2' ? (
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">
+                        {isErpDeselected ? 'Đã đối soát CSDL ERP: Không áp dụng làm căn cứ' : 'Đã đối soát CSDL ERP: 0 bản ghi phù hợp'}
+                      </span>
                     ) : p.key === 'p3' ? (
                       <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã đối soát CSDL EVN: 0 bản ghi</span>
                     ) : p.key === 'p4' ? (

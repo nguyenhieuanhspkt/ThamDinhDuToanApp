@@ -214,7 +214,10 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
                             if pct > 15:
                                 pillars[1]['is_warn'] = True
                 else:
-                    erp_kw = erp_data.get('keyword') if isinstance(erp_data, dict) else (ma_vt if not ma_vt.lower().startswith('chưa') else '')
+                    raw_kw = (erp_data.get('used_keyword') or erp_data.get('keyword') or '') if isinstance(erp_data, dict) else ''
+                    if raw_kw.strip().lower().startswith('chưa') or raw_kw.strip().lower() in ('chưa có mã vật tư', 'n/a', 'none'):
+                        raw_kw = ''
+                    erp_kw = raw_kw or (ma_vt if not ma_vt.lower().startswith('chưa') else '') or (target_item.get('ten_vt_goc') or target_item.get('ten_vt') or '').split('\n')[0].split('-')[0].strip()
                     pillars[1]['price'] = 0
                     pillars[1]['price_display'] = "0 kết quả (Ko có giá)"
                     pillars[1]['source'] = f"CSDL ERP VT4 (Từ khóa: \"{erp_kw}\")" if erp_kw else "Lịch sử nhập kho ERP VT4"
