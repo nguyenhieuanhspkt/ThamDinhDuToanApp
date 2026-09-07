@@ -3563,15 +3563,19 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     0
   );
 
+  const isImisDeselected = Boolean(
+    imisResults?.is_deselected ||
+    imisResults?.selected_record === 'NONE' ||
+    imisResults?.summary?.status === 'IMIS_DESELECTED' ||
+    imisResults?.summary?.is_deselected
+  );
+
   const imisList = Array.isArray(imisResults) ? imisResults : (imisResults?.imis || []);
-  const p3_price = parseFloat(
-    imisResults?.selected_record?.don_gia ||
-    imisResults?.selected_record?.donGia ||
+  const p3_price = isImisDeselected ? 0 : parseFloat(
+    (typeof imisResults?.selected_record === 'object' && (imisResults.selected_record?.don_gia || imisResults.selected_record?.donGia)) ||
+    (imisResults?.use_average && (imisResults?.summary?.avg_price || imisResults?.avg_price)) ||
     imisResults?.don_gia_tham_chieu ||
-    imisResults?.summary?.avg_price ||
-    imisResults?.summary?.min_price ||
-    imisResults?.avg_price ||
-    extractFirstPrice(imisList) ||
+    (!imisResults?.selected_record && extractFirstPrice(imisList)) ||
     0
   );
 
@@ -3696,12 +3700,20 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
   };
 
   useEffect(() => {
-    if (data?.approved_price) {
+    const isSavedPriceOutdated = (
+      (isImisDeselected && (data?.co_so_thong_nhat?.includes('IMIS') || data?.approved_price === 58500 || approvedPrice === 58500)) ||
+      (isErpDeselected && data?.co_so_thong_nhat?.includes('ERP')) ||
+      (isMscDeselected && data?.co_so_thong_nhat?.includes('Mua Sắm Công'))
+    );
+
+    if (data?.approved_price && !isSavedPriceOutdated && (validPrices.includes(data.approved_price) || data.approved_price === dgTrinh)) {
       setApprovedPrice(data.approved_price);
     } else if (minBaseline > 0) {
       setApprovedPrice(minBaseline);
+    } else {
+      setApprovedPrice(dgTrinh);
     }
-  }, [data?.approved_price, minBaseline]);
+  }, [data?.approved_price, data?.co_so_thong_nhat, minBaseline, isImisDeselected, isErpDeselected, isMscDeselected, dgTrinh]);
 
   const qty = parseFloat(item?.so_luong || 1);
   const savingsPerUnit = dgTrinh - approvedPrice;
@@ -3725,13 +3737,7 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
   const mscKw  = getCleanKw(mscResults?.used_keyword)  || getCleanKw(mscResults?.keyword)  || getCleanKw(item?.ten_vt_goc) || getCleanKw(item?.ten_vt) || '';
   const ecomKw = getCleanKw(ecomResults?.search_keyword) || getCleanKw(ecomResults?.keyword) || getCleanKw(item?.ten_vt_goc) || getCleanKw(item?.ten_vt) || '';
 
-  // Auto-generate aggregated justification text with full detailed justification breakdown
-  useEffect(() => {
-    if (data?.summary_text) {
-      setEditingText(data.summary_text);
-      return;
-    }
-
+  const generateDefaultSynthesisText = () => {
     const unit = item?.dvt || 'Cái';
     let text = `TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: ${getCleanKw(item?.ten_vt) || item?.ten_vt || ''} (Mã ERP: ${item?.ma_vt || '—'}).\n`;
     text += `• Đơn giá trình thẩm định: ${fmt(dgTrinh)} VNĐ (Số lượng: ${qty} ${unit}).\n`;
@@ -3771,10 +3777,12 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
 
     // 3. Cơ sở 3: EVN IMIS
     let p3_desc = '';
-    if (p3_price > 0) {
-      const rec = imisResults?.selected_record || imisResults?.imis?.[0];
-      const dvInfo = rec?.ten_dv_mua ? ` tại ${rec.ten_dv_mua}` : ' toàn ngành EVN';
-      const hdInfo = rec?.so_hd ? ` theo HĐ ${rec.so_hd}` : '';
+    if (isImisDeselected) {
+      p3_desc = `Qua rà soát CSDL Hợp đồng mua sắm EVN IMIS theo từ khóa [${imisKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL EVN IMIS làm căn cứ so sánh đơn giá cho mục này.`;
+    } else if (p3_price > 0) {
+      const rec = (typeof imisResults?.selected_record === 'object' && imisResults?.selected_record) || imisResults?.imis?.[0];
+      const dvInfo = rec?.ten_dv_mua || rec?.ten_don_vi ? ` tại ${rec.ten_dv_mua || rec.ten_don_vi}` : ' toàn ngành EVN';
+      const hdInfo = rec?.so_hd || rec?.so_hop_dong ? ` theo HĐ ${rec.so_hd || rec.so_hop_dong}` : '';
       p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/${unit}${dvInfo}${hdInfo}.`;
     } else if (has_p3) {
       p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).`;
@@ -3816,8 +3824,24 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
       text += `\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là ${fmt(approvedPrice)} VNĐ/${unit}.`;
     }
 
-    setEditingText(text);
-  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, quoteEvidence, has_p2, p2_price, isErpDeselected, erpResults, has_p3, p3_price, imisResults, has_p4, p4_price, isMscDeselected, mscResults, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
+    return text;
+  };
+
+  // Auto-generate aggregated justification text with full detailed justification breakdown
+  useEffect(() => {
+    const isOutdated = (
+      (isImisDeselected && data?.summary_text && (data.summary_text.includes('58.500') || data.summary_text.includes('IMIS EVN: 58') || data.summary_text.includes('Huội Quảng') || (data?.co_so_thong_nhat?.includes('IMIS')))) ||
+      (isErpDeselected && data?.summary_text && data.summary_text.includes('Lịch sử nhập kho ERP Vĩnh Tân 4:') && !data.summary_text.includes('Không áp dụng làm căn cứ')) ||
+      (isMscDeselected && data?.summary_text && data.summary_text.includes('e-GP MSC:') && !data.summary_text.includes('Không áp dụng làm căn cứ'))
+    );
+
+    if (data?.summary_text && !isOutdated) {
+      setEditingText(data.summary_text);
+      return;
+    }
+
+    setEditingText(generateDefaultSynthesisText());
+  }, [data?.summary_text, item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, quoteEvidence, has_p2, p2_price, isErpDeselected, erpResults, has_p3, p3_price, isImisDeselected, imisResults, has_p4, p4_price, isMscDeselected, mscResults, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
 
   const copyToClipboard = () => {
     if (editingText) {
@@ -3946,11 +3970,11 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     let basisName = 'Căn cứ đối chiếu 5 cơ sở chứng cứ';
     if (approvedPrice === p1_price && p1_price > 0) {
       basisName = 'Cơ sở 1: Báo giá nộp kèm';
-    } else if (approvedPrice === p2_price && p2_price > 0) {
+    } else if (approvedPrice === p2_price && p2_price > 0 && !isErpDeselected) {
       basisName = 'Cơ sở 2: ERP Vĩnh Tân 4';
-    } else if (approvedPrice === p3_price && p3_price > 0) {
+    } else if (approvedPrice === p3_price && p3_price > 0 && !isImisDeselected) {
       basisName = 'Cơ sở 3: EVN IMIS';
-    } else if (approvedPrice === p4_price && p4_price > 0) {
+    } else if (approvedPrice === p4_price && p4_price > 0 && !isMscDeselected) {
       basisName = 'Cơ sở 4: Mua Sắm Công e-GP';
     } else if (approvedPrice === p5_price && p5_price > 0) {
       basisName = 'Cơ sở 5: Tham khảo TMĐT / Giá Web';
@@ -4093,7 +4117,9 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
                         {isErpDeselected ? 'Đã đối soát CSDL ERP: Không áp dụng làm căn cứ' : 'Đã đối soát CSDL ERP: 0 bản ghi phù hợp'}
                       </span>
                     ) : p.key === 'p3' ? (
-                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã đối soát CSDL EVN: 0 bản ghi</span>
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">
+                        {isImisDeselected ? 'Đã đối soát CSDL IMIS: Không áp dụng làm căn cứ' : 'Đã đối soát CSDL EVN: 0 bản ghi'}
+                      </span>
                     ) : p.key === 'p4' ? (
                       <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">
                         {isMscDeselected ? 'Đã rà soát e-GP: Không áp dụng làm căn cứ' : 'Đã rà soát e-GP: 0 gói thầu'}
@@ -4290,6 +4316,18 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
               ) : (
                 <span>🤖 Chạy AI Hỗ Trợ Thuyết Minh (1-Click)</span>
               )}
+            </button>
+            <button
+              onClick={() => {
+                const newT = generateDefaultSynthesisText();
+                setEditingText(newT);
+                if (minBaseline > 0) setApprovedPrice(minBaseline);
+                toast.info('Đã tính toán và cập nhật lại thuyết minh theo 5 cơ sở hiện tại!');
+              }}
+              className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+              title="Tính toán và cập nhật lại thuyết minh dựa trên các cơ sở đã chọn hoặc đã hủy"
+            >
+              <RotateCcw className="w-3 h-3" /> Cập Nhật Lại Thuyết Minh
             </button>
             <button
               onClick={copyToClipboard}

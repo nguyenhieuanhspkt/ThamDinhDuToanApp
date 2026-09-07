@@ -1091,8 +1091,18 @@ def api_run_ai_synthesis(item_id):
             try:
                 with open(imis_file, "r", encoding="utf-8") as f:
                     imd = json.load(f)
-                    res_list = imd.get("imis", [])
-                    if res_list: p3_price = float(res_list[0].get("don_gia") or 0)
+                    is_imis_deselected = bool(imd.get("is_deselected") or imd.get("selected_record") == "NONE" or imd.get("status") == "IMIS_DESELECTED" or imd.get("summary", {}).get("status") == "IMIS_DESELECTED")
+                    if is_imis_deselected:
+                        p3_price = 0
+                    else:
+                        sel = imd.get("selected_record")
+                        if isinstance(sel, dict):
+                            p3_price = float(sel.get("donGia") or sel.get("don_gia") or 0)
+                        elif sel == "AVERAGE" or imd.get("use_average"):
+                            p3_price = float(imd.get("summary", {}).get("avg_price") or 0)
+                        elif sel != "NONE":
+                            res_list = imd.get("imis", [])
+                            if res_list: p3_price = float(res_list[0].get("don_gia") or res_list[0].get("donGia") or 0)
                     p3_desc = imd.get("summary_text", "")
             except Exception: pass
 
