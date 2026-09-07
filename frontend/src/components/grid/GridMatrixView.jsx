@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText } from 'lucide-react';
+import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText, Clock, Database } from 'lucide-react';
 import AuditProgressModal from '../modals/AuditProgressModal.jsx';
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
@@ -9,6 +9,8 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const [stats, setStats] = useState({ total_items: 0, total_trinh: 0, total_thong_nhat: 0 });
   const [quoteMatches, setQuoteMatches] = useState({});
   const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [evidenceStatus, setEvidenceStatus] = useState({});
+  const [filterSaved, setFilterSaved] = useState('ALL'); // 'ALL' | 'SAVED' | 'UNSAVED'
 
   // States cho 1-click 5 cơ sở & keyword management
   const [itemKeywords, setItemKeywords] = useState({});
@@ -46,8 +48,22 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
       // Quét & bóc tách báo giá gốc đính kèm
       fetchQuoteMatches();
+      // Quét tiến độ chứng cứ CSDL thẩm định đã lưu
+      fetchEvidenceStatus();
     } catch (e) {
       console.error('Lỗi fetch grid data:', e);
+    }
+  };
+
+  const fetchEvidenceStatus = async () => {
+    try {
+      const res = await fetch('/api/evidence/all-status');
+      if (res.ok) {
+        const data = await res.json();
+        setEvidenceStatus(data || {});
+      }
+    } catch (e) {
+      console.error('Lỗi fetch evidence status:', e);
     }
   };
 
@@ -214,17 +230,32 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
   const fmt = (val) => (!val && val !== 0 ? '—' : Math.round(val).toLocaleString('vi-VN'));
 
+  const isItemSaved = (it, origIdx) => {
+    const itemId = it.id || origIdx + 1;
+    const st = evidenceStatus[String(itemId)];
+    return Boolean(st?.has_syn || (it.danh_gia_ttd && it.danh_gia_ttd.trim().length > 0));
+  };
+
+  const savedCount = items.filter((it, idx) => isItemSaved(it, idx)).length;
+  const savedPct = items.length > 0 ? (savedCount / items.length * 100) : 0;
+
   const filteredItems = items.filter((it, idx) => {
+    const origIdx = items.indexOf(it);
+    const saved = isItemSaved(it, origIdx);
+    if (filterSaved === 'SAVED' && !saved) return false;
+    if (filterSaved === 'UNSAVED' && saved) return false;
+
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const kw = itemKeywords[it.id || idx + 1] || '';
+    const itemId = it.id || origIdx + 1;
+    const kw = itemKeywords[itemId] || '';
     return (
       (it.ten_vt_goc || it.ten_vt || '').toLowerCase().includes(q) ||
       (it.ma_vt || '').toLowerCase().includes(q) ||
       (it.pycvt || '').toLowerCase().includes(q) ||
       (it.thong_so_kt || it.part_no || '').toLowerCase().includes(q) ||
       kw.toLowerCase().includes(q) ||
-      String(it.stt || idx + 1).includes(q)
+      String(it.stt || origIdx + 1).includes(q)
     );
   });
 
@@ -235,10 +266,17 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden bg-slate-100 h-full gap-3">
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-3 shrink-0">
-        <StatCard label="Tổng số danh mục" value={`${stats.total_items} mục`} color="slate" />
-        <StatCard label="Tổng giá trị trình duyệt" value={`${fmt(stats.total_trinh)} đ`} color="blue" />
+      {/* Stats Cards - 5 Cột: Bổ sung Thông số Tiến độ lưu CSDL Thẩm định */}
+      <div className="grid grid-cols-5 gap-3 shrink-0">
+        <StatCard label="Tổng số danh mục" value={`${stats.total_items} mục`} color="slate" sub="Hồ sơ dự toán mua sắm" />
+        <StatCard
+          label="Đã lưu CSDL thẩm định"
+          value={`${savedCount} / ${stats.total_items} mục`}
+          color="teal"
+          sub={`Đạt ${savedPct.toFixed(1)}% danh mục`}
+          progress={savedPct}
+        />
+        <StatCard label="Tổng giá trị trình duyệt" value={`${fmt(stats.total_trinh)} đ`} color="blue" sub="Theo hồ sơ dự toán trình" />
         <StatCard
           label="Tổng giá trị thống nhất"
           value={stats.total_thong_nhat > 0 ? `${fmt(stats.total_thong_nhat)} đ` : '—'}
@@ -267,6 +305,32 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
               <span className="bg-teal-100 text-teal-800 text-[10.5px] px-2 py-0.5 rounded-full font-bold">
                 {filteredItems.length}/{items.length} mục
               </span>
+
+              {/* Bộ lọc nhanh trạng thái lưu CSDL Thẩm định */}
+              <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-[10.5px] font-bold ml-1">
+                <button
+                  onClick={() => setFilterSaved('ALL')}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer ${filterSaved === 'ALL' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'}`}
+                  title="Hiện toàn bộ danh mục"
+                >
+                  Tất Cả ({items.length})
+                </button>
+                <button
+                  onClick={() => setFilterSaved('SAVED')}
+                  className={`px-2 py-0.5 rounded-md transition flex items-center gap-1 cursor-pointer ${filterSaved === 'SAVED' ? 'bg-emerald-700 text-white shadow-2xs' : 'text-emerald-800 hover:bg-emerald-100/60'}`}
+                  title="Chỉ xem các mục ĐÃ LƯU CSDL thẩm định"
+                >
+                  <CheckCircle2 className="w-3 h-3" /> Đã Lưu ({savedCount})
+                </button>
+                <button
+                  onClick={() => setFilterSaved('UNSAVED')}
+                  className={`px-2 py-0.5 rounded-md transition flex items-center gap-1 cursor-pointer ${filterSaved === 'UNSAVED' ? 'bg-amber-600 text-white shadow-2xs' : 'text-amber-800 hover:bg-amber-100/60'}`}
+                  title="Chỉ xem các mục CHƯA LƯU CSDL thẩm định"
+                >
+                  <Clock className="w-3 h-3" /> Chưa Lưu ({items.length - savedCount})
+                </button>
+              </div>
+
               {loadingQuotes && (
                 <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 animate-pulse">
                   <Loader2 className="w-3 h-3 animate-spin" /> Đang bóc tách PDF Báo giá...
@@ -513,6 +577,17 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                       {/* Action — Sticky Right */}
                       <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
                         <div className="flex flex-col items-center gap-1.5">
+                          {/* Trạng thái lưu CSDL Thẩm định */}
+                          {isItemSaved(it, origIdx) ? (
+                            <span className="w-full text-center py-0.5 bg-emerald-100 text-emerald-900 rounded text-[9.5px] font-bold border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs" title="Mục này đã tổng hợp và lưu vết CSDL Thẩm định">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-700" /> Đã Lưu CSDL
+                            </span>
+                          ) : (
+                            <span className="w-full text-center py-0.5 bg-slate-100 text-slate-500 rounded text-[9.5px] font-semibold border border-slate-200 flex items-center justify-center gap-1" title="Mục này chưa lưu CSDL thẩm định">
+                              <Clock className="w-3 h-3 text-slate-400" /> Chưa Lưu CSDL
+                            </span>
+                          )}
+
                           {/* 1-Click 5-Pillars Automation Button */}
                           <button
                             onClick={() => handleRun5Pillars(itemId, true)}
@@ -590,18 +665,27 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 }
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, color, sub }) {
+function StatCard({ label, value, color, sub, progress }) {
   const colors = {
     slate:   'border-slate-200  text-slate-800',
+    teal:    'border-teal-300   text-teal-900 bg-teal-50/40',
     blue:    'border-blue-200   text-[#003366]',
     emerald: 'border-emerald-200 text-emerald-700',
     purple:  'border-purple-200  text-purple-700',
   };
   return (
-    <div className={`bg-white p-3.5 rounded-xl border shadow-sm ${colors[color]}`}>
+    <div className={`bg-white p-3.5 rounded-xl border shadow-sm ${colors[color] || colors.slate}`}>
       <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">{label}</span>
       <p className="text-lg font-extrabold font-mono mt-0.5">{value}</p>
-      {sub && <p className="text-[10px] text-slate-400 mt-0.5">{sub}</p>}
+      {sub && <p className="text-[10px] text-slate-500 mt-0.5 font-medium truncate" title={sub}>{sub}</p>}
+      {progress !== undefined && (
+        <div className="w-full bg-slate-200/80 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div
+            className="bg-teal-600 h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
