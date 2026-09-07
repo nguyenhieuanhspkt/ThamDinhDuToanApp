@@ -54,28 +54,13 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const fetchQuoteMatches = async () => {
     setLoadingQuotes(true);
     try {
-      const res = await fetch('/api/dossier');
+      const res = await fetch('/api/quotes/match-all-dossier-items');
       const data = await res.json();
-      const list = data.items || [];
-      const matchPromises = list.map(it => 
-        fetch('/api/quotes/match-item', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item: it })
-        })
-        .then(r => r.json())
-        .then(resData => ({ id: it.id, data: resData }))
-        .catch(() => ({ id: it.id, data: null }))
-      );
-
-      const allMatches = await Promise.all(matchPromises);
-      const mObj = {};
-      allMatches.forEach(m => {
-        if (m.data) mObj[m.id] = m.data;
-      });
-      setQuoteMatches(mObj);
+      if (data.success && data.results) {
+        setQuoteMatches(data.results);
+      }
     } catch (e) {
-      console.error('Lỗi tự động bóc tách báo giá gốc:', e);
+      console.error('Lỗi tự động bóc tách báo giá gốc batch:', e);
     } finally {
       setLoadingQuotes(false);
     }
