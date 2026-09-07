@@ -567,7 +567,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
               <PillarEcom
                 loading={loading.ecom} saving={saving}
                 data={ecomResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('ecom', payload, 'synthesis')}
+                onSave={(payload, goNext = true) => saveStep('ecom', payload, goNext ? 'synthesis' : null)}
                 onAutoSave={(payload) => {
                   setEcomResults(payload);
                   autoSaveStep('ecom', payload);
@@ -2307,10 +2307,44 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
   const [urlItems, setUrlItems] = useState(data?.items || []);
   const [selectedIdx, setSelectedIdx] = useState(0);
 
+  const selectedRecord = urlItems[selectedIdx] || urlItems[0];
+  const selectedPrice  = selectedRecord ? parseFloat(selectedRecord.price || 0) : 0;
+  const diffAmt = dgTrinh - selectedPrice;
+  const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
+
+  const computeDefaultSummary = (itemsList, selRec, kw) => {
+    const sRec = selRec || (itemsList && itemsList[0]);
+    const sPrice = sRec ? parseFloat(sRec.price || 0) : 0;
+    const dAmt = dgTrinh - sPrice;
+    const dPct = sPrice > 0 ? ((dgTrinh - sPrice) / sPrice * 100) : 0;
+    const thoiGian = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
+
+    if (itemsList && itemsList.length > 0 && sRec) {
+      if (dAmt <= 0) {
+        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}; ghi nhận mức giá niêm yết công khai là ${fmt(sPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
+      } else {
+        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(sPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${dPct.toFixed(1)}% (+${fmt(dAmt)} đ) so với đơn giá công khai trên thị trường.`;
+      }
+    } else {
+      return `Đã tra cứu từ khóa [${kw}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
+    }
+  };
+
+  const [summaryText, setSummaryText] = useState(data?.summary_text || computeDefaultSummary(data?.items || [], (data?.items || [])[0], defaultKw));
+  const [isCustom, setIsCustom] = useState(Boolean(data?.summary_text));
+
   useEffect(() => {
     setSearchKey(defaultKw);
-    setUrlItems(data?.items || []);
+    const items = data?.items || [];
+    setUrlItems(items);
     setSelectedIdx(0);
+    if (data?.summary_text) {
+      setSummaryText(data.summary_text);
+      setIsCustom(true);
+    } else {
+      setSummaryText(computeDefaultSummary(items, items[0], defaultKw));
+      setIsCustom(false);
+    }
   }, [item?.id]);
 
   // Form input state for adding URL evidence
@@ -2357,6 +2391,9 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
     setNewPrice('');
     setNewNotes('');
     toast.success('Đã nạp đường link chứng cứ giá TMĐT!');
+    if (!isCustom) {
+      setSummaryText(computeDefaultSummary(updated, newItemObj, searchKey));
+    }
     if (onAutoSave) {
       onAutoSave({ items: updated, selected_record: newItemObj, search_keyword: searchKey });
     }
@@ -2368,27 +2405,31 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
     const newIdx = selectedIdx >= updated.length ? Math.max(0, updated.length - 1) : selectedIdx;
     if (selectedIdx >= updated.length) setSelectedIdx(newIdx);
     toast.success('Đã xóa dòng chứng cứ TMĐT');
+    const newRec = updated[newIdx] || null;
+    if (!isCustom) {
+      setSummaryText(computeDefaultSummary(updated, newRec, searchKey));
+    }
     if (onAutoSave) {
-      onAutoSave({ items: updated, selected_record: updated[newIdx] || null, search_keyword: searchKey });
+      onAutoSave({ items: updated, selected_record: newRec, search_keyword: searchKey });
     }
   };
 
-  const selectedRecord = urlItems[selectedIdx] || urlItems[0];
-  const selectedPrice  = selectedRecord ? parseFloat(selectedRecord.price || 0) : 0;
-  const diffAmt = dgTrinh - selectedPrice;
-  const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
-  const thoiGianTraCuu = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
+  const handleResetSummary = () => {
+    const def = computeDefaultSummary(urlItems, selectedRecord, searchKey);
+    setSummaryText(def);
+    setIsCustom(false);
+    toast.info('Đã khôi phục lại bản thuyết minh tự động theo từ khóa');
+  };
 
-  let summaryText = '';
-  if (urlItems.length > 0 && selectedRecord) {
-    if (diffAmt <= 0) {
-      summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
-    } else {
-      summaryText = `Đã tra cứu từ khóa [${searchKey}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${selectedRecord.vendor || 'Internet'}) tại đường link [${selectedRecord.url || 'Web'}] lúc ${thoiGianTraCuu}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(selectedPrice)} đ. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ) so với đơn giá công khai trên thị trường.`;
-    }
-  } else {
-    summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
-  }
+  const handleSaveCurrent = (stayHere = true) => {
+    const payload = {
+      items: urlItems,
+      selected_record: selectedRecord || null,
+      summary_text: summaryText,
+      search_keyword: searchKey
+    };
+    onSave(payload, !stayHere);
+  };
 
   const copyToClipboard = () => {
     if (summaryText) {
@@ -2562,23 +2603,60 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
         </div>
       )}
 
-      {/* Bản Thuyết Minh Tham Chiếu Giá TMĐT */}
+      {/* Bản Thuyết Minh Tham Chiếu Giá TMĐT (Cho Phép User Chỉnh Sửa & Lưu) */}
       {summaryText && (
         <div className="p-4 rounded-xl border-2 border-cyan-300 bg-cyan-50/80 text-slate-900 shadow-sm transition">
           <div className="flex items-center justify-between mb-2">
             <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-cyan-950">
-              <FileText className="w-4 h-4 text-cyan-700" /> 📄 BẢN THUYẾT MINH GIÁ THƯƠNG MẠI ĐIỆN TỬ (TỰ ĐỘNG)
+              <FileText className="w-4 h-4 text-cyan-700" /> 📄 BẢN THUYẾT MINH GIÁ THƯƠNG MẠI ĐIỆN TỬ {isCustom ? '(HIỆU CHỈNH THỦ CÔNG)' : '(TỰ ĐỘNG)'}
             </h5>
-            <button
-              onClick={copyToClipboard}
-              className="bg-white hover:bg-slate-100 text-cyan-900 border border-cyan-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-xs transition"
-            >
-              📋 Sao Chép Thuyết Minh TMĐT
-            </button>
+            <div className="flex items-center gap-1.5">
+              {isCustom && (
+                <button
+                  onClick={handleResetSummary}
+                  className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+                  title="Khôi phục lại nội dung mẫu tự động theo từ khóa"
+                >
+                  <RotateCcw className="w-3 h-3 text-slate-500" /> Khôi Phục Tự Động
+                </button>
+              )}
+              <button
+                onClick={copyToClipboard}
+                className="bg-white hover:bg-slate-100 text-cyan-900 border border-cyan-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition"
+              >
+                📋 Sao Chép
+              </button>
+              <button
+                onClick={() => handleSaveCurrent(true)}
+                disabled={saving}
+                className="bg-cyan-700 hover:bg-cyan-800 text-white text-[11px] px-3 py-1 rounded-md font-bold flex items-center gap-1 shadow-xs transition disabled:opacity-60"
+                title="Lưu chứng cứ Cơ sở 5 vào hồ sơ thẩm định"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                💾 Lưu Thuyết Minh Bước 5
+              </button>
+            </div>
           </div>
-          <p className="text-xs leading-relaxed font-medium bg-white/80 p-3 rounded-lg border border-cyan-200/80 text-slate-800">
-            {summaryText}
-          </p>
+          <div className="relative">
+            <textarea
+              value={summaryText}
+              onChange={e => {
+                setSummaryText(e.target.value);
+                setIsCustom(true);
+              }}
+              rows={4}
+              className="w-full text-xs leading-relaxed font-medium bg-white p-3 rounded-lg border border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-800 shadow-inner resize-y transition"
+              placeholder="Nhập hoặc chỉnh sửa nội dung bản thuyết minh tra cứu TMĐT..."
+            />
+            <div className="flex items-center justify-between mt-1 text-[11px] text-slate-500">
+              <span className="italic flex items-center gap-1">
+                ✏️ <i>Chuyên viên có thể chỉnh sửa trực tiếp nội dung trên trước khi lưu vào hồ sơ thẩm định.</i>
+              </span>
+              <span className="font-mono text-[10px] text-slate-400">
+                {summaryText.length} ký tự
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2679,7 +2757,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
       <SaveFooter
         saving={saving}
         saved={saved}
-        onSave={() => onSave({ items: urlItems, selected_record: selectedRecord, summary_text: summaryText })}
+        onSave={() => handleSaveCurrent(false)}
         nextLabel="Cơ sở 6 (Tổng Hợp)"
         prevLabel="Cơ sở 4 (MSC)"
       />
