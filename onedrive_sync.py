@@ -37,6 +37,21 @@ def get_sync_status():
         "message": "Đã kết nối thư mục OneDrive EVN Cache."
     }
 
+def open_onedrive_folder():
+    """Mở thư mục OneDrive Cache trong Windows File Explorer."""
+    if not is_onedrive_available():
+        return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}"}
+    try:
+        os.startfile(ONEDRIVE_ROOT)
+        return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
+    except Exception as e:
+        try:
+            import subprocess
+            subprocess.Popen(f'explorer "{ONEDRIVE_ROOT}"')
+            return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
+        except Exception as e2:
+            return {"success": False, "message": f"Không thể mở thư mục: {e2}"}
+
 def push_to_onedrive(verbose=False):
     if not is_onedrive_available():
         return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}", "synced_count": 0}

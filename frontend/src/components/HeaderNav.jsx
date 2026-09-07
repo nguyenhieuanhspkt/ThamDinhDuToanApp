@@ -46,6 +46,20 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
     }
   };
 
+  const handleOpenOneDriveFolder = async () => {
+    try {
+      const res = await fetch('/api/sync/onedrive-open', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Đã mở thư mục OneDrive EVN Cache trên Windows Explorer!');
+      } else {
+        toast.error('Lỗi mở thư mục: ' + (data.message || ''));
+      }
+    } catch (e) {
+      toast.error('Lỗi kết nối máy chủ');
+    }
+  };
+
   return (
     <header className="bg-[#003366] text-white px-5 py-2.5 shrink-0 shadow-md z-30 flex items-center justify-between">
       {/* Brand & Project Title */}
@@ -164,22 +178,28 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
           )}
         </button>
 
-        {/* OneDrive Cache Sync Badge */}
-        <button
-          onClick={handleManualOneDrivePush}
-          disabled={isSyncingOneDrive}
-          className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
-            oneDriveStatus?.available
-              ? 'bg-cyan-900/60 hover:bg-cyan-800 border-cyan-500/50 text-cyan-200 cursor-pointer'
-              : 'bg-slate-800/60 border-slate-600 text-slate-400'
-          }`}
-          title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file đồng bộ lần cuối: ${oneDriveStatus?.synced_count ?? 0} tệp\n(Nhấp chuột để đồng bộ ngay lập tức sang OneDrive)`}
-        >
-          <Cloud className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? 'text-cyan-400' : 'text-slate-400'} ${isSyncingOneDrive ? 'animate-spin' : ''}`} />
-          <span>
-            {isSyncingOneDrive ? 'Đang sync...' : (oneDriveStatus?.last_synced ? `☁ OneDrive: ${oneDriveStatus.last_synced.slice(11, 16)}` : '☁ OneDrive')}
-          </span>
-        </button>
+        {/* OneDrive Cache Group: Sync Button + Quick Open Folder Button */}
+        <div className="flex items-center rounded-md border border-cyan-500/50 bg-cyan-900/50 overflow-hidden shadow-xs">
+          <button
+            onClick={handleManualOneDrivePush}
+            disabled={isSyncingOneDrive}
+            className="px-2.5 py-1.5 hover:bg-cyan-800 text-cyan-200 flex items-center gap-1.5 transition font-bold text-xs cursor-pointer border-r border-cyan-500/30"
+            title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file đồng bộ lần cuối: ${oneDriveStatus?.synced_count ?? 0} tệp\n(Nhấp chuột để đẩy đồng bộ ngay lập tức)`}
+          >
+            <Cloud className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? 'text-cyan-400' : 'text-slate-400'} ${isSyncingOneDrive ? 'animate-spin' : ''}`} />
+            <span>
+              {isSyncingOneDrive ? 'Đang sync...' : (oneDriveStatus?.last_synced ? `OneDrive: ${oneDriveStatus.last_synced.slice(11, 16)}` : 'OneDrive')}
+            </span>
+          </button>
+          <button
+            onClick={handleOpenOneDriveFolder}
+            className="px-2 py-1.5 hover:bg-cyan-700/80 text-cyan-200 flex items-center gap-1 transition font-bold text-xs cursor-pointer"
+            title="Mở nhanh thư mục OneDrive Cache trong Windows File Explorer"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-amber-300" />
+            <span>Mở Folder</span>
+          </button>
+        </div>
 
         <div className="h-5 w-px bg-blue-800/80 mx-0.5"></div>
 

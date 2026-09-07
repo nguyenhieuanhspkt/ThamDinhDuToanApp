@@ -1995,6 +1995,13 @@ def api_onedrive_push():
     return jsonify(res)
 
 
+@app.route("/api/sync/onedrive-open", methods=["POST", "GET"])
+def api_onedrive_open():
+    """Mở nhanh thư mục OneDrive Cache trong File Explorer của Windows."""
+    res = onedrive_sync.open_onedrive_folder()
+    return jsonify(res)
+
+
 
 if __name__ == "__main__":
 
