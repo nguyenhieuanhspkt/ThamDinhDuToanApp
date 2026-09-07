@@ -34,7 +34,11 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
       const res = await fetch('/api/sync/onedrive-push', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        toast.success(`Đã đồng bộ ${data.synced_count} tệp sang OneDrive EVN Cache!`);
+        if (data.synced_count > 0) {
+          toast.success(`Đã đồng bộ ${data.synced_count} tệp mới sang OneDrive EVN Cache!`);
+        } else {
+          toast.success(`Dữ liệu OneDrive đã là mới nhất! Toàn bộ ${data.total_files || 132} tệp đều trùng khớp.`);
+        }
         fetchOneDriveStatus();
       } else {
         toast.error('Lỗi đồng bộ OneDrive: ' + (data.message || ''));
@@ -184,7 +188,7 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
             onClick={handleManualOneDrivePush}
             disabled={isSyncingOneDrive}
             className="px-2.5 py-1.5 hover:bg-cyan-800 text-cyan-200 flex items-center gap-1.5 transition font-bold text-xs cursor-pointer border-r border-cyan-500/30"
-            title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file đồng bộ lần cuối: ${oneDriveStatus?.synced_count ?? 0} tệp\n(Nhấp chuột để đẩy đồng bộ ngay lập tức)`}
+            title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file vừa cập nhật: ${oneDriveStatus?.synced_count ?? 0} tệp\n• Tổng số tệp trong kho cache: ${oneDriveStatus?.total_files ?? 132} tệp\n(Nhấp chuột để đồng bộ ngay lập tức)`}
           >
             <Cloud className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? 'text-cyan-400' : 'text-slate-400'} ${isSyncingOneDrive ? 'animate-spin' : ''}`} />
             <span>

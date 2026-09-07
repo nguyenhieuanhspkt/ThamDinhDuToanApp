@@ -2002,8 +2002,9 @@ def api_onedrive_status():
 @app.route("/api/sync/onedrive-push", methods=["POST"])
 def api_onedrive_push():
     """Chủ động đẩy toàn bộ dữ liệu hiện tại sang thư mục OneDrive Cache."""
-    res = onedrive_sync.push_to_onedrive()
+    res = onedrive_sync.push_to_onedrive(force=True)
     return jsonify(res)
+
 
 
 @app.route("/api/sync/onedrive-open", methods=["POST", "GET"])

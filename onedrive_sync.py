@@ -1,4 +1,4 @@
-import os, shutil, json
+import os, shutil, json, subprocess
 from datetime import datetime
 
 ONEDRIVE_ROOT = r"D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache"
@@ -18,7 +18,8 @@ def get_sync_status():
             "available": False,
             "message": "Không tìm thấy thư mục OneDrive EVN Cache trên máy.",
             "last_synced": None,
-            "synced_count": 0
+            "synced_count": 0,
+            "total_files": 0
         }
 
     last_info = {}
@@ -34,6 +35,7 @@ def get_sync_status():
         "target_dir": ONEDRIVE_ROOT,
         "last_synced": last_info.get("last_synced"),
         "synced_count": last_info.get("synced_count", 0),
+        "total_files": last_info.get("total_files", 0),
         "message": "Đã kết nối thư mục OneDrive EVN Cache."
     }
 
@@ -46,22 +48,23 @@ def open_onedrive_folder():
         return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
     except Exception as e:
         try:
-            import subprocess
-            subprocess.Popen(f'explorer "{ONEDRIVE_ROOT}"')
+            subprocess.Popen(['explorer.exe', ONEDRIVE_ROOT])
             return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
         except Exception as e2:
             return {"success": False, "message": f"Không thể mở thư mục: {e2}"}
 
-def push_to_onedrive(verbose=False):
+def push_to_onedrive(verbose=False, force=False):
     if not is_onedrive_available():
-        return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}", "synced_count": 0}
+        return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}", "synced_count": 0, "total_files": 0}
 
     os.makedirs(ONEDRIVE_DATA_DIR, exist_ok=True)
     os.makedirs(ONEDRIVE_CONFIG_DIR, exist_ok=True)
 
     copied = 0
+    total_files = 0
     errors = []
 
+    # 1. Sync data/ directory
     for root, dirs, files in os.walk(LOCAL_DATA_DIR):
         rel_dir = os.path.relpath(root, LOCAL_DATA_DIR)
         target_dir = os.path.join(ONEDRIVE_DATA_DIR, rel_dir) if rel_dir != "." else ONEDRIVE_DATA_DIR
@@ -73,11 +76,14 @@ def push_to_onedrive(verbose=False):
             if file.endswith(".png") and "BaoCao" in file:
                 continue
 
+            total_files += 1
             src_file = os.path.join(root, file)
             dst_file = os.path.join(target_dir, file)
 
             should_copy = False
-            if not os.path.exists(dst_file):
+            if force and file in ["current_dossier.json", "active_project.json"]:
+                should_copy = True
+            elif not os.path.exists(dst_file):
                 should_copy = True
             else:
                 try:
@@ -95,22 +101,39 @@ def push_to_onedrive(verbose=False):
                 except Exception as e:
                     errors.append(f"{file}: {str(e)}")
 
+    # 2. Sync config/ directory
     if os.path.exists(LOCAL_CONFIG_DIR):
         for file in os.listdir(LOCAL_CONFIG_DIR):
             src_file = os.path.join(LOCAL_CONFIG_DIR, file)
             if os.path.isfile(src_file):
+                total_files += 1
                 dst_file = os.path.join(ONEDRIVE_CONFIG_DIR, file)
                 try:
-                    if not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file):
+                    if force or not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file):
                         shutil.copy2(src_file, dst_file)
                         copied += 1
                 except Exception as e:
                     errors.append(f"config/{file}: {str(e)}")
 
+    # 3. Sync root ERP.xlsx & .erp_cache.json if present
+    root_files = ["ERP.xlsx", ".erp_cache.json"]
+    for rf in root_files:
+        src_file = os.path.join(BASE_DIR, rf)
+        if os.path.isfile(src_file):
+            total_files += 1
+            dst_file = os.path.join(ONEDRIVE_ROOT, rf)
+            try:
+                if not os.path.exists(dst_file) or os.path.getmtime(src_file) > os.path.getmtime(dst_file) or os.path.getsize(src_file) != os.path.getsize(dst_file):
+                    shutil.copy2(src_file, dst_file)
+                    copied += 1
+            except Exception as e:
+                errors.append(f"{rf}: {str(e)}")
+
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     status_payload = {
         "last_synced": now_str,
         "synced_count": copied,
+        "total_files": total_files,
         "target_dir": ONEDRIVE_ROOT,
         "errors": errors[:5]
     }
@@ -121,15 +144,19 @@ def push_to_onedrive(verbose=False):
     except Exception:
         pass
 
+    msg = f"Đã đồng bộ {copied} tệp mới sang OneDrive (Tổng số {total_files} tệp)." if copied > 0 else f"Dữ liệu OneDrive đã là mới nhất (Toàn bộ {total_files} tệp đều trùng khớp)."
+
     return {
         "success": len(errors) == 0,
         "synced_count": copied,
+        "total_files": total_files,
         "last_synced": now_str,
         "target_dir": ONEDRIVE_ROOT,
+        "message": msg,
         "errors": errors
     }
 
 if __name__ == "__main__":
     print("--- SYNCING TO ONEDRIVE CACHE ---")
-    res = push_to_onedrive(verbose=True)
-    print(f"DONE: Synced {res['synced_count']} files to OneDrive at {res['last_synced']}")
+    res = push_to_onedrive(verbose=True, force=True)
+    print(f"DONE: {res['message']} at {res['last_synced']}")
