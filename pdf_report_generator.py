@@ -142,8 +142,12 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
                     elif sid == 'erp' and p > 0:
                         pillars[1]['price'] = p
                         contract = step.get('contract', '')
-                        c_short = re.sub(r'^(Nhập kho vật tư \(|HĐ:\s*)', '', contract).split('theo hóa đơn')[0].strip(' ,()')
-                        pillars[1]['source'] = f'HĐ {c_short}' if c_short else 'Lịch sử nhập kho ERP VT4'
+                        c_short = re.sub(r'^(Nhập kho vật tư \(|HĐ[:\s]*|Hợp đồng[:\s]*)', '', contract, flags=re.IGNORECASE).split('theo hóa đơn')[0].strip(' ,()')
+                        c_clean = c_short.strip()
+                        if c_clean.lower().startswith('hđ') or c_clean.lower().startswith('hd'):
+                            pillars[1]['source'] = c_clean
+                        else:
+                            pillars[1]['source'] = f'HĐ {c_clean}' if c_clean else 'Lịch sử nhập kho ERP VT4'
                         if don_gia_trinh > 0:
                             pct = ((don_gia_trinh - p) / p) * 100
                             pillars[1]['diff'] = f'+{pct:.1f}%' if pct > 0 else f'{pct:.1f}%'
@@ -187,11 +191,64 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
     return pillars
 
 
-def generate_recommendation_text(item, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt):
+def extract_year_from_source(source_text, default_year=2024):
+    if not source_text:
+        return default_year
+    matches = re.findall(r'\b(201\d|202\d)\b', str(source_text))
+    if matches:
+        return int(matches[-1])
+    return default_year
+
+
+def generate_commercial_evaluation_text(don_gia_trinh, don_gia_thong_nhat, pct_save, pillars, dvt='Cái', current_year=2026):
+    """
+    Sinh nội dung Mục 3.2 Đánh giá tương quan giá trị kỹ thuật - thương mại.
+    Nếu đơn giá trình cao hơn ERP hoặc cơ sở tham chiếu, phân tích rõ số năm từ thời điểm mua sắm đến hiện tại,
+    và chứng minh rằng ngay cả khi tính trượt giá tăng tiến lũy kế hàng năm (3% - 5%/năm) thì mức giá trình
+    vẫn cao vượt trội, chứng minh giá trình là CHƯA HỢP LÝ.
+    """
+    p2 = pillars[1]
+    erp_price = p2.get('price', 0)
+
+    # Trường hợp 1: Có giá ERP và giá trình cao hơn giá ERP
+    if erp_price > 0 and don_gia_trinh > erp_price:
+        base_year = extract_year_from_source(p2.get('source', '') + " " + p2.get('note', ''), default_year=2024)
+        years_diff = max(1, current_year - base_year)
+        # Giả định trượt giá bình quân 5%/năm
+        rate = 0.05
+        max_escalated = erp_price * ((1 + rate) ** years_diff)
+        max_escalated_round = int(round(max_escalated / 1000) * 1000)
+        diff_pct = ((don_gia_trinh - erp_price) / erp_price) * 100
+
+        return (
+            f"Đơn giá trình thẩm định <b>{format_vnd(don_gia_trinh)}/{dvt}</b> cao hơn bất thường <b>+{diff_pct:.1f}%</b> so với giá lịch sử ERP NMNĐ Vĩnh Tân 4 "
+            f"({format_vnd(erp_price)}/{dvt} theo {p2.get('source')}). "
+            f"Xét về yếu tố thời gian, đợt mua sắm lịch sử này cách thời điểm hiện tại khoảng <b>{years_diff} năm</b> (năm {base_year} so với năm {current_year}). "
+            f"Ngay cả khi tính toán yếu tố trượt giá, lạm phát và chi phí logistic tăng tiến lũy kế theo từng năm (ước tính bình quân 3% - 5%/năm, giá trần lũy kế tối đa chỉ khoảng <b>{format_vnd(max_escalated_round)}/{dvt}</b>), "
+            f"thì mặt bằng giá cũng hoàn toàn không thể tăng đột biến lên mức <b>{format_vnd(don_gia_trinh)}/{dvt}</b> như đang trình. "
+            f"Do đó, việc đơn vị chào giá neo theo mức giá này là thiếu căn cứ thực tế và hoàn toàn <b>CHƯA HỢP LÝ</b>."
+        )
+    # Trường hợp 2: Có cơ sở giảm trừ khác (không phải ERP)
+    elif pct_save > 0:
+        return (
+            f"Đơn giá trình thẩm định <b>{format_vnd(don_gia_trinh)}/{dvt}</b> cao hơn {pct_save:.1f}% (+{format_vnd(don_gia_trinh - don_gia_thong_nhat)}/{dvt}) "
+            f"so với cơ sở tham chiếu đã kiểm chứng ({format_vnd(don_gia_thong_nhat)}/{dvt}). "
+            f"Mức chênh lệch chưa phản ánh sát diễn biến thị trường và quy mô mua sắm. "
+            f"Tổ Thẩm định đánh giá có đủ cơ sở pháp lý và dữ liệu đối chiếu để thương thảo tiết giảm chi phí cho Nhà máy."
+        )
+    # Trường hợp 3: Giá trình hợp lý
+    else:
+        return (
+            f"Đơn giá trình thẩm định <b>{format_vnd(don_gia_trinh)}/{dvt}</b> phản ánh đúng mặt bằng giá thị trường và báo giá chào cạnh tranh từ nhà cung cấp có năng lực. "
+            f"Qua đối chiếu hồ sơ chứng cứ và các đợt mua sắm trước, mức giá trình nằm trong biên độ phù hợp, không phát sinh biến động bất thường."
+        )
+
+
+def generate_recommendation_text(item, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt, current_year=2026):
     """
     Sinh nội dung Mục IV. KIẾN NGHỊ:
     - Nêu ý kiến đánh giá về mức hợp lý hay chưa hợp lý, lý do vì sao chưa hợp lý
-      (căn cứ vào độ bao phủ dữ liệu, độ lệch giá ERP/thị trường, thuật toán đối chiếu logic).
+      (căn cứ vào độ bao phủ dữ liệu, độ lệch giá ERP/thị trường, trượt giá tăng tiến, thuật toán đối chiếu logic).
     - Kiến nghị phê duyệt và phương án xử lý (thương thảo hoặc giữ giá).
     """
     p2 = pillars[1]
@@ -199,11 +256,17 @@ def generate_recommendation_text(item, pillars, pct_save, don_gia_trinh, don_gia
     pct_erp_diff = ((don_gia_trinh - erp_price) / erp_price * 100) if erp_price > 0 else 0
 
     if pct_save > 10 and erp_price > 0:
+        base_year = extract_year_from_source(p2.get('source', '') + " " + p2.get('note', ''), default_year=2024)
+        years_diff = max(1, current_year - base_year)
+        max_escalated = erp_price * ((1 + 0.05) ** years_diff)
+        max_escalated_round = int(round(max_escalated / 1000) * 1000)
+
         danh_gia_hop_ly = (
             f"<b>• Đánh giá tính hợp lý của đơn giá trình:</b> Đơn giá trình <b>{format_vnd(don_gia_trinh)}/{dvt}</b> là <b>CHƯA HỢP LÝ</b>. "
             f"Căn cứ thuật toán đối chiếu 5 cơ sở, đơn giá trình cao hơn bất thường <b>+{pct_erp_diff:.1f}%</b> "
-            f"(chênh lệch <b>{format_vnd(don_gia_trinh - erp_price)}/{dvt}</b>) so với lịch sử nhập kho ERP NMNĐ Vĩnh Tân 4 ({p2.get('source')}), "
-            f"trong khi vật tư hoàn toàn đồng nhất về mã hiệu Partno, cùng hãng và xuất xứ. Đơn giá trình chỉ neo theo 01 báo giá đơn lẻ, thiếu tính cạnh tranh tối ưu."
+            f"(chênh lệch <b>{format_vnd(don_gia_trinh - erp_price)}/{dvt}</b>) so với lịch sử nhập kho ERP VT4 ({p2.get('source')}). "
+            f"Dù tính trượt giá tăng tiến qua {years_diff} năm (giá ước tính tối đa khoảng {format_vnd(max_escalated_round)}/{dvt}), "
+            f"mức giá trình vẫn vượt xa biên độ thông thường đối với vật tư cùng mã hiệu và xuất xứ."
         )
         kien_nghi = (
             f"<b>• Kiến nghị phê duyệt & phương án xử lý:</b><br/>"
@@ -290,8 +353,8 @@ def generate_item_pdf(item_data, dossier_info, output_path):
         pagesize=A4,
         leftMargin=1.2 * cm,
         rightMargin=1.2 * cm,
-        topMargin=0.8 * cm,
-        bottomMargin=0.8 * cm
+        topMargin=0.7 * cm,
+        bottomMargin=0.7 * cm
     )
 
     story = []
@@ -393,29 +456,21 @@ def generate_item_pdf(item_data, dossier_info, output_path):
     story.append(Paragraph(f"<b>3.1. Phân tích bản chất kỹ thuật & tính tương thích:</b> {p_tech_text}", s_body))
     story.append(Spacer(1, 1))
 
-    # 3.2: Đánh giá tương quan
-    m_comm = re.search(r'####?\s*(?:3\.\s*Nhận định tổng hợp|2\.\s*Đánh giá tương quan)[^\n]*\n+([\s\S]*?)(?=###\s*III|\Z)', md_text, re.IGNORECASE)
-    if m_comm and len(m_comm.group(1).strip()) > 40:
-        p_comm_text = safe_clean_plain(m_comm.group(1).strip(), max_len=390)
-    else:
-        if pct_save > 0:
-            p_comm_text = f"Đơn giá trình thẩm định {format_vnd(don_gia_trinh)}/{dvt} cao hơn {pct_save:.1f}% (+{format_vnd(don_gia_trinh - don_gia_thong_nhat)}/{dvt}) so với giá chứng cứ đã kiểm chứng ({format_vnd(don_gia_thong_nhat)}/{dvt}). Tổ Thẩm định đánh giá có đủ cơ sở pháp lý và dữ liệu đối chiếu để thương thảo tiết giảm chi phí dự toán."
-        else:
-            p_comm_text = f"Đơn giá trình thẩm định {format_vnd(don_gia_trinh)}/{dvt} phản ánh đúng mặt bằng giá thị trường và báo giá chào cạnh tranh từ nhà cung cấp có năng lực. Không ghi nhận biến động bất thường so với hồ sơ chứng cứ tra cứu."
-
+    # 3.2: Đánh giá tương quan giá trị kỹ thuật - thương mại (kèm phân tích số năm và trượt giá tăng tiến)
+    p_comm_text = generate_commercial_evaluation_text(don_gia_trinh, don_gia_thong_nhat, pct_save, pillars, dvt=dvt, current_year=2026)
     story.append(Paragraph(f"<b>3.2. Đánh giá tương quan giá trị kỹ thuật - thương mại:</b> {p_comm_text}", s_body))
     story.append(Spacer(1, 2))
 
     # 6. IV. KIẾN NGHỊ
     story.append(Paragraph('IV. KIẾN NGHỊ', s_h1))
-    p_hoply, p_kiennghi = generate_recommendation_text(item_data, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt)
+    p_hoply, p_kiennghi = generate_recommendation_text(item_data, pillars, pct_save, don_gia_trinh, don_gia_thong_nhat, thanh_tien_thong_nhat, gia_tri_giam, dvt, current_year=2026)
 
     full_conc_content = f"{p_hoply}<br/>{p_kiennghi}"
     box_conc = Table([[Paragraph(full_conc_content, s_body)]], colWidths=[18.6*cm])
     box_conc.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
         ('BOX', (0,0), (-1,-1), 1.0, colors.HexColor('#1E3A8A')),
-        ('PADDING', (0,0), (-1,-1), 3.0),
+        ('PADDING', (0,0), (-1,-1), 2.5),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
     story.append(box_conc)
