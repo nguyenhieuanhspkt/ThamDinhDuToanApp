@@ -1280,9 +1280,21 @@ def api_run_5_pillars(item_id):
     keyword = kw_input or target_item.get("search_keyword") or extract_default_keyword(raw_ten, raw_part)
     target_item["search_keyword"] = keyword
     
-    p_dir = os.path.join(DATA_DIR, "current_dossier_files")
+    p_dir = get_project_files_dir()
     item_dir = os.path.join(p_dir, f"item_{item_id}")
     os.makedirs(item_dir, exist_ok=True)
+    
+    fallback_dir = os.path.join(DATA_DIR, "current_dossier_files", f"item_{item_id}")
+    os.makedirs(fallback_dir, exist_ok=True)
+
+    def write_evidence(fname, payload):
+        with open(os.path.join(item_dir, fname), "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        try:
+            with open(os.path.join(fallback_dir, fname), "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
     
     # 1. Báo giá gốc
     p1_desc = "Chưa nạp dữ liệu Báo giá gốc"
@@ -1296,8 +1308,7 @@ def api_run_5_pillars(item_id):
             p1_price = float(q_matches["min_price"])
             p1_supplier = q_matches.get("matches", [{}])[0].get("company", "Nhà thầu chào") if q_matches.get("matches") else "Nhà thầu chào"
             p1_desc = f"Báo giá chào thấp nhất: {p1_price:,.0f} đ/Cái ({p1_supplier})".replace(",", ".")
-            with open(os.path.join(item_dir, "chung_cu_quotes.json"), "w", encoding="utf-8") as f:
-                json.dump(q_matches, f, ensure_ascii=False, indent=2)
+            write_evidence("chung_cu_quotes.json", q_matches)
     except Exception as e:
         print(f"Pillar 1 error for item {item_id}: {e}")
 
@@ -1338,8 +1349,7 @@ def api_run_5_pillars(item_id):
                 other_prices = [f"{float(r.get('donGia') or r.get('don_gia') or 0):,.0f} đ".replace(",", ".") for r in recs[1:3]]
                 p2_desc += f"; Các đợt nhập khác: {', '.join(other_prices)}"
                 
-            with open(os.path.join(item_dir, "chung_cu_erp.json"), "w", encoding="utf-8") as f:
-                json.dump(recs, f, ensure_ascii=False, indent=2)
+            write_evidence("chung_cu_erp.json", recs)
     except Exception as e:
         print(f"Pillar 2 error for item {item_id}: {e}")
 
@@ -1352,8 +1362,7 @@ def api_run_5_pillars(item_id):
         if imis_recs:
             p3_price = float(imis_recs[0].get("don_gia") or 0)
             p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({imis_recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
-            with open(os.path.join(item_dir, "chung_cu_imis.json"), "w", encoding="utf-8") as f:
-                json.dump(imis_res, f, ensure_ascii=False, indent=2)
+            write_evidence("chung_cu_imis.json", imis_res)
     except Exception as e:
         print(f"Pillar 3 error for item {item_id}: {e}")
 
@@ -1371,8 +1380,7 @@ def api_run_5_pillars(item_id):
             p4_price = float(comp.get("min_price") or 0)
             if p4_price > 0:
                 p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/Cái (Kết quả trúng thầu)".replace(",", ".")
-            with open(os.path.join(item_dir, "chung_cu_muasamcong.json"), "w", encoding="utf-8") as f:
-                json.dump(comp, f, ensure_ascii=False, indent=2)
+            write_evidence("chung_cu_muasamcong.json", comp)
     except Exception as e:
         print(f"Pillar 4 error for item {item_id}: {e}")
 
@@ -1381,8 +1389,7 @@ def api_run_5_pillars(item_id):
     p5_price = 0
     try:
         ecom_res = {"keyword": keyword, "records": [], "note": "Contact for Quote"}
-        with open(os.path.join(item_dir, "chung_cu_ecom.json"), "w", encoding="utf-8") as f:
-            json.dump(ecom_res, f, ensure_ascii=False, indent=2)
+        write_evidence("chung_cu_ecom.json", ecom_res)
     except Exception as e:
         print(f"Pillar 5 error for item {item_id}: {e}")
 
@@ -1425,8 +1432,7 @@ def api_run_5_pillars(item_id):
         }
 
     synthesis_text = sme_result.get("summary_text", "")
-    with open(os.path.join(item_dir, "chung_cu_synthesis.json"), "w", encoding="utf-8") as f:
-        json.dump(sme_result, f, ensure_ascii=False, indent=2)
+    write_evidence("chung_cu_synthesis.json", sme_result)
         
     target_item["danh_gia_ttd"] = synthesis_text
     if sme_result.get("suggested_price"):
@@ -1535,8 +1541,7 @@ def api_run_5_pillars(item_id):
         ]
     }
 
-    with open(os.path.join(item_dir, "chung_cu_audit_trail.json"), "w", encoding="utf-8") as f:
-        json.dump(audit_trail, f, ensure_ascii=False, indent=2)
+    write_evidence("chung_cu_audit_trail.json", audit_trail)
 
     save_dossier_data(dossier)
     
