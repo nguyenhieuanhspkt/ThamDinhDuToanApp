@@ -40,18 +40,19 @@ def get_sync_status():
     }
 
 def open_onedrive_folder():
-    """Mở thư mục OneDrive Cache trong Windows File Explorer."""
+    """Mở thư mục OneDrive Cache trong Windows File Explorer và đẩy lên Foreground."""
     if not is_onedrive_available():
-        return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}"}
+        return {"success": False, "message": f"Không tìm thấy thư mục: {ONEDRIVE_ROOT}", "path": ONEDRIVE_ROOT}
     try:
-        os.startfile(ONEDRIVE_ROOT)
-        return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
+        cmd = f'$sh = New-Object -ComObject Shell.Application; $sh.Explore("{ONEDRIVE_ROOT}")'
+        subprocess.Popen(['powershell', '-Command', cmd])
+        return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}", "path": ONEDRIVE_ROOT}
     except Exception as e:
         try:
-            subprocess.Popen(['explorer.exe', ONEDRIVE_ROOT])
-            return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}"}
+            subprocess.Popen(f'explorer "{ONEDRIVE_ROOT}"', shell=True)
+            return {"success": True, "message": f"Đã mở thư mục: {ONEDRIVE_ROOT}", "path": ONEDRIVE_ROOT}
         except Exception as e2:
-            return {"success": False, "message": f"Không thể mở thư mục: {e2}"}
+            return {"success": False, "message": f"Không thể mở thư mục: {e2}", "path": ONEDRIVE_ROOT}
 
 def push_to_onedrive(verbose=False, force=False):
     if not is_onedrive_available():

@@ -593,6 +593,7 @@ def match_item_in_quotes(item, quotes_data):
     return {
         "status": status,
         "is_min": is_min,
+        "min_quote": min_quote,
         "min_price": min_price,
         "matched_supplier": matched_supplier,
         "matches": supplier_matches,

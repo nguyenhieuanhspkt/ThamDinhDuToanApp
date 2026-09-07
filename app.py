@@ -621,12 +621,25 @@ def api_quotes_approve_all():
 
 
 @app.route("/api/quotes/match-item", methods=["POST"])
+@app.route("/api/quotes/by-item", methods=["GET", "POST"])
 def api_match_item_quote():
     """Đối chiếu đơn giá trình của 1 mục với các báo giá gốc trong thư mục."""
-    req = request.get_json() or {}
+    req = (request.get_json(silent=True) if request.is_json else None) or {}
+    item_id = req.get("item_id") or request.args.get("item_id")
     item = req.get("item", {})
-    folder = req.get("folder_path")
     
+    if not item and item_id:
+        dossier = load_dossier_data()
+        try:
+            target_id = int(item_id)
+            for it in dossier.get("items", []):
+                if it.get("id") == target_id:
+                    item = it
+                    break
+        except Exception:
+            pass
+
+    folder = req.get("folder_path") or request.args.get("folder_path")
     if not folder:
         p_dir = get_project_files_dir()
         approved_file = os.path.join(p_dir, "bao_gia_project.json")
@@ -638,7 +651,7 @@ def api_match_item_quote():
                 pass
                 
     folder = folder or quote_matcher.DEFAULT_QUOTES_DIR
-    force_rescan = bool(req.get("force_rescan", False))
+    force_rescan = bool(req.get("force_rescan", False) or request.args.get("force_rescan"))
     
     overrides = get_project_quote_overrides()
     scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides, force_rescan=force_rescan)
@@ -896,6 +909,7 @@ def api_msc_status():
 
 @app.route("/api/msc/search", methods=["POST"])
 @app.route("/api/msc/search-item", methods=["POST"])
+@app.route("/api/muasamcong/search", methods=["POST"])
 def api_msc_search():
     """Tra cứu đơn giá trúng thầu Mua Sắm Công cho 1 mục và tự động lưu vết chứng cứ."""
     req = request.get_json() or {}
@@ -936,12 +950,13 @@ def api_msc_search():
 
 
 @app.route("/api/evidence/save-step", methods=["POST"])
-def api_save_evidence_step():
+@app.route("/api/items/<int:item_id>/evidence/<step_type>", methods=["POST", "DELETE"])
+def api_save_evidence_step(item_id=None, step_type=None):
     """Lưu bằng chứng tiến trình tra cứu cho ERP, IMIS hoặc Báo giá."""
-    req = request.get_json() or {}
-    item_id = req.get("item_id")
-    step_type = req.get("step_type")
-    payload = req.get("payload", {})
+    req = (request.get_json(silent=True) if request.is_json else None) or {}
+    item_id = item_id or req.get("item_id")
+    step_type = step_type or req.get("step_type")
+    payload = req.get("payload", req)
     if not item_id or not step_type:
         return jsonify({"success": False, "message": "Thiếu thông tin"}), 400
         
@@ -985,7 +1000,8 @@ def api_save_evidence_step():
 
 @app.route("/api/evidence/get", methods=["GET"])
 @app.route("/api/evidence/get-item-evidence/<int:item_id>", methods=["GET"])
-def api_get_item_evidence(item_id=None):
+@app.route("/api/items/<int:item_id>/evidence/<step_type>", methods=["GET"])
+def api_get_item_evidence(item_id=None, step_type=None):
     """Đọc toàn bộ chứng cứ 5 Cơ sở đã lưu của 1 mục vật tư."""
     if item_id is None:
         try:
@@ -993,7 +1009,7 @@ def api_get_item_evidence(item_id=None):
         except (TypeError, ValueError):
             item_id = None
             
-    step_type = request.args.get("step_type")
+    step_type = step_type or request.args.get("step_type")
     if not item_id:
         return jsonify({"success": False, "message": "Thiếu item_id"}), 400
         
@@ -1179,15 +1195,20 @@ def api_run_ai_synthesis(item_id):
 
 @app.route("/api/evidence/status/<int:item_id>", methods=["GET"])
 def api_evidence_status(item_id):
-    """Kiểm tra xem mục này đã có các chứng cứ nào được lưu."""
+    """Kiểm tra xem mục này đã có các chứng cứ nào được lưu (quét cả thư mục dự án và fallback)."""
     p_dir = get_project_files_dir()
     item_dir = os.path.join(p_dir, f"item_{item_id}")
-    k1 = os.path.exists(os.path.join(item_dir, "chung_cu_quotes.json"))
-    k2 = os.path.exists(os.path.join(item_dir, "chung_cu_erp.json"))
-    k3 = os.path.exists(os.path.join(item_dir, "chung_cu_imis.json"))
-    k4 = os.path.exists(os.path.join(item_dir, "chung_cu_muasamcong.json"))
-    k5 = os.path.exists(os.path.join(item_dir, "chung_cu_ecom.json"))
-    k6 = os.path.exists(os.path.join(item_dir, "chung_cu_synthesis.json"))
+    fb_dir = os.path.join(DATA_DIR, "current_dossier_files", f"item_{item_id}")
+    
+    def check_file(fname):
+        return os.path.exists(os.path.join(item_dir, fname)) or os.path.exists(os.path.join(fb_dir, fname))
+
+    k1 = check_file("chung_cu_quotes.json")
+    k2 = check_file("chung_cu_erp.json")
+    k3 = check_file("chung_cu_imis.json")
+    k4 = check_file("chung_cu_muasamcong.json")
+    k5 = check_file("chung_cu_ecom.json")
+    k6 = check_file("chung_cu_synthesis.json")
     return jsonify({
         "has_quotes": k1,
         "has_erp": k2,
@@ -1203,35 +1224,52 @@ def api_evidence_status(item_id):
 def api_evidence_all_status():
     """Kiểm tra tiến độ 5 cơ sở của toàn bộ các mục trong dự án."""
     p_dir = get_project_files_dir()
-    status_map = {}
+    fb_base = os.path.join(DATA_DIR, "current_dossier_files")
+    
+    all_item_ids = set()
     if os.path.exists(p_dir):
         for entry in os.listdir(p_dir):
             if entry.startswith("item_"):
                 try:
-                    i_id = int(entry.replace("item_", ""))
-                    i_dir = os.path.join(p_dir, entry)
-                    if os.path.isdir(i_dir):
-                        k1 = os.path.exists(os.path.join(i_dir, "chung_cu_quotes.json"))
-                        k2 = os.path.exists(os.path.join(i_dir, "chung_cu_erp.json"))
-                        k3 = os.path.exists(os.path.join(i_dir, "chung_cu_imis.json"))
-                        k4 = os.path.exists(os.path.join(i_dir, "chung_cu_muasamcong.json"))
-                        k5 = os.path.exists(os.path.join(i_dir, "chung_cu_ecom.json"))
-                        k6 = os.path.exists(os.path.join(i_dir, "chung_cu_synthesis.json"))
-                        status_map[str(i_id)] = {
-                            "has_quotes": k1,
-                            "has_erp": k2,
-                            "has_imis": k3,
-                            "has_msc": k4,
-                            "has_ecom": k5,
-                            "has_syn": k6,
-                            "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4, k5]])
-                        }
+                    all_item_ids.add(int(entry.replace("item_", "")))
                 except Exception:
                     pass
+    if os.path.exists(fb_base):
+        for entry in os.listdir(fb_base):
+            if entry.startswith("item_"):
+                try:
+                    all_item_ids.add(int(entry.replace("item_", "")))
+                except Exception:
+                    pass
+
+    status_map = {}
+    for i_id in sorted(all_item_ids):
+        i_dir = os.path.join(p_dir, f"item_{i_id}")
+        fb_dir = os.path.join(fb_base, f"item_{i_id}")
+        
+        def check_file(fname):
+            return os.path.exists(os.path.join(i_dir, fname)) or os.path.exists(os.path.join(fb_dir, fname))
+
+        k1 = check_file("chung_cu_quotes.json")
+        k2 = check_file("chung_cu_erp.json")
+        k3 = check_file("chung_cu_imis.json")
+        k4 = check_file("chung_cu_muasamcong.json")
+        k5 = check_file("chung_cu_ecom.json")
+        k6 = check_file("chung_cu_synthesis.json")
+        status_map[str(i_id)] = {
+            "has_quotes": k1,
+            "has_erp": k2,
+            "has_imis": k3,
+            "has_msc": k4,
+            "has_ecom": k5,
+            "has_syn": k6,
+            "done_count": sum([1 if x else 0 for x in [k1, k2, k3, k4, k5]])
+        }
     return jsonify(status_map)
 
 
 @app.route("/api/search-item-sources", methods=["POST"])
+@app.route("/api/imis/search", methods=["POST"])
 def api_search_sources():
     req = request.get_json() or {}
     kw = req.get("keyword", "").strip()
@@ -1239,6 +1277,9 @@ def api_search_sources():
     den_ngay = req.get("den_ngay")
     ma_vt = req.get("ma_vt", "")
     item = req.get("item", kw)
+    if not isinstance(item, dict):
+        item = {"ten_vt": str(item)}
+    dg_trinh = float(req.get("dg_trinh") or item.get("don_gia_trinh") or item.get("dg_trinh") or 0)
     selected_record = req.get("selected_record")
     if req.get("is_deselected") or selected_record == "NONE":
         selected_record = "NONE"
@@ -2021,4 +2062,4 @@ if __name__ == "__main__":
     print("ThamDinhDuToanApp - To Tham Dinh Du Toan NMND Vinh Tan 4")
     print("Dia chi: http://localhost:5555")
     print("=" * 70)
-    app.run(host="0.0.0.0", port=5555, debug=False)
+    app.run(host="0.0.0.0", port=5555, debug=False, threaded=True)

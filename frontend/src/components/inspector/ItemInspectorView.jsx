@@ -56,8 +56,9 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
 
   // Auto-restore saved evidence for all pillars when item changes
   useEffect(() => {
-    if (!currentItem?.id && selectedIndex === undefined) return;
-    const itemId = currentItem.id || selectedIndex + 1;
+    if (!currentItem?.id) return;
+    const itemId = currentItem.id;
+    if (!itemId || itemId <= 0) return;
 
     setQuoteEvidence(null);
     setErpResults(null);
@@ -69,10 +70,14 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     const pillars = ['quotes', 'erp', 'imis', 'muasamcong', 'ecom', 'synthesis'];
     pillars.forEach(p => {
       fetch(`/api/items/${itemId}/evidence/${p}`)
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) return null;
+          return r.json();
+        })
         .then(d => {
-          if (!d.exists) return;
-          const payload = d.data || {};
+          if (!d || (!d.data && !d.payload && !d.success)) return;
+          const payload = d.data || d.payload || {};
+          if (!payload || Object.keys(payload).length === 0) return;
           if (p === 'quotes')      setQuoteEvidence(payload);
           if (p === 'erp')         setErpResults(payload);
           if (p === 'imis')        setImisResults(payload);
@@ -80,7 +85,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
           if (p === 'ecom')        setEcomResults(payload);
           if (p === 'synthesis')   setSynthesisResults(payload);
         })
-        .catch(console.error);
+        .catch(() => {});
     });
   }, [selectedIndex, currentItem?.id]);
 
@@ -180,7 +185,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
         body: JSON.stringify(payload)
       });
       const ret = await res.json();
-      if (ret.ok) {
+      if (ret.success || ret.ok) {
         toast?.success?.(`Đã lưu chứng cứ ${stepKey.toUpperCase()} cho mục ${selectedIndex + 1}!`);
         await loadAllEvidenceStatus();
         if (nextPillar) {
@@ -242,7 +247,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
   const dgTrinh = currentItem.don_gia_trinh || currentItem.dg_trinh || 0;
   const evSt = evidenceStatus[String(currentItem.id || selectedIndex + 1)] || {};
 
-  const minQuote = quoteEvidence?.min_quote || null;
+  const minQuote = quoteEvidence?.min_quote || quoteEvidence?.matches?.[0] || null;
   const supplierMatches = quoteEvidence?.matches || [];
 
   const filteredItems = items.filter((it, idx) => {

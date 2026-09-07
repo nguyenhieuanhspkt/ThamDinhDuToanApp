@@ -51,16 +51,26 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
   };
 
   const handleOpenOneDriveFolder = async () => {
+    const folderPath = oneDriveStatus?.target_dir || 'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Hiếu\\ThamDinhDuToanAppCache';
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(folderPath);
+      }
+    } catch (e) {
+      console.warn('Clipboard write error:', e);
+    }
+
     try {
       const res = await fetch('/api/sync/onedrive-open', { method: 'POST' });
       const data = await res.json();
+      const targetPath = data.path || folderPath;
       if (data.success) {
-        toast.success('Đã mở thư mục OneDrive EVN Cache trên Windows Explorer!');
+        toast.success(`📋 Đã copy đường dẫn & kích hoạt mở Explorer:\n${targetPath}`);
       } else {
         toast.error('Lỗi mở thư mục: ' + (data.message || ''));
       }
     } catch (e) {
-      toast.error('Lỗi kết nối máy chủ');
+      toast.success(`📋 Đã copy đường dẫn OneDrive vào Clipboard:\n${folderPath}`);
     }
   };
 
