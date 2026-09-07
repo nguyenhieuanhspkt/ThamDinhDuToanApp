@@ -105,7 +105,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     }).catch(console.error);
   };
 
-  const handleRun5Pillars = async (itemId, openModal = true) => {
+  const handleRun5Pillars = async (itemId, openModal = true, runAi = false) => {
     setRunningItemIds(prev => new Set(prev).add(itemId));
     const it = items.find(x => x.id === itemId) || items[itemId - 1];
     const kw = itemKeywords[itemId] || (it ? extractDefaultKeyword(it) : '');
@@ -123,19 +123,19 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
       stepInterval = setInterval(() => {
         setAuditModal(prev => {
-          if (prev.status === 'running' && prev.activeStep < 6) {
+          if (prev.status === 'running' && prev.activeStep < 5) {
             return { ...prev, activeStep: prev.activeStep + 1 };
           }
           return prev;
         });
-      }, 2000);
+      }, 350);
     }
 
     try {
       const res = await fetch(`/api/items/${itemId}/run-5-pillars`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: kw })
+        body: JSON.stringify({ keyword: kw, run_ai: runAi })
       });
       const data = await res.json();
       if (stepInterval) clearInterval(stepInterval);
@@ -146,7 +146,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
           setAuditModal(prev => ({
             ...prev,
             status: 'completed',
-            activeStep: 6,
+            activeStep: 5,
             auditData: data.audit_trail || data,
             item: data.item || it
           }));
@@ -176,8 +176,8 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     try {
       for (const it of filteredItems) {
         const itemId = it.id || items.indexOf(it) + 1;
-        // Chạy tuần tự nhưng không bật modal từng cái để tránh spam
-        await handleRun5Pillars(itemId, false);
+        // Chạy tuần tự 5 cơ sở nhanh (không gọi AI LLM để tối đa hóa tốc độ)
+        await handleRun5Pillars(itemId, false, false);
       }
     } catch (e) {
       console.error('Lỗi chạy tất cả 5 cơ sở:', e);

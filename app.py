@@ -1386,7 +1386,8 @@ def api_run_5_pillars(item_id):
     except Exception as e:
         print(f"Pillar 5 error for item {item_id}: {e}")
 
-    # 6. Synthesis
+    # 6. Synthesis (Tùy chọn AI - Mặc định tắt để ưu tiên rút ngắn thời gian tra cứu cơ sở 1 đến cơ sở 5)
+    run_ai = bool(req.get("run_ai", False))
     pillars_dict = {
         "p1_desc": p1_desc, "p1_price": p1_price,
         "p2_desc": p2_desc, "p2_price": p2_price,
@@ -1395,7 +1396,34 @@ def api_run_5_pillars(item_id):
         "p5_desc": p5_desc, "p5_price": p5_price
     }
     
-    sme_result = ai_synthesis.generate_ai_synthesis(target_item, pillars_dict)
+    if run_ai:
+        sme_result = ai_synthesis.generate_ai_synthesis(target_item, pillars_dict)
+    else:
+        # Tổng hợp tức thời 5 cơ sở bằng quy tắc chuẩn, không mất thời gian gọi mạng AI LLM
+        valid_prices = [p for p in [p1_price, p2_price, p3_price, p4_price, p5_price] if p > 0]
+        dg_trinh_val = float(target_item.get("don_gia_trinh") or 0)
+        suggested_price = min(valid_prices) if valid_prices else dg_trinh_val
+        unit = target_item.get("dvt", "Cái")
+        
+        summary_lines = [
+            f"TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):",
+            f"• Cơ sở 1 (Báo Giá Gốc): {p1_desc}",
+            f"• Cơ sở 2 (ERP Vĩnh Tân 4): {p2_desc}",
+            f"• Cơ sở 3 (EVN IMIS): {p3_desc}",
+            f"• Cơ sở 4 (Mua Sắm Công e-GP): {p4_desc}",
+            f"• Cơ sở 5 (TMĐT & Tham Khảo Web): {p5_desc}",
+            f"KẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là {suggested_price:,.0f} đ/{unit}.".replace(",", ".")
+        ]
+        sme_result = {
+            "suggested_price": suggested_price,
+            "estimated_savings": (dg_trinh_val - suggested_price) * float(target_item.get("so_luong") or 1) if dg_trinh_val > suggested_price else 0,
+            "price_score": 90 if suggested_price <= dg_trinh_val else 40,
+            "coverage_score": sum([1 for p in [p1_price, p2_price, p3_price, p4_price, p5_price] if p > 0]) * 20,
+            "summary_text": "\n".join(summary_lines),
+            "risk_flag": "NORMAL",
+            "ai_ran": False
+        }
+
     synthesis_text = sme_result.get("summary_text", "")
     with open(os.path.join(item_dir, "chung_cu_synthesis.json"), "w", encoding="utf-8") as f:
         json.dump(sme_result, f, ensure_ascii=False, indent=2)

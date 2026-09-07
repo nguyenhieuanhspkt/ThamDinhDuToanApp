@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   FileCheck2, Building2, Network, Globe, ShoppingBag, Brain,
   CheckCircle2, Loader2, AlertTriangle, FileDown, ExternalLink,
-  X, Check, ChevronDown, ChevronUp, ShieldCheck, Key, Table2
+  X, Check, ChevronDown, ChevronUp, ShieldCheck, Key, Table2, Zap
 } from 'lucide-react';
 
 function AuditProgressModalContent({
@@ -17,6 +17,25 @@ function AuditProgressModalContent({
   onOpenInspector
 }) {
   const [showFullSummary, setShowFullSummary] = useState(false);
+  const [runningAi, setRunningAi] = useState(false);
+  const [customAiData, setCustomAiData] = useState(null);
+
+  const handleTriggerAi = async () => {
+    const itemId = item?.id || auditData?.item_id;
+    if (!itemId) return;
+    setRunningAi(true);
+    try {
+      const res = await fetch(`/api/items/${itemId}/run-ai-synthesis`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.synthesis) {
+        setCustomAiData(data.synthesis);
+      }
+    } catch (e) {
+      console.error('Lỗi gọi AI synthesis:', e);
+    } finally {
+      setRunningAi(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -25,10 +44,10 @@ function AuditProgressModalContent({
   const STEPS_CONFIG = [
     { id: 1, key: 'quotes', name: '1. Báo Giá Gốc (PDF)', icon: FileCheck2, desc: 'Lọc đơn giá chào thấp nhất, chống nhầm họ hàng hóa' },
     { id: 2, key: 'erp', name: '2. ERP Vĩnh Tân 4', icon: Building2, desc: 'Tra cứu CSDL kế toán nội bộ nhà máy (ERP.xlsx)' },
-    { id: 3, key: 'imis', name: '3. EVN IMIS Toàn Ngành', icon: Network, desc: 'Truy vấn Live API Hợp đồng các nhà máy điện EVN' },
+    { id: 3, key: 'imis', name: '3. EVN IMIS Toành Ngành', icon: Network, desc: 'Truy vấn Live API Hợp đồng các nhà máy điện EVN' },
     { id: 4, key: 'msc', name: '4. Mua Sắm Công e-GP', icon: Globe, desc: 'Đối chiếu kết quả trúng thầu qua mạng toàn quốc' },
     { id: 5, key: 'ecom', name: '5. TMĐT & Tham Khảo Web', icon: ShoppingBag, desc: 'Tham chiếu giá thị trường niêm yết' },
-    { id: 6, key: 'synthesis', name: '6. AI Thuyết Minh & Chốt Giá', icon: Brain, desc: 'Tổng hợp 5 cơ sở & sinh bản thuyết minh Tổ Thẩm định' },
+    { id: 6, key: 'synthesis', name: '6. AI Thuyết Minh & Chốt Giá', icon: Brain, desc: 'Tổng hợp 5 cơ sở & sinh bản thuyết minh (Tùy chọn)', isOptional: true },
   ];
 
   const result = auditData?.result || {};
@@ -128,9 +147,10 @@ function AuditProgressModalContent({
               <div className="space-y-2.5">
                 {STEPS_CONFIG.map((st) => {
                   const Icon = st.icon;
+                  const isOptional = Boolean(st.isOptional);
                   const isDone = st.id < activeStep;
-                  const isCurrent = st.id === activeStep;
-                  const isPending = st.id > activeStep;
+                  const isCurrent = !isOptional && st.id === activeStep;
+                  const isPending = isOptional || st.id > activeStep;
 
                   return (
                     <div
@@ -140,6 +160,8 @@ function AuditProgressModalContent({
                           ? 'bg-blue-50/80 border-blue-400 shadow-2xs ring-1 ring-blue-300'
                           : isDone
                           ? 'bg-emerald-50/50 border-emerald-300 text-slate-800'
+                          : isOptional
+                          ? 'bg-purple-50/40 border-purple-200 text-slate-700'
                           : 'bg-slate-50 border-slate-200 opacity-50'
                       }`}
                     >
@@ -150,13 +172,15 @@ function AuditProgressModalContent({
                               ? 'bg-blue-600 text-white animate-pulse'
                               : isDone
                               ? 'bg-emerald-600 text-white'
+                              : isOptional
+                              ? 'bg-purple-600 text-white'
                               : 'bg-slate-200 text-slate-500'
                           }`}
                         >
                           <Icon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <p className={`font-bold text-xs ${isCurrent ? 'text-blue-950' : 'text-slate-900'}`}>
+                          <p className={`font-bold text-xs ${isCurrent ? 'text-blue-950' : isOptional ? 'text-purple-950' : 'text-slate-900'}`}>
                             {st.name}
                           </p>
                           <p className="text-[10.5px] text-slate-500">{st.desc}</p>
@@ -174,11 +198,15 @@ function AuditProgressModalContent({
                             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tra cứu...
                           </span>
                         )}
-                        {isPending && (
+                        {isOptional ? (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full border border-purple-200">
+                            Tùy chọn
+                          </span>
+                        ) : isPending ? (
                           <span className="text-[10px] font-semibold text-slate-400">
                             Chờ
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -254,12 +282,12 @@ function AuditProgressModalContent({
                   </span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-lg font-black font-mono text-emerald-950">
-                      {fmt(dgTn)}
+                      {fmt(customAiData?.approved_price || dgTn)}
                     </span>
                     <span className="text-xs text-emerald-700 font-semibold">/{item?.dvt || 'Cái'}</span>
                   </div>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
-                    Thành tiền thẩm định: <strong className="font-mono">{fmt(ttThongNhat)}</strong>
+                    Thành tiền thẩm định: <strong className="font-mono">{fmt((customAiData?.approved_price || dgTn) * (item?.so_luong || 1))}</strong>
                   </p>
                 </div>
 
@@ -276,30 +304,72 @@ function AuditProgressModalContent({
                 </div>
               </div>
 
-              {/* Trích Lược Bản Thuyết Minh Thẩm Định AI */}
-              {danhGiaTtd && (
-                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  <button
-                    onClick={() => setShowFullSummary(!showFullSummary)}
-                    className="w-full px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-left font-bold text-xs text-slate-800 hover:bg-slate-100 transition"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Brain className="w-3.5 h-3.5 text-purple-600" />
-                      Thuyết Minh Đánh Giá Của Tổ Thẩm Định
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px] text-slate-500 font-normal">
-                      {showFullSummary ? 'Thu gọn' : 'Xem toàn văn'}
-                      {showFullSummary ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </span>
-                  </button>
+              {/* Khối Bước 6: AI Thuyết Minh & Chốt Giá (Tùy Chọn - Chỉ chạy khi user chấp nhận) */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                {Boolean(customAiData || auditData?.synthesis?.ai_ran === true || auditData?.ai_result_data) ? (
+                  <>
+                    <button
+                      onClick={() => setShowFullSummary(!showFullSummary)}
+                      className="w-full px-3.5 py-2.5 bg-gradient-to-r from-purple-50 to-slate-50 border-b border-purple-200 flex items-center justify-between text-left font-bold text-xs text-purple-950 hover:bg-purple-100/60 transition"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Brain className="w-4 h-4 text-purple-700" />
+                        <span>6. Bản Thuyết Minh Thẩm Định AI Chuyên Gia</span>
+                        <span className="text-[9.5px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                          ✓ Đã Phân Tích AI
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-purple-700 font-medium">
+                        {showFullSummary ? 'Thu gọn' : 'Xem toàn văn'}
+                        {showFullSummary ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </span>
+                    </button>
 
-                  <div className={`p-3 text-[11.5px] leading-relaxed text-slate-800 ${showFullSummary ? '' : 'line-clamp-3'}`}>
-                    <div className="whitespace-pre-line font-sans">
-                      {danhGiaTtd}
+                    <div className={`p-3.5 text-[11.5px] leading-relaxed text-slate-800 bg-white ${showFullSummary ? '' : 'line-clamp-4'}`}>
+                      <div className="whitespace-pre-line font-sans">
+                        {customAiData?.summary_text || danhGiaTtd}
+                      </div>
                     </div>
+                  </>
+                ) : (
+                  <div className="p-3.5 bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-slate-50 border border-purple-200/80 rounded-xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                        <Brain className="w-5 h-5 text-amber-300" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h5 className="font-bold text-xs text-purple-950">6. AI Thuyết Minh & Chốt Giá</h5>
+                          <span className="text-[9.5px] font-extrabold text-purple-800 bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
+                            TÙY CHỌN (OPTIONAL)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-0.5">
+                          Đã hoàn tất nhanh 5 cơ sở chứng cứ. Bấm nút bên phải nếu bạn muốn kích hoạt AI chuyên gia phân tích rủi ro & sinh bản thuyết minh độc lập.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleTriggerAi}
+                      disabled={runningAi}
+                      className="px-3.5 py-2 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      {runningAi ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-200" />
+                          <span>AI đang phân tích...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                          <span>✨ Chạy AI Thuyết Minh</span>
+                        </>
+                      )}
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
 
