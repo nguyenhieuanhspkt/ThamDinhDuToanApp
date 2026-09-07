@@ -864,6 +864,13 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
     Tự động tổng hợp 1 Bản Thuyết Minh Căn Cứ Giá ERP dựa trên dữ liệu đối chiếu 5 câu hỏi.
     Nếu use_average=True hoặc selected_record == "AVERAGE", tính toán theo Đơn giá Trung bình của N đợt mua sắm.
     """
+    if selected_record == "NONE":
+        return {
+            "status": "ERP_DESELECTED",
+            "is_deselected": True,
+            "summary_text": "Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
+        }
+
     if not erp_records or len(erp_records) == 0:
         return {
             "status": "NO_ERP_DATA",

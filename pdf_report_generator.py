@@ -193,13 +193,17 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
             try:
                 with open(erp_path, 'r', encoding='utf-8') as f:
                     erp_data = json.load(f)
+                is_deselected = False
+                if isinstance(erp_data, dict):
+                    is_deselected = erp_data.get('is_deselected', False) or erp_data.get('selected_record') == 'NONE' or erp_data.get('summary', {}).get('status') == 'ERP_DESELECTED'
                 recs = erp_data.get('results', []) if isinstance(erp_data, dict) else (erp_data if isinstance(erp_data, list) else [])
-                if recs:
-                    p = float(recs[0].get('donGia') or recs[0].get('don_gia') or 0)
+                if recs and not is_deselected:
+                    selected_rec = erp_data.get('selected_record') if isinstance(erp_data, dict) and isinstance(erp_data.get('selected_record'), dict) else recs[0]
+                    p = float(selected_rec.get('donGia') or selected_rec.get('don_gia') or 0)
                     if p > 0:
                         pillars[1]['price'] = p
                         pillars[1].pop('price_display', None)
-                        contract = recs[0].get('soHopDong') or recs[0].get('so_hd') or recs[0].get('dienGiai') or ''
+                        contract = selected_rec.get('soHopDong') or selected_rec.get('so_hd') or selected_rec.get('dienGiai') or ''
                         c_short = re.sub(r'^(Nhập kho vật tư \(|HĐ[:\s]*|Hợp đồng[:\s]*)', '', contract, flags=re.IGNORECASE).split('theo hóa đơn')[0].strip(' ,()')
                         c_clean = re.sub(r'^(hđ[:\s]*|hd[:\s]*|qđ[:\s]*|qd[:\s]*)', '', c_short.strip(), flags=re.IGNORECASE).strip()
                         pillars[1]['source'] = f"HĐ: {c_clean}" if c_clean else "Lịch sử nhập kho ERP VT4"
@@ -211,8 +215,10 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
                                 pillars[1]['is_warn'] = True
                 else:
                     erp_kw = erp_data.get('keyword') if isinstance(erp_data, dict) else (ma_vt if not ma_vt.lower().startswith('chưa') else '')
-                    if erp_kw:
-                        pillars[1]['source'] = f"ERP VT4 (Mã: {erp_kw})"
+                    pillars[1]['price'] = 0
+                    pillars[1]['price_display'] = "0 kết quả (Ko có giá)"
+                    pillars[1]['source'] = f"CSDL ERP VT4 (Từ khóa: \"{erp_kw}\")" if erp_kw else "Lịch sử nhập kho ERP VT4"
+                    pillars[1]['note'] = "Đã đối soát CSDL ERP: Không áp dụng làm căn cứ" if is_deselected else "Đã đối soát CSDL ERP: 0 bản ghi phù hợp"
             except Exception:
                 pass
 

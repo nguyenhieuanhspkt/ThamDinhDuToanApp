@@ -722,6 +722,16 @@ const getErpDefaultKw = (item, data) => {
   return coreName || rawName;
 };
 
+const getInitialSelectedIdx = (d, list) => {
+  if (d?.is_deselected || d?.selected_record === 'NONE' || d?.summary?.status === 'ERP_DESELECTED') return null;
+  if (d?.use_average || d?.selected_record === 'AVERAGE') return 'AVERAGE';
+  if (d?.selected_record && typeof d.selected_record === 'object' && Array.isArray(list)) {
+    const idx = list.findIndex(r => (r.soHopDong && r.soHopDong === d.selected_record.soHopDong) || (r.maVt && r.maVt === d.selected_record.maVt));
+    if (idx >= 0) return idx;
+  }
+  return 0;
+};
+
 // ── Pillar 2: ERP ─────────────────────────────────────────────────────────────
 function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenErpConfig }) {
   const toast = useToast();
@@ -730,7 +740,7 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   const [summaryData, setSummaryData] = useState(data?.summary || {});
   const initialKw = getErpDefaultKw(item, data);
   const [searchKey, setSearchKey] = useState(initialKw);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(() => getInitialSelectedIdx(data, data?.results));
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
@@ -740,13 +750,14 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
     setSummaryData(data?.summary || {});
     const kw = getErpDefaultKw(item, data);
     setSearchKey(kw);
-    setSelectedIdx(0);
+    setSelectedIdx(getInitialSelectedIdx(data, list));
   }, [data, item]);
 
   // Tự động khôi phục thuyết minh ERP nếu dữ liệu đệm bị khuyết summary_text
   useEffect(() => {
     const list = erpResults || [];
     const curSummaryText = summaryData?.summary_text || data?.summary_text;
+    if (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'ERP_DESELECTED') return;
     if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt) {
       fetch('/api/erp/search', {
         method: 'POST',
@@ -769,7 +780,8 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
               summary: resp.summary,
               summary_text: resp.summary?.summary_text || '',
               keyword: searchKey || item?.ten_vt || '',
-              used_keyword: searchKey || item?.ten_vt || ''
+              used_keyword: searchKey || item?.ten_vt || '',
+              selected_record: resp.results?.[0] || null
             });
           }
         }
@@ -814,7 +826,9 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           summary_text: sumData?.summary_text || resp.summary_text || '',
           keyword: cleanKw,
           used_keyword: cleanKw,
-          selected_record: resList[0] || null
+          selected_record: resList[0] || null,
+          use_average: false,
+          is_deselected: false
         });
       }
     } catch (e) {
@@ -824,7 +838,51 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
     }
   };
 
+  const handleDeselectRecord = async () => {
+    setSelectedIdx(null);
+    try {
+      const res = await fetch('/api/erp/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: searchKey,
+          item,
+          dg_trinh: dgTrinh,
+          selected_record: 'NONE'
+        })
+      });
+      const resp = await res.json();
+      const sumData = resp.summary || {
+        status: 'ERP_DESELECTED',
+        is_deselected: true,
+        summary_text: 'Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.'
+      };
+      setSummaryData(sumData);
+      toast.info('Đã hủy chọn hợp đồng ERP. Không áp dụng kết quả ERP làm căn cứ.');
+      if (onAutoSave) {
+        onAutoSave({
+          results: erpResults,
+          mapping: mapping,
+          summary: sumData,
+          summary_text: sumData?.summary_text || '',
+          keyword: searchKey,
+          used_keyword: searchKey,
+          selected_record: 'NONE',
+          use_average: false,
+          is_deselected: true
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSelectRecord = async (index) => {
+    if (selectedIdx === index) {
+      // Toggle OFF: Bấm lại vào dòng đang chọn -> HỦY CHỌN
+      await handleDeselectRecord();
+      return;
+    }
     setSelectedIdx(index);
     const rec = erpResults[index];
     if (!rec) return;
@@ -851,7 +909,9 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           summary_text: sumData?.summary_text || summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: rec
+          selected_record: rec,
+          use_average: false,
+          is_deselected: false
         });
       }
     } catch (e) {
@@ -860,6 +920,10 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   };
 
   const handleSelectAverage = async () => {
+    if (selectedIdx === 'AVERAGE') {
+      await handleDeselectRecord();
+      return;
+    }
     setSelectedIdx('AVERAGE');
     try {
       const res = await fetch('/api/erp/search', {
@@ -884,8 +948,9 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           summary_text: sumData?.summary_text || summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: null,
-          use_average: true
+          selected_record: 'AVERAGE',
+          use_average: true,
+          is_deselected: false
         });
       }
     } catch (e) {
@@ -1038,24 +1103,56 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleSelectRecord(typeof selectedIdx === 'number' ? selectedIdx : 0)}
+              onClick={() => {
+                if (typeof selectedIdx === 'number') {
+                  handleDeselectRecord();
+                } else {
+                  handleSelectRecord(0);
+                }
+              }}
+              title={typeof selectedIdx === 'number' ? "Nhấp để HỦY CHỌN phương án hợp đồng cụ thể" : "Chọn áp dụng theo hợp đồng cụ thể"}
               className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border ${
-                selectedIdx !== 'AVERAGE'
-                  ? 'bg-blue-700 text-white border-blue-800 shadow-xs'
+                typeof selectedIdx === 'number'
+                  ? 'bg-blue-700 hover:bg-rose-600 text-white border-blue-800 shadow-xs group'
                   : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
               }`}
             >
-              <Pin className="w-3.5 h-3.5" /> Theo Hợp Đồng Cụ Thể {typeof selectedIdx === 'number' ? `(#${selectedIdx + 1})` : ''}
+              {typeof selectedIdx === 'number' ? (
+                <>
+                  <Pin className="w-3.5 h-3.5 group-hover:hidden" />
+                  <X className="w-3.5 h-3.5 hidden group-hover:inline" />
+                  <span className="group-hover:hidden">Theo Hợp Đồng Cụ Thể (#{selectedIdx + 1})</span>
+                  <span className="hidden group-hover:inline">Hủy Chọn Hợp Đồng (#{selectedIdx + 1})</span>
+                </>
+              ) : (
+                <>
+                  <Pin className="w-3.5 h-3.5" />
+                  <span>Theo Hợp Đồng Cụ Thể (#1)</span>
+                </>
+              )}
             </button>
             <button
               onClick={handleSelectAverage}
+              title={selectedIdx === 'AVERAGE' ? "Nhấp để HỦY CHỌN phương án giá trung bình" : "Chọn áp dụng đơn giá trung bình"}
               className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border ${
                 selectedIdx === 'AVERAGE'
-                  ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
+                  ? 'bg-emerald-700 hover:bg-rose-600 text-white border-emerald-800 shadow-xs group'
                   : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5 text-amber-300" /> 📊 Chọn Đơn Giá Trung Bình (AVG): {fmt(avgPrice)} đ
+              {selectedIdx === 'AVERAGE' ? (
+                <>
+                  <BarChart3 className="w-3.5 h-3.5 text-amber-300 group-hover:hidden" />
+                  <X className="w-3.5 h-3.5 hidden group-hover:inline" />
+                  <span className="group-hover:hidden">📊 Chọn Đơn Giá Trung Bình (AVG): {fmt(avgPrice)} đ</span>
+                  <span className="hidden group-hover:inline">Hủy Chọn Giá Trung Bình</span>
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
+                  <span>📊 Chọn Đơn Giá Trung Bình (AVG): {fmt(avgPrice)} đ</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1064,13 +1161,17 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
       {/* Bản Thuyết Minh Căn Cứ ERP tự động */}
       {summaryText && (
         <div className={`p-4 rounded-xl border-2 shadow-sm transition ${
-          isWarning
-            ? 'bg-amber-50 border-amber-400 text-amber-950'
-            : 'bg-blue-50/80 border-blue-300 text-slate-900'
+          selectedIdx === null || summaryData?.status === 'ERP_DESELECTED'
+            ? 'bg-slate-100 border-slate-300 text-slate-700'
+            : isWarning
+              ? 'bg-amber-50 border-amber-400 text-amber-950'
+              : 'bg-blue-50/80 border-blue-300 text-slate-900'
         }`}>
           <div className="flex items-center justify-between mb-2">
-            <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-blue-900">
-              <FileText className="w-4 h-4 text-blue-700" /> 📄 BẢN THUYẾT MINH CĂN CỨ ERP (TỰ ĐỘNG TỔNG HỢP)
+            <h5 className={`font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 ${
+              selectedIdx === null || summaryData?.status === 'ERP_DESELECTED' ? 'text-slate-700' : 'text-blue-900'
+            }`}>
+              <FileText className="w-4 h-4 text-blue-700" /> 📄 BẢN THUYẾT MINH CĂN CỨ ERP {selectedIdx === null ? '(ĐÃ HỦY CHỌN)' : '(TỰ ĐỘNG TỔNG HỢP)'}
             </h5>
             <button
               onClick={copyToClipboard}
@@ -1117,14 +1218,26 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
                     <td className="py-2 px-2 border-r text-center">
                       <button
                         onClick={() => handleSelectRecord(i)}
+                        title={isSelected ? "Nhấp để HỦY CHỌN (Không áp dụng hợp đồng này làm căn cứ)" : "Nhấp để chọn hợp đồng này làm căn cứ"}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
                           isSelected
-                            ? 'bg-blue-700 text-white shadow-xs'
+                            ? 'bg-blue-700 hover:bg-rose-600 text-white shadow-xs group ring-2 ring-blue-300'
                             : 'bg-slate-200 hover:bg-blue-100 text-slate-700'
                         }`}
                       >
-                        {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
-                        {isSelected ? 'Đã Chọn' : 'Chọn'}
+                        {isSelected ? (
+                          <>
+                            <Check className="w-3 h-3 group-hover:hidden" />
+                            <X className="w-3 h-3 hidden group-hover:inline" />
+                            <span className="group-hover:hidden">Đã Chọn</span>
+                            <span className="hidden group-hover:inline">Hủy Chọn</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="w-3 h-3" />
+                            <span>Chọn</span>
+                          </>
+                        )}
                       </button>
                     </td>
                     <td className="py-2 px-2 border-r text-center font-mono font-bold">
@@ -1181,7 +1294,9 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           summary_text: summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: erpResults[selectedIdx]
+          selected_record: typeof selectedIdx === 'number' ? erpResults[selectedIdx] : (selectedIdx === 'AVERAGE' ? 'AVERAGE' : 'NONE'),
+          is_deselected: selectedIdx === null,
+          use_average: selectedIdx === 'AVERAGE'
         })}
         nextLabel="Cơ sở 3 (IMIS)"
         prevLabel="Cơ sở 1 (BG)"
