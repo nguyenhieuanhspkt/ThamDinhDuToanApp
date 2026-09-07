@@ -1,5 +1,5 @@
 # 🧠 MEMORY.MD — ThamDinhDuToanApp
-> **Cập nhật ngày:** 2026-09-06 21:45 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
+> **Cập nhật ngày:** 2026-09-07 17:35 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
 > **Repository GitHub:** `https://github.com/nguyenhieuanhspkt/ThamDinhDuToanApp.git`  
 > **Thư mục dự án khuyến nghị:** `D:\TaskApp_kiet\thamdinhdutoanApp`  
 > **Thư mục Backup Cache/Dữ liệu ngoài Git (OneDrive EVN):** `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`
@@ -54,7 +54,29 @@
 
 ---
 
-### B. Đợt Nâng Cấp Ngày 05/09/2026:
+### B. Đợt Nâng Cấp Ngày 07/09/2026:
+1. **Khắc phục lỗi ghép nối Báo Giá chéo họ hàng hóa (`quote_matcher.py`)**:
+   - **Xử lý triệt để lỗi dính xâu con (Substring match)**: Khắc phục lỗi từ khóa ngắn như `"TEE"` (nhóm `FITTING`) bị bắt nhầm bên trong các từ tiếng Anh phổ biến như `"STEEL"` (`Cast steel`, `Stainless Steel`) hay `"GUARANTEE"`. Chuyển toàn bộ cơ chế kiểm tra nhóm từ khóa sang Regex ranh giới từ `\bWord\b`.
+   - **Tách riêng nhóm chuyên biệt `CABLE_SENSOR`**: Dây tín hiệu quang, cáp quang, cảm biến phát hiện ngọn lửa được phân loại vào nhóm riêng, kích hoạt cơ chế chặn xung đột tuyệt đối (Hard Conflict Exclusion) với nhóm `VALVE` (Van).
+   - **Đưa các từ ngữ kỹ thuật/vật liệu vào Stopwords**: `FLANGE`, `STEEL`, `CAST`, `TEMPERATURE`, `STAINLESS`, `PRESSURE`, `LIQUID`... bị chặn không cho cộng điểm tên vật tư giả tạo.
+   - **Kiểm tra xung đột Part Number / Model (`strict_codes`)**: Nếu hai thiết bị đều có Part No / Model kỹ thuật riêng biệt mà không có mã nào giao nhau, tự động loại trừ ngay.
+   - **Kết quả**: Đã thanh lọc chính xác 37 mục vật tư trong hồ sơ 98 mục; loại bỏ hoàn toàn báo giá rác (VD: Báo giá 135 triệu của An Hiếu không còn bị ghép nhầm vào Mục số 7 - Selector Valve KMX CO2 452 triệu).
+
+2. **Cơ chế Bảo toàn CSDL & Luôn Lưu Vết 100% 5 Cơ Sở (`app.py`, `ItemInspectorView.jsx`)**:
+   - **Sửa lỗi bỏ sót file khi 0 kết quả**: Trước đây trong `api_run_5_pillars`, lệnh lưu file `chung_cu_imis.json` và `chung_cu_erp.json` bị đặt trong điều kiện `if imis_recs:` hoặc `if recs:`. Khi vật tư đặc thù chưa có lịch sử mua sắm (0 kết quả), file không được lưu $\rightarrow$ Giao diện View 3 tưởng chưa tra cứu nên phát lệnh tra cứu lại gây treo/xoay vòng *"Đang tra cứu..."*.
+   - **Hiện tại**: Toàn bộ 5 cơ sở đều **luôn luôn được ghi vào CSDL**, lưu rõ lý do *"Vật tư chưa tìm thấy dữ liệu mua sắm tương đương trong CSDL"* nếu không có kết quả.
+   - **Fallback 2 tầng Backend**: `api_get_item_evidence` tự động tìm kiếm đối chiếu giữa thư mục dự án `projects/{tên_dự_án}_files/` và `current_dossier_files/`.
+   - **Frontend kiểm tra CSDL trước (Data Guard)**: `loadErp`, `loadImis`, `loadMsc` kiểm tra CSDL `/api/evidence/get` trước khi phát lệnh tra cứu mạng. Nhấp vào tab cơ sở dữ liệu bung ra ngay tức thì (<10ms).
+
+3. **Tối ưu Tốc độ "Tra 5 Cơ Sở" & AI Thuyết minh là Tùy chọn (Optional)**:
+   - "Tra 5 cơ sở" ưu tiên tốc độ tối đa (1-2s / mục) để phục vụ duyệt nhanh danh mục.
+   - Bước AI Thuyết minh chuyển thành tùy chọn (chỉ chạy khi thẩm định viên chủ động yêu cầu).
+   - Bổ sung nút Hủy chọn / Chọn lại cho Mua Sắm Công trong View 3.
+   - Thêm thông số thể hiện tiến độ đã lưu CSDL thẩm định (X / 98 mục) trên giao diện.
+
+---
+
+### C. Đợt Nâng Cấp Ngày 05/09/2026:
 1. **Tự động Đăng nhập & Gia hạn ngầm EVN IMIS (Auto Re-Auth 24/7)**:
    - Credentials lưu ngoài Git tại `D:\OneDrive_Hieuna\...\ThamDinhDuToanAppCache\config\evn_imis_credentials.json`.
    - Tự động gia hạn Token ngầm mà không làm ngắt đoạn thao tác người dùng.
