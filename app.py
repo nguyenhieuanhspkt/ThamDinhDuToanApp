@@ -16,6 +16,7 @@ import quote_matcher
 import msc_matcher
 import ai_synthesis
 import pdf_report_generator
+import onedrive_sync
 
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.config['JSON_AS_ASCII'] = False
@@ -94,6 +95,10 @@ def save_dossier_data(data):
                     json.dump(data, fp, ensure_ascii=False, indent=2)
         except Exception:
             pass
+    try:
+        onedrive_sync.push_to_onedrive()
+    except Exception:
+        pass
 
 
 @app.route("/")
@@ -969,6 +974,11 @@ def api_save_evidence_step():
             save_dossier_data(dossier)
         except Exception as e:
             print(f"Lỗi đồng bộ hồ sơ dự án khi lưu synthesis: {e}")
+            
+    try:
+        onedrive_sync.push_to_onedrive()
+    except Exception:
+        pass
         
     return jsonify({"success": True, "filename": fname})
 
@@ -1970,6 +1980,19 @@ def api_export_item_pdf(item_id):
         return send_file(output_pdf_path, as_attachment=True, download_name=pdf_filename)
     except Exception as e:
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+
+
+@app.route("/api/sync/onedrive-status", methods=["GET"])
+def api_onedrive_status():
+    """Lấy thông tin trạng thái kết nối và thời gian đồng bộ OneDrive gần nhất."""
+    return jsonify(onedrive_sync.get_sync_status())
+
+
+@app.route("/api/sync/onedrive-push", methods=["POST"])
+def api_onedrive_push():
+    """Chủ động đẩy toàn bộ dữ liệu hiện tại sang thư mục OneDrive Cache."""
+    res = onedrive_sync.push_to_onedrive()
+    return jsonify(res)
 
 
 

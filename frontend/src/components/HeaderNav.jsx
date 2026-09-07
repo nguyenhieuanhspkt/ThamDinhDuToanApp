@@ -1,10 +1,50 @@
-import React from 'react';
-import { Layers, Table2, Search, FolderOpen, Bookmark, Save, Download, Upload, FileSpreadsheet, Building2, Database, Globe } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Layers, Table2, Search, FolderOpen, Bookmark, Save, Download, Upload, FileSpreadsheet, Building2, Database, Globe, Cloud } from 'lucide-react';
+import { useToast } from './ui/Toast';
 
 export default function HeaderNav({ activeView, setActiveView, dossierName, onOpenProjects, onSaveAs, onSaveProject, onUploadExcel, onExportExcel, erpStatus, onOpenErpConfig, imisStatus, onOpenImisConfig, mscStatus, onOpenMscConfig }) {
   const isErpOk = erpStatus?.is_configured;
   const isImisOk = imisStatus?.is_connected;
   const isMscOk = mscStatus?.active;
+
+  const toast = useToast();
+  const [oneDriveStatus, setOneDriveStatus] = useState(null);
+  const [isSyncingOneDrive, setIsSyncingOneDrive] = useState(false);
+
+  const fetchOneDriveStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sync/onedrive-status');
+      if (res.ok) {
+        setOneDriveStatus(await res.json());
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOneDriveStatus();
+    const timer = setInterval(fetchOneDriveStatus, 30000);
+    return () => clearInterval(timer);
+  }, [fetchOneDriveStatus]);
+
+  const handleManualOneDrivePush = async () => {
+    setIsSyncingOneDrive(true);
+    try {
+      const res = await fetch('/api/sync/onedrive-push', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Đã đồng bộ ${data.synced_count} tệp sang OneDrive EVN Cache!`);
+        fetchOneDriveStatus();
+      } else {
+        toast.error('Lỗi đồng bộ OneDrive: ' + (data.message || ''));
+      }
+    } catch (e) {
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsSyncingOneDrive(false);
+    }
+  };
 
   return (
     <header className="bg-[#003366] text-white px-5 py-2.5 shrink-0 shadow-md z-30 flex items-center justify-between">
@@ -122,6 +162,23 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
           ) : (
             <span>🔴 ERP: Chưa cấu hình</span>
           )}
+        </button>
+
+        {/* OneDrive Cache Sync Badge */}
+        <button
+          onClick={handleManualOneDrivePush}
+          disabled={isSyncingOneDrive}
+          className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
+            oneDriveStatus?.available
+              ? 'bg-cyan-900/60 hover:bg-cyan-800 border-cyan-500/50 text-cyan-200 cursor-pointer'
+              : 'bg-slate-800/60 border-slate-600 text-slate-400'
+          }`}
+          title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file đồng bộ lần cuối: ${oneDriveStatus?.synced_count ?? 0} tệp\n(Nhấp chuột để đồng bộ ngay lập tức sang OneDrive)`}
+        >
+          <Cloud className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? 'text-cyan-400' : 'text-slate-400'} ${isSyncingOneDrive ? 'animate-spin' : ''}`} />
+          <span>
+            {isSyncingOneDrive ? 'Đang sync...' : (oneDriveStatus?.last_synced ? `☁ OneDrive: ${oneDriveStatus.last_synced.slice(11, 16)}` : '☁ OneDrive')}
+          </span>
         </button>
 
         <div className="h-5 w-px bg-blue-800/80 mx-0.5"></div>

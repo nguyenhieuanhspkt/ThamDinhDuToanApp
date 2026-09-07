@@ -16,6 +16,7 @@ data/config/*.token
 .erp_cache.json
 config/.erp_cache.json
 data/.quotes_cache.json
+data/.onedrive_sync_status.json
 *.cache.json
 .*cache.json
 
