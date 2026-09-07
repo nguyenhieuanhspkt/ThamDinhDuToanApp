@@ -159,4 +159,4 @@ def push_to_onedrive(verbose=False, force=False):
 if __name__ == "__main__":
     print("--- SYNCING TO ONEDRIVE CACHE ---")
     res = push_to_onedrive(verbose=True, force=True)
-    print(f"DONE: {res['message']} at {res['last_synced']}")
+    print(f"DONE: Synced {res['synced_count']}/{res['total_files']} files to OneDrive at {res['last_synced']}")
