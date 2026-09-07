@@ -180,14 +180,31 @@ ThamDinhDuToanApp/
         └── components/
             ├── HeaderNav.jsx
             ├── grid/GridMatrixView.jsx          # Cột Từ khóa tra cứu + Nút 1-Click 5 Cơ Sở
-            ├── inspector/ItemInspectorView.jsx  # Toàn bộ logic giao diện 6 Khối + Auto-Save Cache
+            ├── inspector/                       # Module hóa 6 Khối Thẩm Định & Coordinator
+            │   ├── ItemInspectorView.jsx        # Coordinator chính (372 dòng)
+            │   ├── constants/pillars.js         # Cấu hình danh mục & metadata 6 cơ sở
+            │   ├── utils/                       # Helpers (formatters.js, keywordHelpers.js)
+            │   ├── common/                      # Common UI (PillarHeader, SaveFooter, LoadingSpinner, EmptyState)
+            │   ├── coordinator/                 # Sub-components điều phối (Navbar, Sidebar, OverviewCard, Tabs)
+            │   └── pillars/                     # 6 Module độc lập (Quotes, Erp, Imis, Msc, Ecom, Synthesis)
             └── modals/                         # ERP, IMIS, MSC Modals
 ```
 
 ---
 
-## 6. KẾ HOẠCH BƯỚC TIẾP THEO
+## 6. LỊCH SỬ CẬP NHẬT KIẾN TRÚC MỚI NHẤT
+- **Module Hóa God Component `ItemInspectorView.jsx` (Commit `11341f4`)**:
+  - Tách thành công file 4.416 dòng thành 20 module chuyên trách theo từng cơ sở nghiệp vụ độc lập.
+  - File coordinator rút gọn còn 372 dòng (giảm 91.5%).
+  - Zero-Regression: Giữ nguyên 100% chức năng, giao diện, API contracts, tính năng deselect IMIS và tự động đồng bộ giá tổng hợp sang Cơ sở 6.
+  - Bản build Vite đạt tốc độ ~335ms, 0 lỗi.
+
+---
+
+## 7. KẾ HOẠCH BƯỚC TIẾP THEO
 - [x] Tự động hóa Tra cứu 5 Cơ Sở 1-Click trực tiếp từ Bảng Ma trận (`GridMatrixView.jsx`).
 - [x] Chuẩn hóa văn phong Tổ Thẩm định Dự toán cho toàn bộ ứng dụng và xuất file PDF chuẩn 2 trang A4.
+- [x] Module hóa kiến trúc `ItemInspectorView.jsx` thành 6 pillar riêng biệt.
 - [ ] Chạy kiểm thử batch tự động cho toàn bộ 98 mục vật tư trong dự án `ThamDinhDot8_lân2`.
 - [ ] Hoàn thiện xuất file Excel báo cáo tổng hợp 13 cột chuẩn EVN Vĩnh Tân 4 sau khi hoàn tất 98 mục.
+
