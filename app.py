@@ -733,6 +733,11 @@ def api_erp_search():
     
     min_score = 0 if is_manual else 60
     
+    if not imis_core.is_valid_erp_code(ma_vt):
+        ma_vt = ""
+    if keyword.strip().lower().startswith("chưa") or keyword.strip().lower() in ("chưa có mã vật tư", "n/a", "none"):
+        keyword = (item.get("ten_vt_goc") or item.get("ten_vt") or "").split("\n")[0].split("-")[0].strip()
+
     results = imis_core.search_erp_baseline(keyword, ma_vt=ma_vt, min_score=min_score)
     if not results and not is_manual and keyword:
         clean_kw = keyword.split("\n")[0].split("-")[0].strip()

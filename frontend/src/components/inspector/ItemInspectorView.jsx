@@ -704,13 +704,31 @@ function PillarQuotes({ loading, saving, minQuote, supplierMatches, dgTrinh, onO
   );
 }
 
+const isValidErpCode = (code) => {
+  if (!code || typeof code !== 'string') return false;
+  const c = code.trim().toLowerCase();
+  if (c.includes('chưa') || c.includes('chua') || c.includes('không') || c.includes('khong') || c === 'n/a' || c === 'none' || c === 'null') {
+    return false;
+  }
+  return /^\d+(\.\d+)+/.test(c) || (/^[a-z0-9_\-.]{4,}$/i.test(c) && /\d/.test(c));
+};
+
+const getErpDefaultKw = (item, data) => {
+  if (isValidErpCode(item?.ma_vt)) return item.ma_vt;
+  const candidate = data?.used_keyword || data?.keyword;
+  if (candidate && !candidate.toLowerCase().includes('chưa có mã')) return candidate;
+  const rawName = item?.ten_vt_goc || item?.ten_vt || '';
+  const coreName = rawName.split('\n')[0].split('-')[0].split(',')[0].trim();
+  return coreName || rawName;
+};
+
 // ── Pillar 2: ERP ─────────────────────────────────────────────────────────────
 function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenErpConfig }) {
   const toast = useToast();
   const [erpResults, setErpResults] = useState(data?.results || []);
   const [mapping, setMapping] = useState(data?.mapping || {});
   const [summaryData, setSummaryData] = useState(data?.summary || {});
-  const initialKw = item?.ma_vt ? item.ma_vt : (data?.used_keyword || data?.keyword || item?.ten_vt || '');
+  const initialKw = getErpDefaultKw(item, data);
   const [searchKey, setSearchKey] = useState(initialKw);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -720,7 +738,7 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
     setErpResults(list);
     setMapping(data?.mapping || {});
     setSummaryData(data?.summary || {});
-    const kw = item?.ma_vt ? item.ma_vt : (data?.used_keyword || data?.keyword || item?.ten_vt || '');
+    const kw = getErpDefaultKw(item, data);
     setSearchKey(kw);
     setSelectedIdx(0);
   }, [data, item]);
@@ -734,8 +752,8 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          keyword: searchKey || item?.ten_vt || '',
-          ma_vt: item?.ma_vt || '',
+          keyword: searchKey || getErpDefaultKw(item, data),
+          ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : '',
           item,
           dg_trinh: dgTrinh
         })
@@ -774,7 +792,7 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           keyword: cleanKw,
-          ma_vt: item?.ma_vt || '',
+          ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : '',
           item,
           dg_trinh: dgTrinh,
           is_manual: true
@@ -926,48 +944,90 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
             {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Tra cứu ERP
           </button>
           <button
-            onClick={() => setSearchKey(item?.ma_vt || item?.ten_vt || '')}
-            title="Khôi phục từ khóa mặc định (Mã ERP nếu có)"
+            onClick={() => setSearchKey(getErpDefaultKw(item, data))}
+            title="Khôi phục từ khóa mặc định"
             className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5" /> Đặt lại
           </button>
         </div>
 
-        {/* Chip chọn nhanh từ khóa gợi ý (Mã ERP & Tên Vật Tư) */}
-        {(item?.ma_vt || item?.ten_vt) && (
-          <div className="pt-1.5 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-[11px] font-bold text-blue-950 shrink-0 flex items-center gap-1">
-              💡 Từ khóa gợi ý ERP:
-            </span>
-            {item?.ma_vt && (
+        {/* Chip chọn nhanh từ khóa gợi ý */}
+        <div className="pt-1.5 border-t border-slate-200/80 flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="text-[11px] font-bold text-blue-950 shrink-0 flex items-center gap-1">
+            💡 Từ khóa gợi ý ERP:
+          </span>
+          {isValidErpCode(item?.ma_vt) && (
+            <button
+              onClick={() => setSearchKey(item.ma_vt)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                searchKey.trim() === item.ma_vt.trim()
+                  ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                  : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+              }`}
+              title={`Chọn tra cứu theo Mã ERP: ${item.ma_vt}`}
+            >
+              🏷️ Mã ERP: <span className="font-mono">{item.ma_vt}</span>
+            </button>
+          )}
+          {(() => {
+            const rawName = item?.ten_vt_goc || item?.ten_vt || '';
+            const coreName = rawName.split('\n')[0].split('-')[0].split(',')[0].trim();
+            if (!coreName) return null;
+            return (
               <button
-                onClick={() => setSearchKey(item.ma_vt)}
+                onClick={() => setSearchKey(coreName)}
                 className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
-                  searchKey.trim() === item.ma_vt.trim()
+                  searchKey.trim() === coreName
                     ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
                     : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
                 }`}
-                title={`Chọn tra cứu theo Mã ERP: ${item.ma_vt}`}
+                title="Chọn tra cứu theo Tên vật tư cốt lõi"
               >
-                🏷️ Mã ERP: <span className="font-mono">{item.ma_vt}</span>
+                🎯 Tên cốt lõi: <span className="font-semibold truncate max-w-[200px]">{coreName}</span>
               </button>
-            )}
-            {item?.ten_vt && (
-              <button
-                onClick={() => setSearchKey(item.ten_vt)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
-                  searchKey.trim() === item.ten_vt.trim()
-                    ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
-                    : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
-                }`}
-                title="Chọn tra cứu theo Tên vật tư đầy đủ"
-              >
-                📝 Tên Vật Tư: <span className="font-semibold truncate max-w-[260px]">{item.ten_vt}</span>
-              </button>
-            )}
-          </div>
-        )}
+            );
+          })()}
+          {(item?.part_no || item?.model) && (
+            <button
+              onClick={() => setSearchKey(item.part_no || item.model)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                searchKey.trim() === (item.part_no || item.model).trim()
+                  ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                  : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+              }`}
+              title="Chọn tra cứu theo Model / Part No"
+            >
+              ⚙️ Model/Part: <span className="font-semibold font-mono">{item.part_no || item.model}</span>
+            </button>
+          )}
+          {item?.hang_sx && (
+            <button
+              onClick={() => setSearchKey(item.hang_sx)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                searchKey.trim() === item.hang_sx.trim()
+                  ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                  : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+              }`}
+              title="Chọn tra cứu theo Hãng sản xuất"
+            >
+              🏭 Hãng SX: <span className="font-semibold">{item.hang_sx}</span>
+            </button>
+          )}
+          {item?.ten_vt && (
+            <button
+              onClick={() => setSearchKey(item.ten_vt)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 border ${
+                searchKey.trim() === item.ten_vt.trim()
+                  ? 'bg-blue-700 text-white border-blue-800 shadow-xs ring-2 ring-blue-300'
+                  : 'bg-white text-blue-900 border-blue-300 hover:bg-blue-100'
+              }`}
+              title="Chọn tra cứu theo Tên vật tư đầy đủ"
+            >
+              📝 Tên đầy đủ: <span className="font-semibold truncate max-w-[200px]">{item.ten_vt}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Thanh Chọn Phương Án Thẩm Định: Hợp Đồng Cụ Thể vs Giá Trung Bình */}

@@ -684,24 +684,80 @@ def get_erp_cached_records(force_reload=False):
         return []
 
 
+ERP_STOPWORDS = {
+    'chưa', 'có', 'mã', 'vật', 'tư', 'dùng', 'cho', 'loại', 'theo', 'hđ', 'hóa', 'đơn',
+    'tại', 'nhà', 'máy', 'nhiệt', 'điện', 'vĩnh', 'tân', '4', 'bộ', 'cái', 'chiếc',
+    'tập', 'đoàn', 'evn', 'đến', 'từ', 'và', 'hoặc', 'các', 'của', 'trong', 'với',
+    'nhập', 'kho', 'hàng', 'hợp', 'đồng', 'số', 'ngày', 'tháng', 'năm', 'vt', 'kt', 'ttr'
+}
+
+DEVICE_CATEGORIES = {
+    'actuator': {'actuator', 'truyền động', 'bộ điều khiển van', 'bộ tác động'},
+    'valve': {'van', 'valve', 'solenoid van', 'van điện từ', 'van một chiều', 'van bi', 'van bướm', 'van cầu'},
+    'fitting': {'chạc', 'cút', 'co', 'tê', 'măng sông', 'đầu nối', 'khớp nối', 'fitting', 'rắc co'},
+    'pipe': {'ống', 'pipe', 'tube'},
+    'cable': {'cáp', 'cable', 'dây dẫn', 'dây cáp', 'dây điện'},
+    'pump': {'bơm', 'pump'},
+    'gasket': {'gioăng', 'gasket', 'đệm kín', 'phớt', 'seal', 'o-ring'},
+    'sensor': {'cảm biến', 'sensor', 'đầu dò', 'transmitter'},
+    'relay': {'rơ le', 'relay', 'rơle'},
+    'contactor': {'khởi động từ', 'contactor', 'aptomat', 'mcb', 'mccb'},
+    'module': {'module', 'mô đun', 'mạch', 'bo mạch', 'card'},
+    'motor': {'động cơ', 'motor', 'mô tơ'},
+    'bearing': {'vòng bi', 'bạc đạn', 'bearing'},
+}
+
+
+def is_valid_erp_code(code):
+    """Kiểm tra mã ERP có đúng cấu trúc số phân cấp x.xx.xx.xxx không (loại bỏ chuỗi rác)."""
+    if not code:
+        return False
+    c = str(code).strip().lower()
+    if c.startswith("chưa") or c.startswith("không") or c in ("n/a", "none", "chưa có mã vật tư", "chưa có mã"):
+        return False
+    return bool(re.match(r'^\d+\.\d+\.\d+', c))
+
+
+def get_device_category(text):
+    """Phát hiện chủng loại thiết bị chính từ tên vật tư."""
+    t_lower = text.lower()
+    found = set()
+    for cat, keywords in DEVICE_CATEGORIES.items():
+        for kw in keywords:
+            if re.search(r'\b' + re.escape(kw) + r'\b', t_lower):
+                found.add(cat)
+                break
+    return found
+
+
+def extract_model_tokens(tokens):
+    """Trích xuất mã hiệu / model thực thụ (loại bỏ chữ số đo lường đơn lẻ như 0, 2, 10, 18, 50)."""
+    models = set()
+    for tok in tokens:
+        if len(tok) >= 3:
+            has_digit = any(c.isdigit() for c in tok)
+            has_alpha = any(c.isalpha() for c in tok)
+            if has_digit and has_alpha:
+                models.add(tok)
+            elif tok.isdigit() and len(tok) >= 3:
+                models.add(tok)
+        elif tok in ('iux', 'vtt', 'flowtek', 'minimax', 'bray', 'siemens', 'abb'):
+            models.add(tok)
+    return models
+
+
 def compute_erp_match_score(target_str, candidate_str, target_code="", candidate_code="", candidate_name_only=""):
-    """Tính điểm độ tương đồng (% Match) chuẩn xác giữa vật tư cần duyệt và dòng ERP."""
+    """Tính điểm độ tương đồng (% Match) chuẩn xác 2 chiều giữa vật tư cần duyệt và dòng ERP."""
     t_code = (target_code or "").strip().upper()
     c_code = (candidate_code or "").strip().upper()
 
-    if not t_code and target_str:
-        code_match = re.search(r'\b\d+\.\d+\.\d+\.[A-Z0-9\.]+\b', target_str, re.I)
-        if code_match:
-            t_code = code_match.group(0).upper()
-
-    if t_code and c_code:
+    if is_valid_erp_code(t_code) and is_valid_erp_code(c_code):
         if t_code == c_code or t_code in c_code or c_code in t_code:
             return 100.0
         parts_t = [p for p in t_code.split('.') if p]
         parts_c = [p for p in c_code.split('.') if p]
         num_parts_t = [p for p in parts_t if p.isdigit()]
         num_parts_c = [p for p in parts_c if p.isdigit()]
-        # Yêu cầu khớp đủ 4 cấp số định danh mặt hàng (ví dụ: 3.82.63.134)
         if len(num_parts_t) >= 4 and len(num_parts_c) >= 4 and num_parts_t[:4] == num_parts_c[:4]:
             return 98.0
 
@@ -710,11 +766,16 @@ def compute_erp_match_score(target_str, candidate_str, target_code="", candidate
     if not t_clean or not c_clean:
         return 0.0
 
-    if t_clean == c_clean:
-        return 100.0
+    # 1. Phát hiện xung đột chủng loại thiết bị cốt lõi (ví dụ: Actuator vs Chạc)
+    cat_t = get_device_category(t_clean)
+    cat_c = get_device_category(c_clean)
+    has_category_conflict = False
+    if cat_t and cat_c and not cat_t.intersection(cat_c):
+        has_category_conflict = True
 
-    t_tokens = set(re.findall(r'\w+', t_clean))
-    c_tokens = set(re.findall(r'\w+', c_clean))
+    # 2. Tách từ sau khi đã loại bỏ từ dừng Stopwords kỹ thuật
+    t_tokens = {tok for tok in re.findall(r'\w+', t_clean) if tok not in ERP_STOPWORDS and len(tok) > 1}
+    c_tokens = {tok for tok in re.findall(r'\w+', c_clean) if tok not in ERP_STOPWORDS and len(tok) > 1}
     if not t_tokens or not c_tokens:
         return 0.0
 
@@ -722,38 +783,47 @@ def compute_erp_match_score(target_str, candidate_str, target_code="", candidate
     if not common:
         return 0.0
 
-    cov_candidate = len(common) / len(c_tokens)
+    # 3. Tính độ bao phủ 2 chiều (Balanced Precision & Recall / F1-Score)
+    precision = len(common) / len(c_tokens)
+    recall = len(common) / len(t_tokens)
+    f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
-    if cov_candidate >= 0.85:
-        score = 100.0
-    elif cov_candidate >= 0.6:
-        score = 85.0 + (cov_candidate * 15.0)
+    if f1 >= 0.75 and precision >= 0.75:
+        score = 85.0 + (f1 * 15.0)
+    elif f1 >= 0.45:
+        score = 60.0 + (f1 * 25.0)
     else:
-        score = (len(common) / max(len(t_tokens), 1)) * 100.0
+        score = f1 * 100.0
 
-    # Kiểm tra các từ/mã model quan trọng (như 760, IUX...)
-    model_tokens_t = {tok for tok in t_tokens if any(c.isdigit() for c in tok) or tok in ['iux', 'minimax', 'vtt']}
-    model_tokens_c = {tok for tok in c_tokens if any(c.isdigit() for c in tok) or tok in ['iux', 'minimax', 'vtt']}
-
-    if model_tokens_t:
-        common_model = model_tokens_t.intersection(model_tokens_c)
-        if not common_model:
+    # 4. Kiểm tra mã hiệu Model thực thụ (tránh hiểu lầm số đo lường như 2 bar, 10 bar)
+    models_t = extract_model_tokens(t_tokens)
+    models_c = extract_model_tokens(c_tokens)
+    if models_t and models_c:
+        if not models_t.intersection(models_c):
             score = min(score, 30.0)
 
-    if len(common) <= 2 and cov_candidate < 0.4:
-        score = min(score, 25.0)
+    # 5. Nếu xung đột thiết bị chính (Actuator != Chạc), chặn điểm tối đa <= 15%
+    if has_category_conflict:
+        score = min(score, 15.0)
 
     return round(score, 1)
 
 
 def search_erp_baseline(keyword, ma_vt="", min_score=60, limit=20):
     all_data = get_erp_cached_records()
-    if not all_data or (not keyword and not ma_vt):
+
+    # Làm sạch mã ERP và từ khóa (loại bỏ chuỗi rác)
+    valid_code = ma_vt if is_valid_erp_code(ma_vt) else ""
+    kw_clean = str(keyword or "").strip()
+    if kw_clean.lower().startswith("chưa") or kw_clean.lower() in ("chưa có mã vật tư", "n/a", "none", "không có"):
+        kw_clean = ""
+
+    if not all_data or (not kw_clean and not valid_code):
         return []
 
     base_code = ""
-    if ma_vt:
-        parts = [p for p in ma_vt.split('.') if p]
+    if valid_code:
+        parts = [p for p in valid_code.split('.') if p]
         if len(parts) >= 3:
             base_code = ".".join(parts[:4]) if len(parts) >= 4 else ".".join(parts[:3])
 
@@ -765,9 +835,9 @@ def search_erp_baseline(keyword, ma_vt="", min_score=60, limit=20):
         c_full = f"{c_name} {rec.get('dienGiai', '')}"
 
         score = compute_erp_match_score(
-            keyword,
+            kw_clean,
             c_full,
-            target_code=ma_vt or base_code,
+            target_code=valid_code or base_code,
             candidate_code=c_code,
             candidate_name_only=c_name
         )
