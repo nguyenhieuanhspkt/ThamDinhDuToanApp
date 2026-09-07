@@ -231,10 +231,10 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
             try:
                 with open(imis_path, 'r', encoding='utf-8') as f:
                     imis_data = json.load(f)
-                kw = (imis_data.get('used_keyword') or imis_data.get('keyword') or kw_default_imis).strip()
-                kw = re.sub(r'[\r\n]+', ' ', kw)
-                if len(kw) > 25:
-                    kw = kw[:22] + '...'
+                raw_kw = (imis_data.get('used_keyword') or imis_data.get('keyword') or kw_default_imis).strip()
+                kw = re.split(r'[\r\n]+', raw_kw)[0].split(' - ')[0].strip()
+                if len(kw) > 28:
+                    kw = kw[:25] + '...'
                 imis_list = imis_data.get('imis', [])
                 p3_val = 0
                 if imis_list:
@@ -259,10 +259,10 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
             try:
                 with open(msc_path, 'r', encoding='utf-8') as f:
                     msc_data = json.load(f)
-                kw = (msc_data.get('used_keyword') or msc_data.get('keyword') or kw_default_msc).strip()
-                kw = re.sub(r'[\r\n]+', ' ', kw)
-                if len(kw) > 25:
-                    kw = kw[:22] + '...'
+                raw_kw = (msc_data.get('used_keyword') or msc_data.get('keyword') or kw_default_msc).strip()
+                kw = re.split(r'[\r\n]+', raw_kw)[0].split(' - ')[0].strip()
+                if len(kw) > 28:
+                    kw = kw[:25] + '...'
                 msc_list = msc_data.get('results', []) or msc_data.get('items', [])
                 p4_val = 0
                 if msc_list:
@@ -286,10 +286,10 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
             try:
                 with open(ecom_path, 'r', encoding='utf-8') as f:
                     ecom_data = json.load(f)
-                kw = (ecom_data.get('search_keyword') or ecom_data.get('keyword') or kw_default_ecom).strip()
-                kw = re.sub(r'[\r\n]+', ' ', kw)
-                if len(kw) > 25:
-                    kw = kw[:22] + '...'
+                raw_kw = (ecom_data.get('search_keyword') or ecom_data.get('keyword') or kw_default_ecom).strip()
+                kw = re.split(r'[\r\n]+', raw_kw)[0].split(' - ')[0].strip()
+                if len(kw) > 28:
+                    kw = kw[:25] + '...'
                 ecom_items = ecom_data.get('items', [])
                 p5_val = 0
                 if ecom_items:
@@ -439,15 +439,72 @@ def generate_item_pdf(item_data, dossier_info, output_path):
     hsx_xx = item_data.get('hsx_xx', 'N/A')
     so_luong = item_data.get('so_luong', 1)
     dvt = item_data.get('dvt', 'Cái')
+    dossier_name = dossier_info.get('dossier_name', 'Gói mua sắm SCTX 2026')
     don_gia_trinh = float(item_data.get('don_gia_trinh') or 0)
     thanh_tien_trinh = don_gia_trinh * so_luong
-    don_gia_thong_nhat = float(item_data.get('don_gia_thong_nhat') or don_gia_trinh)
+
+    # Trích xuất 5 pillars để tham chiếu mốc giá các cơ sở
+    pillars = extract_five_pillars(item_data, dossier_name=dossier_name)
+
+    # Tìm và nạp file chung_cu_synthesis.json nếu có để đảm bảo đơn giá duyệt mới nhất
+    candidate_folders = []
+    if dossier_name:
+        candidate_folders.append(f'projects/{dossier_name}_files/item_{item_id}')
+        candidate_folders.append(f'projects/{dossier_name}_files')
+    candidate_folders.append(f'current_dossier_files/item_{item_id}')
+
+    base_dir = os.path.abspath('data')
+    syn_path = None
+    for folder in candidate_folders:
+        cand = os.path.join(base_dir, folder)
+        if os.path.isdir(cand):
+            target_f = os.path.join(cand, 'chung_cu_synthesis.json') if folder.endswith(f'item_{item_id}') else os.path.join(cand, f'item_{item_id}', 'chung_cu_synthesis.json')
+            if os.path.exists(target_f):
+                syn_path = target_f
+                break
+    if not syn_path:
+        import glob
+        matches = glob.glob(os.path.join(base_dir, 'projects', '*_files', f'item_{item_id}', 'chung_cu_synthesis.json'))
+        if matches:
+            syn_path = matches[0]
+
+    syn_data = {}
+    if syn_path and os.path.exists(syn_path):
+        try:
+            with open(syn_path, 'r', encoding='utf-8') as f:
+                syn_data = json.load(f)
+        except Exception:
+            pass
+
+    syn_approved = syn_data.get('approved_price')
+    if syn_approved is not None and float(syn_approved) >= 0:
+        don_gia_thong_nhat = float(syn_approved)
+    else:
+        don_gia_thong_nhat = float(item_data.get('don_gia_thong_nhat') if item_data.get('don_gia_thong_nhat') is not None else don_gia_trinh)
+
     thanh_tien_thong_nhat = don_gia_thong_nhat * so_luong
-    gia_tri_giam = float(item_data.get('gia_tri_giam') or (thanh_tien_trinh - thanh_tien_thong_nhat))
+    gia_tri_giam = float(thanh_tien_trinh - thanh_tien_thong_nhat)
     pct_save = (gia_tri_giam / thanh_tien_trinh * 100) if thanh_tien_trinh > 0 else 0
     pycvt = item_data.get('pycvt', '1723/KTAT')
-    co_so_thong_nhat = item_data.get('co_so_thong_nhat', 'Căn cứ đối chiếu 5 cơ sở')
-    dossier_name = dossier_info.get('dossier_name', 'Gói mua sắm SCTX 2026')
+
+    # Xác định căn cứ thống nhất chuẩn xác
+    co_so_thong_nhat = syn_data.get('co_so_thong_nhat') or item_data.get('co_so_thong_nhat')
+    if not co_so_thong_nhat or co_so_thong_nhat.strip() in ('', 'N/A', 'Căn cứ đối chiếu 5 cơ sở'):
+        if pillars and len(pillars) >= 5:
+            if abs(don_gia_thong_nhat - pillars[4]['price']) < 1 and pillars[4]['price'] > 0:
+                co_so_thong_nhat = "Cơ sở 5: Tham khảo TMĐT / Giá Web"
+            elif abs(don_gia_thong_nhat - pillars[1]['price']) < 1 and pillars[1]['price'] > 0:
+                co_so_thong_nhat = f"Cơ sở 2: {pillars[1]['source']}"
+            elif abs(don_gia_thong_nhat - pillars[2]['price']) < 1 and pillars[2]['price'] > 0:
+                co_so_thong_nhat = f"Cơ sở 3: {pillars[2]['source']}"
+            elif abs(don_gia_thong_nhat - pillars[3]['price']) < 1 and pillars[3]['price'] > 0:
+                co_so_thong_nhat = f"Cơ sở 4: {pillars[3]['source']}"
+            elif abs(don_gia_thong_nhat - don_gia_trinh) < 1:
+                co_so_thong_nhat = "Cơ sở 1: Báo giá nộp kèm (Giữ giá trình)"
+            else:
+                co_so_thong_nhat = "Căn cứ đối chiếu 5 cơ sở"
+        else:
+            co_so_thong_nhat = "Căn cứ đối chiếu 5 cơ sở"
 
     # Typography styles
     styles = getSampleStyleSheet()
@@ -515,7 +572,7 @@ def generate_item_pdf(item_data, dossier_info, output_path):
         [Paragraph('Số lượng & ĐVT', s_cell_bold), Paragraph(f'{so_luong} {dvt}', s_cell), Paragraph('Căn cứ thống nhất', s_cell_bold), Paragraph(f'{clean_text_for_cell(co_so_thong_nhat, 50)}', s_cell)],
         [Paragraph('Đơn giá trình thẩm định', s_cell_bold), Paragraph(f'<b>{format_vnd(don_gia_trinh)}/{dvt}</b>', s_cell), Paragraph('Thành tiền trình', s_cell_bold), Paragraph(f'<b>{format_vnd(thanh_tien_trinh)}</b>', s_cell)],
         [Paragraph('Đơn giá đề xuất thống nhất', s_cell_bold), Paragraph(f'{format_vnd(don_gia_thong_nhat)}/{dvt}', s_cell_green), Paragraph('Thành tiền sau thẩm định', s_cell_bold), Paragraph(f'{format_vnd(thanh_tien_thong_nhat)}', s_cell_green)],
-        [Paragraph('Mức giảm trừ / Tiết kiệm', s_cell_bold), Paragraph(f'{format_vnd(gia_tri_giam)} ({pct_save:.1f}%)', s_cell_red), Paragraph('Trạng thái thẩm định', s_cell_bold), Paragraph('<font color="#B91C1C"><b>Cảnh báo cao hơn ERP</b></font>' if pct_save > 15 else 'Phù hợp mặt bằng giá', s_cell)],
+        [Paragraph('Mức giảm trừ / Tiết kiệm', s_cell_bold), Paragraph(f'{format_vnd(gia_tri_giam)} ({pct_save:.1f}%)', s_cell_red), Paragraph('Trạng thái thẩm định', s_cell_bold), Paragraph(f'<font color="#B91C1C"><b>Đề xuất giảm trừ (-{pct_save:.1f}%)</b></font>' if pct_save > 0 else 'Phù hợp mặt bằng giá', s_cell)],
     ]
     t1 = Table(t1_data, colWidths=[4.2*cm, 5.1*cm, 4.2*cm, 5.1*cm])
     t1.setStyle(TableStyle([
@@ -531,7 +588,6 @@ def generate_item_pdf(item_data, dossier_info, output_path):
 
     # 4. II. KẾT QUẢ TRA CỨU ĐỐI CHIẾU THEO 5 CƠ SỞ CHỨNG CỨ
     story.append(Paragraph('II. KẾT QUẢ TRA CỨU ĐỐI CHIẾU THEO 5 CƠ SỞ CHỨNG CỨ', s_h1))
-    pillars = extract_five_pillars(item_data, dossier_name=dossier_name)
 
     t2_data = [
         [Paragraph('STT & Cơ sở chứng cứ', s_cell_center_bold), Paragraph('Nguồn dữ liệu / Hồ sơ đối chiếu', s_cell_center_bold), Paragraph('Đơn giá tham chiếu', s_cell_center_bold), Paragraph('Tương quan & Nhận định đối chiếu', s_cell_center_bold)],

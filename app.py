@@ -82,6 +82,18 @@ def save_dossier_data(data):
     os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    # Tự động đồng bộ ngay lập tức sang file dự án đang hoạt động nếu có
+    if os.path.exists(ACTIVE_PROJECT_FILE):
+        try:
+            with open(ACTIVE_PROJECT_FILE, "r", encoding="utf-8") as fp:
+                act = json.load(fp)
+            act_id = act.get("active_id")
+            if act_id:
+                p_path = os.path.join(PROJECTS_DIR, act_id)
+                with open(p_path, "w", encoding="utf-8") as fp:
+                    json.dump(data, fp, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
 
 @app.route("/")
@@ -936,6 +948,27 @@ def api_save_evidence_step():
     payload["thoi_gian_luu"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(os.path.join(item_dir, fname), "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    # Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án
+    if step_type == "synthesis" or "approved_price" in payload:
+        try:
+            approved_p = float(payload.get("approved_price") if payload.get("approved_price") is not None else 0)
+            sum_text = payload.get("summary_text") or ""
+            dossier = load_dossier_data()
+            for it in dossier.get("items", []):
+                if it.get("id") == item_id or dossier.get("items", []).index(it) + 1 == item_id:
+                    it["don_gia_thong_nhat"] = approved_p
+                    qty = float(it.get("so_luong") or 1)
+                    it["thanh_tien_thong_nhat"] = approved_p * qty
+                    dg_trinh = float(it.get("don_gia_trinh") or 0)
+                    it["gia_tri_giam"] = (dg_trinh - approved_p) * qty
+                    it["danh_gia_ttd"] = sum_text
+                    if payload.get("co_so_thong_nhat"):
+                        it["co_so_thong_nhat"] = payload["co_so_thong_nhat"]
+                    break
+            save_dossier_data(dossier)
+        except Exception as e:
+            print(f"Lỗi đồng bộ hồ sơ dự án khi lưu synthesis: {e}")
         
     return jsonify({"success": True, "filename": fname})
 
