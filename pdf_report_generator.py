@@ -259,15 +259,17 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
             try:
                 with open(msc_path, 'r', encoding='utf-8') as f:
                     msc_data = json.load(f)
+                is_deselected = bool(msc_data.get('is_deselected') or msc_data.get('selected_record') == 'NONE')
                 raw_kw = (msc_data.get('used_keyword') or msc_data.get('keyword') or kw_default_msc).strip()
                 kw = re.split(r'[\r\n]+', raw_kw)[0].split(' - ')[0].strip()
                 if len(kw) > 28:
                     kw = kw[:25] + '...'
-                msc_list = msc_data.get('results', []) or msc_data.get('items', [])
+                msc_list = msc_data.get('results', []) or msc_data.get('items', []) or msc_data.get('danh_sach_ket_qua', [])
                 p4_val = 0
-                if msc_list:
-                    p4_val = float(msc_list[0].get('trung_thau_don_gia') or msc_list[0].get('don_gia') or msc_list[0].get('price') or 0)
-                if p4_val > 0:
+                if msc_list and not is_deselected:
+                    sel = msc_data.get('selected_record') if isinstance(msc_data.get('selected_record'), dict) else msc_list[0]
+                    p4_val = float(sel.get('trung_thau_don_gia') or sel.get('don_gia') or sel.get('price') or 0)
+                if p4_val > 0 and not is_deselected:
                     pillars[3]['price'] = p4_val
                     pillars[3].pop('price_display', None)
                     pillars[3]['source'] = f"Cổng MSC e-GP (Từ khóa: \"{kw}\")" if kw else "Cổng Mua sắm công Quốc gia"
@@ -276,7 +278,7 @@ def extract_five_pillars(item_data, data_dir="data", dossier_name=""):
                     pillars[3]['price'] = 0
                     pillars[3]['source'] = f"Cổng MSC e-GP (Từ khóa: \"{kw}\")" if kw else "Cổng Mua sắm công Quốc gia"
                     pillars[3]['price_display'] = "0 kết quả (Ko có giá)"
-                    pillars[3]['note'] = "Đã rà soát e-GP: Không ghi nhận gói thầu tương đồng"
+                    pillars[3]['note'] = "Đã rà soát e-GP: Không áp dụng làm căn cứ" if is_deselected else "Đã rà soát e-GP: Không ghi nhận gói thầu tương đồng"
             except Exception:
                 pass
 

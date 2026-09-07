@@ -1054,8 +1054,16 @@ def api_run_ai_synthesis(item_id):
             try:
                 with open(erp_file, "r", encoding="utf-8") as f:
                     ed = json.load(f)
-                    recs = ed.get("results") or ed.get("hop_dong") or []
-                    if recs: p2_price = float(recs[0].get("donGia") or recs[0].get("don_gia") or 0)
+                    is_erp_deselected = bool(ed.get("is_deselected") or ed.get("selected_record") == "NONE" or ed.get("status") == "ERP_DESELECTED")
+                    if is_erp_deselected:
+                        p2_price = 0
+                    else:
+                        sel = ed.get("selected_record")
+                        if isinstance(sel, dict):
+                            p2_price = float(sel.get("donGia") or sel.get("don_gia") or 0)
+                        elif sel != "NONE":
+                            recs = ed.get("results") or ed.get("hop_dong") or []
+                            if recs: p2_price = float(recs[0].get("donGia") or recs[0].get("don_gia") or 0)
                     p2_desc = ed.get("summary_text", "")
             except Exception: pass
 
@@ -1072,7 +1080,15 @@ def api_run_ai_synthesis(item_id):
             try:
                 with open(msc_file, "r", encoding="utf-8") as f:
                     mscd = json.load(f)
-                    p4_price = float(mscd.get("don_gia_tham_chieu") or 0)
+                    is_msc_deselected = bool(mscd.get("is_deselected") or mscd.get("selected_record") == "NONE" or mscd.get("status") == "MSC_DESELECTED")
+                    if is_msc_deselected:
+                        p4_price = 0
+                    else:
+                        sel = mscd.get("selected_record")
+                        if isinstance(sel, dict):
+                            p4_price = float(sel.get("donGia") or sel.get("don_gia") or sel.get("trung_thau_don_gia") or 0)
+                        elif sel != "NONE":
+                            p4_price = float(mscd.get("don_gia_tham_chieu") or 0)
                     p4_desc = mscd.get("summary_text", "")
             except Exception: pass
 

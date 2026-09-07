@@ -5,7 +5,7 @@ import {
   Loader2, Save, ArrowRight, ArrowLeft, ShieldCheck, ShieldAlert, Database,
   Search, RotateCcw, Pin, Check, BarChart3, Calculator, Filter,
   ShoppingBag, Link, Plus, Trash2, Edit3, Star, Percent, CheckCircle2,
-  DollarSign, Camera, Eye, X, Image as ImageIcon
+  DollarSign, Camera, Eye, X, XCircle, Image as ImageIcon
 } from 'lucide-react';
 import { useToast } from '../ui/Toast.jsx';
 
@@ -308,7 +308,9 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
         summary: mscResults?.summary || mscResults?.analysis?.summary || {},
         summary_text: mscResults?.summary_text || mscResults?.analysis?.summary_text || '',
         keyword: kw,
-        used_keyword: kw
+        used_keyword: kw,
+        selected_record: mscResults?.selected_record,
+        is_deselected: mscResults?.is_deselected
       });
     } else if (activePillar === 'ecom') {
       const payload = ecomResults || {
@@ -559,7 +561,9 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
                   results: mscResults?.analysis?.items || mscResults?.items || [],
                   summary: mscResults?.summary || mscResults?.analysis?.summary || {},
                   summary_text: mscResults?.summary_text || mscResults?.analysis?.summary_text || '',
-                  keyword: mscResults?.analysis?.keyword || getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt
+                  keyword: mscResults?.analysis?.keyword || getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt,
+                  selected_record: mscResults?.selected_record,
+                  is_deselected: mscResults?.is_deselected
                 }, 'ecom')}
                 onAutoSave={(payload) => {
                   setMscResults(payload);
@@ -2004,7 +2008,11 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   useEffect(() => {
     const smartKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
     setSearchKey(smartKw);
-    setSelectedIdx(0);
+    if (data?.is_deselected || data?.selected_record === 'NONE') {
+      setSelectedIdx(null);
+    } else {
+      setSelectedIdx(0);
+    }
     setPageNumber(0);
     setFilterKw('');
     setFilterOrigin('');
@@ -2051,16 +2059,21 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   });
 
   // Determine selected record or minimum price record
-  const selectedRecord = filteredItems[selectedIdx] || itemsList[selectedIdx] || itemsList[0];
+  const isDeselected = selectedIdx === null || data?.is_deselected || data?.selected_record === 'NONE';
+  const selectedRecord = isDeselected ? null : (filteredItems[selectedIdx] || itemsList[selectedIdx] || null);
   const selectedPrice = selectedRecord ? parseFloat(selectedRecord.don_gia || 0) : 0;
   const diffAmt = dgTrinh - selectedPrice;
   const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
 
   const thoiGianTraCuu = analysis?.thoi_gian_tra_cuu || new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
 
+  const DESELECTED_MSC_TEXT = `Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [${keywordUsed}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.`;
+
   // Build justification text
   let summaryText = '';
-  if (itemsList.length > 0 && selectedRecord) {
+  if (isDeselected) {
+    summaryText = (data?.summary_text && (data?.is_deselected || data?.selected_record === 'NONE')) ? data.summary_text : DESELECTED_MSC_TEXT;
+  } else if (itemsList.length > 0 && selectedRecord) {
     const benMoiThauStr = selectedRecord.ben_moi_thau ? `, Bên mời thầu: ${selectedRecord.ben_moi_thau}` : '';
     if (diffAmt <= 0) {
       summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
@@ -2070,6 +2083,44 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
   } else if (mscResponse && !searching) {
     summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu} nhưng chưa ghi nhận kết quả trúng thầu tương tự.`;
   }
+
+  const handleSelectRecord = (index) => {
+    if (selectedIdx === index) {
+      handleDeselectRecord();
+      return;
+    }
+    setSelectedIdx(index);
+    const rec = filteredItems[index] || itemsList[index];
+    toast.success(`Đã chọn kết quả e-GP làm căn cứ tham chiếu!`);
+    if (onAutoSave) {
+      onAutoSave({
+        analysis,
+        items: itemsList,
+        keyword: searchKey,
+        used_keyword: searchKey,
+        tu_khoa_tra_cuu: searchKey,
+        selected_record: rec,
+        is_deselected: false
+      });
+    }
+  };
+
+  const handleDeselectRecord = () => {
+    setSelectedIdx(null);
+    toast.info('Đã hủy chọn gói thầu e-GP. Không áp dụng kết quả Mua Sắm Công làm căn cứ.');
+    if (onAutoSave) {
+      onAutoSave({
+        analysis,
+        items: itemsList,
+        summary_text: DESELECTED_MSC_TEXT,
+        keyword: searchKey,
+        used_keyword: searchKey,
+        tu_khoa_tra_cuu: searchKey,
+        selected_record: 'NONE',
+        is_deselected: true
+      });
+    }
+  };
 
   const copyToClipboard = () => {
     if (summaryText) {
@@ -2240,19 +2291,40 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
 
       {/* Bản Thuyết Minh Căn Cứ Mua Sắm Công Quốc Gia */}
       {summaryText && (
-        <div className="p-4 rounded-xl border-2 border-orange-300 bg-orange-50/80 text-slate-900 shadow-sm transition">
+        <div className={`p-4 rounded-xl border-2 transition ${
+          isDeselected
+            ? 'bg-slate-50/90 border-slate-300 text-slate-800'
+            : 'border-orange-300 bg-orange-50/80 text-slate-900 shadow-sm'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-orange-950">
-              <FileText className="w-4 h-4 text-orange-700" /> 📄 BẢN THUYẾT MINH CĂN CỨ MUA SẮM CÔNG QUỐC GIA (TỰ ĐỘNG TỔNG HỢP)
+            <h5 className={`font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 ${
+              isDeselected ? 'text-slate-700' : 'text-orange-950'
+            }`}>
+              <FileText className={`w-4 h-4 ${isDeselected ? 'text-slate-500' : 'text-orange-700'}`} /> 📄 BẢN THUYẾT MINH CĂN CỨ MUA SẮM CÔNG QUỐC GIA (TỰ ĐỘNG TỔNG HỢP)
             </h5>
-            <button
-              onClick={copyToClipboard}
-              className="bg-white hover:bg-slate-100 text-orange-900 border border-orange-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-xs transition"
-            >
-              📋 Sao Chép Thuyết Minh MSC
-            </button>
+            <div className="flex items-center gap-2">
+              {!isDeselected ? (
+                <button
+                  onClick={handleDeselectRecord}
+                  className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 border border-slate-300 hover:border-rose-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-2xs transition cursor-pointer"
+                  title="Hủy chọn, không áp dụng kết quả Mua Sắm Công làm căn cứ"
+                >
+                  <XCircle className="w-3.5 h-3.5" /> ✕ Hủy Chọn Căn Cứ e-GP
+                </button>
+              ) : (
+                <span className="text-[10px] font-bold text-slate-600 bg-slate-200 px-2.5 py-1 rounded-md border border-slate-300 flex items-center gap-1">
+                  🚫 Đang Hủy Chọn (Không áp dụng)
+                </span>
+              )}
+              <button
+                onClick={copyToClipboard}
+                className="bg-white hover:bg-slate-100 text-orange-900 border border-orange-300 text-[11px] px-2.5 py-1 rounded-md font-bold flex items-center gap-1 shadow-xs transition"
+              >
+                📋 Sao Chép Thuyết Minh MSC
+              </button>
+            </div>
           </div>
-          <p className="text-xs leading-relaxed font-medium bg-white/80 p-3 rounded-lg border border-orange-200/80 text-slate-800">
+          <p className="text-xs leading-relaxed font-medium bg-white/80 p-3 rounded-lg border border-slate-200 text-slate-800">
             {summaryText}
           </p>
         </div>
@@ -2345,7 +2417,7 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredItems.map((r, i) => {
-                const isSelected = i === selectedIdx;
+                const isSelected = !isDeselected && i === selectedIdx;
                 const dg = parseFloat(r.don_gia || 0);
                 const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
 
@@ -2397,15 +2469,16 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
                   >
                     <td className="py-2 px-2 border-r text-center">
                       <button
-                        onClick={() => setSelectedIdx(i)}
-                        className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
+                        onClick={() => handleSelectRecord(i)}
+                        className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer ${
                           isSelected
-                            ? 'bg-orange-600 text-white shadow-xs'
+                            ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-xs ring-2 ring-orange-300'
                             : 'bg-slate-200 hover:bg-orange-100 text-slate-700'
                         }`}
+                        title={isSelected ? "Bấm vào đây để HỦY CHỌN dòng này" : "Bấm để CHỌN dòng này làm căn cứ"}
                       >
                         {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
-                        {isSelected ? 'Đã Chọn' : 'Chọn'}
+                        {isSelected ? '✓ Đã Chọn' : 'Chọn'}
                       </button>
                     </td>
                     <td className="py-2.5 px-3 border-r min-w-[180px]">
@@ -2480,7 +2553,8 @@ function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
           keyword: searchKey,
           used_keyword: searchKey,
           tu_khoa_tra_cuu: searchKey,
-          selected_record: selectedRecord
+          selected_record: isDeselected ? 'NONE' : selectedRecord,
+          is_deselected: isDeselected
         })}
         nextLabel="Cơ sở 5 (TMĐT)"
         prevLabel="Cơ sở 3 (IMIS)"
@@ -3309,13 +3383,19 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     0
   );
 
+  const isMscDeselected = Boolean(
+    mscResults?.is_deselected ||
+    mscResults?.selected_record === 'NONE' ||
+    mscResults?.summary?.status === 'MSC_DESELECTED' ||
+    mscResults?.summary?.is_deselected
+  );
+
   const mscList = mscResults?.analysis?.items || mscResults?.items || mscResults?.danh_sach_ket_qua || (Array.isArray(mscResults) ? mscResults : []);
-  const p4_price = parseFloat(
-    mscResults?.selected_record?.don_gia ||
-    mscResults?.selected_record?.donGia ||
+  const p4_price = isMscDeselected ? 0 : parseFloat(
+    (typeof mscResults?.selected_record === 'object' && (mscResults.selected_record?.don_gia || mscResults.selected_record?.donGia || mscResults.selected_record?.trung_thau_don_gia)) ||
     mscResults?.don_gia_tham_chieu ||
     mscResults?.min_price ||
-    extractFirstPrice(mscList) ||
+    (!mscResults?.selected_record && extractFirstPrice(mscList)) ||
     0
   );
 
@@ -3513,8 +3593,10 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
 
     // 4. Cơ sở 4: Mua Sắm Công e-GP
     let p4_desc = '';
-    if (p4_price > 0) {
-      const rec = mscResults?.selected_record || mscResults?.analysis?.items?.[0] || mscResults?.items?.[0];
+    if (isMscDeselected) {
+      p4_desc = `Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [${mscKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.`;
+    } else if (p4_price > 0) {
+      const rec = (typeof mscResults?.selected_record === 'object' && mscResults?.selected_record) || mscResults?.analysis?.items?.[0] || mscResults?.items?.[0];
       const vendorInfo = rec?.hang_sx || rec?.nhà_thầu ? ` (Nhà thầu ${rec.hang_sx || rec.nhà_thầu})` : '';
       p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là ${fmt(p4_price)} VNĐ/${unit}${vendorInfo}.`;
     } else if (has_p4) {
@@ -3543,7 +3625,7 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
     }
 
     setEditingText(text);
-  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, quoteEvidence, has_p2, p2_price, erpResults, has_p3, p3_price, imisResults, has_p4, p4_price, mscResults, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
+  }, [item?.ten_vt, item?.ma_vt, qty, item?.dvt, dgTrinh, approvedPrice, coverageScore, coverageRank, activeCount, priceScore, priceEval, has_p1, p1_price, quoteEvidence, has_p2, p2_price, isErpDeselected, erpResults, has_p3, p3_price, imisResults, has_p4, p4_price, isMscDeselected, mscResults, has_p5, p5_price, ecomResults, totalSavings, savingsPct]);
 
   const copyToClipboard = () => {
     if (editingText) {
@@ -3821,7 +3903,9 @@ function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, 
                     ) : p.key === 'p3' ? (
                       <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã đối soát CSDL EVN: 0 bản ghi</span>
                     ) : p.key === 'p4' ? (
-                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Đã rà soát e-GP: 0 gói thầu</span>
+                      <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">
+                        {isMscDeselected ? 'Đã rà soát e-GP: Không áp dụng làm căn cứ' : 'Đã rà soát e-GP: 0 gói thầu'}
+                      </span>
                     ) : p.key === 'p5' ? (
                       <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border text-[10.5px]">Vật tư đặc thù hãng, yêu cầu RFQ</span>
                     ) : (
