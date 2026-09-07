@@ -2311,7 +2311,7 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
     setSearchKey(defaultKw);
     setUrlItems(data?.items || []);
     setSelectedIdx(0);
-  }, [data, item?.id]);
+  }, [item?.id]);
 
   // Form input state for adding URL evidence
   const [showAddForm, setShowAddForm] = useState(false);
@@ -2357,13 +2357,20 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
     setNewPrice('');
     setNewNotes('');
     toast.success('Đã nạp đường link chứng cứ giá TMĐT!');
+    if (onAutoSave) {
+      onAutoSave({ items: updated, selected_record: newItemObj, search_keyword: searchKey });
+    }
   };
 
   const handleDeleteUrl = (idx) => {
     const updated = urlItems.filter((_, i) => i !== idx);
     setUrlItems(updated);
-    if (selectedIdx >= updated.length) setSelectedIdx(Math.max(0, updated.length - 1));
+    const newIdx = selectedIdx >= updated.length ? Math.max(0, updated.length - 1) : selectedIdx;
+    if (selectedIdx >= updated.length) setSelectedIdx(newIdx);
     toast.success('Đã xóa dòng chứng cứ TMĐT');
+    if (onAutoSave) {
+      onAutoSave({ items: updated, selected_record: updated[newIdx] || null, search_keyword: searchKey });
+    }
   };
 
   const selectedRecord = urlItems[selectedIdx] || urlItems[0];
@@ -2382,13 +2389,6 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
   } else {
     summaryText = `Đã tra cứu từ khóa [${searchKey}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
   }
-
-  // Trigger autoSave to sync ecom state up to parent view on mount & change
-  useEffect(() => {
-    if (onAutoSave) {
-      onAutoSave({ items: urlItems, selected_record: selectedRecord || null, summary_text: summaryText, search_keyword: searchKey });
-    }
-  }, [urlItems, selectedIdx, searchKey, summaryText]);
 
   const copyToClipboard = () => {
     if (summaryText) {
@@ -2616,7 +2616,12 @@ function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAut
                   <tr key={r.id || i} className={`transition text-[11px] ${isSelected ? 'bg-cyan-100/80 border-l-4 border-l-cyan-600 font-semibold' : 'hover:bg-cyan-50/40'}`}>
                     <td className="py-2 px-2 border-r text-center">
                       <button
-                        onClick={() => setSelectedIdx(i)}
+                        onClick={() => {
+                          setSelectedIdx(i);
+                          if (onAutoSave) {
+                            onAutoSave({ items: urlItems, selected_record: r, search_keyword: searchKey });
+                          }
+                        }}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
                           isSelected ? 'bg-cyan-700 text-white shadow-xs' : 'bg-slate-200 hover:bg-cyan-100 text-slate-700'
                         }`}
