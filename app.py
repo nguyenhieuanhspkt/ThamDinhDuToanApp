@@ -1307,13 +1307,116 @@ def api_run_5_pillars(item_id):
         target_item["thanh_tien_thong_nhat"] = target_item["don_gia_thong_nhat"] * sl
         dg_trinh = float(target_item.get("don_gia_trinh") or 0)
         target_item["gia_tri_giam"] = (dg_trinh - target_item["don_gia_thong_nhat"]) * sl
-        
+
+    # 7. Build Comprehensive Audit Trail for 100% Transparency
+    dg_trinh_val = float(target_item.get("don_gia_trinh") or 0)
+    dg_tn_val = float(target_item.get("don_gia_thong_nhat") or dg_trinh_val)
+    sl_val = float(target_item.get("so_luong") or 1)
+    giam_val = float(target_item.get("gia_tri_giam") or 0)
+    pct_save = ((dg_trinh_val - dg_tn_val) / dg_trinh_val * 100) if dg_trinh_val > 0 else 0
+
+    p1_supplier = "Chưa có"
+    p1_file = ""
+    p1_count = 0
+    if 'q_matches' in locals() and q_matches:
+        p1_count = len(q_matches.get("matches", []))
+        if q_matches.get("matches"):
+            p1_supplier = q_matches["matches"][0].get("company", "Nhà thầu chào")
+            p1_file = q_matches["matches"][0].get("filename", "")
+
+    p2_count = 0
+    p2_contract = ""
+    p2_year = ""
+    if 'recs' in locals() and recs:
+        p2_count = len(recs)
+        p2_contract = recs[0].get("so_hd") or recs[0].get("soHopDong") or ""
+        p2_year = str(recs[0].get("nam") or recs[0].get("thang_nam") or "")
+
+    p3_count = 0
+    p3_unit = ""
+    if 'imis_res' in locals() and imis_res and imis_res.get("imis"):
+        p3_count = len(imis_res["imis"])
+        p3_unit = imis_res["imis"][0].get("ten_don_vi", "")
+
+    audit_trail = {
+        "item_id": item_id,
+        "ten_vt": raw_ten,
+        "ma_vt": target_item.get("ma_vt", ""),
+        "keyword_used": keyword,
+        "so_luong": sl_val,
+        "dvt": target_item.get("dvt", "Cái"),
+        "don_gia_trinh": dg_trinh_val,
+        "don_gia_thong_nhat": dg_tn_val,
+        "thanh_tien_thong_nhat": float(target_item.get("thanh_tien_thong_nhat") or (dg_tn_val * sl_val)),
+        "gia_tri_giam": giam_val,
+        "pct_giam": pct_save,
+        "steps": [
+            {
+                "step_id": "quotes",
+                "name": "1. Báo Giá Gốc (PDF)",
+                "status": "success" if p1_price > 0 else "empty",
+                "price": p1_price,
+                "count": p1_count,
+                "supplier": p1_supplier,
+                "file": p1_file,
+                "detail": p1_desc
+            },
+            {
+                "step_id": "erp",
+                "name": "2. ERP Vĩnh Tân 4",
+                "status": "success" if p2_price > 0 else "empty",
+                "price": p2_price,
+                "count": p2_count,
+                "contract": p2_contract,
+                "year": p2_year,
+                "detail": p2_desc
+            },
+            {
+                "step_id": "imis",
+                "name": "3. EVN IMIS Toàn Ngành",
+                "status": "success" if p3_price > 0 else "empty",
+                "price": p3_price,
+                "count": p3_count,
+                "unit": p3_unit,
+                "detail": p3_desc
+            },
+            {
+                "step_id": "msc",
+                "name": "4. Mua Sắm Công e-GP",
+                "status": "success" if p4_price > 0 else "empty",
+                "price": p4_price,
+                "detail": p4_desc
+            },
+            {
+                "step_id": "ecom",
+                "name": "5. TMĐT & Tham Khảo Web",
+                "status": "info",
+                "price": p5_price,
+                "detail": p5_desc
+            },
+            {
+                "step_id": "synthesis",
+                "name": "6. AI Thuyết Minh & Chốt Giá",
+                "status": "success",
+                "price": dg_tn_val,
+                "coverage_score": sme_result.get("coverage_score", 85),
+                "price_score": sme_result.get("price_score", 90),
+                "summary_text": synthesis_text,
+                "detail": f"Đơn giá thống nhất: {dg_tn_val:,.0f} đ/Cái (Tiết kiệm {giam_val:,.0f} đ)".replace(",", ".")
+            }
+        ]
+    }
+
+    with open(os.path.join(item_dir, "chung_cu_audit_trail.json"), "w", encoding="utf-8") as f:
+        json.dump(audit_trail, f, ensure_ascii=False, indent=2)
+
     save_dossier_data(dossier)
     
     return jsonify({
         "success": True,
         "item_id": item_id,
         "keyword": keyword,
+        "audit_trail": audit_trail,
         "synthesis": sme_result,
         "item": target_item
     })

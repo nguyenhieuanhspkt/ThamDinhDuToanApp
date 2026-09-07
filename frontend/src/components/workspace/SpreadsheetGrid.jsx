@@ -453,15 +453,15 @@ export default function SpreadsheetGrid({
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-xs italic">Không có dòng dữ liệu bóc tách nào.</div>
         ) : (
-          <table className="w-full text-xs text-left border-collapse bg-white rounded border shadow-2xs min-w-[1100px]">
+          <table className="w-full text-xs text-left border-collapse bg-white rounded border shadow-2xs min-w-[900px]">
             <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10 border-b">
               <tr>
                 <th className="py-2 px-1 text-center w-8 border-r">TT</th>
-                <th className="py-2 px-2 text-left w-64 border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
+                <th className="py-2 px-2 text-left w-64 min-w-[220px] border-r bg-emerald-100/80 text-emerald-950 font-bold" title="Gắn với STT Mục trong Dự toán Thẩm định">
                   Gắn Mục # Dự Toán
                 </th>
-                <th className="py-2 px-2.5 w-72 border-r">Tên Hàng Hóa / Vật Tư Trong Báo Giá</th>
-                <th className="py-2 px-2.5 w-60 border-r">Thông Số Kỹ Thuật Báo Giá</th>
+                <th className="py-2 px-3 min-w-[280px] border-r">Tên Hàng Hóa / Vật Tư Trong Báo Giá</th>
+                <th className="py-2 px-3 min-w-[200px] border-r">Thông Số Kỹ Thuật Báo Giá</th>
                 <th className="py-2 px-1 text-center w-12 border-r">ĐVT</th>
                 <th className="py-2 px-1 text-center w-12 border-r">SL</th>
                 <th className="py-2 px-2 text-right w-28 border-r">Đơn Giá (đ)</th>
@@ -584,7 +584,7 @@ export default function SpreadsheetGrid({
                         value={it.ten_vt || ''}
                         onChange={(e) => handleRowChange(idx, 'ten_vt', e.target.value)}
                         onFocus={() => onRowClick(it.page || 1)}
-                        className="w-full text-xs font-semibold text-slate-900 p-1 border border-slate-200 rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 truncate"
+                        className="w-full text-xs font-semibold text-slate-900 p-1 border border-slate-200 rounded bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500"
                         title={it.ten_vt || ''}
                       />
                     </td>
@@ -596,7 +596,7 @@ export default function SpreadsheetGrid({
                         value={it.tskt || ''}
                         onChange={(e) => handleRowChange(idx, 'tskt', e.target.value)}
                         onFocus={() => onRowClick(it.page || 1)}
-                        className="w-full text-[11px] text-slate-600 p-1 border border-slate-200 rounded bg-transparent focus:bg-white truncate"
+                        className="w-full text-[11px] text-slate-600 p-1 border border-slate-200 rounded bg-transparent focus:bg-white"
                         title={it.tskt || ''}
                       />
                     </td>

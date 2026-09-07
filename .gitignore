@@ -23,6 +23,7 @@ data/.quotes_cache.json
 data/projects/*/
 data/projects/*_files/
 data/projects/*.json
+data/*_files/
 
 # --- CÁC FILE TESSERACT OCR BINARY ---
 *.traineddata
