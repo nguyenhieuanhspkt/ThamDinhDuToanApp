@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import {
   FileCheck2, Building2, Network, Globe, ShoppingBag, Brain,
   CheckCircle2, Loader2, AlertTriangle, FileDown, ExternalLink,
-  X, Check, ChevronDown, ChevronUp, ShieldCheck, Key
+  X, Check, ChevronDown, ChevronUp, ShieldCheck, Key, Table2
 } from 'lucide-react';
 
-export default function AuditProgressModal({
+function AuditProgressModalContent({
   isOpen,
   onClose,
   item,
@@ -353,5 +353,54 @@ export default function AuditProgressModal({
 
       </div>
     </div>
+  );
+}
+
+// Lớp bảo vệ chống sập giao diện (Zero White-Screen Guarantee)
+class ModalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('Lỗi giao diện Modal 5 Cơ Sở:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full shadow-2xl border border-rose-200">
+            <h3 className="text-base font-bold text-rose-700">Lỗi giao diện Báo cáo minh bạch</h3>
+            <p className="text-xs text-slate-600 mt-2 font-mono bg-slate-50 p-2 rounded border border-slate-200">
+              {this.state.error?.message || 'Không thể hiển thị báo cáo'}
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  if (this.props.onClose) this.props.onClose();
+                }}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function AuditProgressModal(props) {
+  if (!props.isOpen) return null;
+  return (
+    <ModalErrorBoundary onClose={props.onClose}>
+      <AuditProgressModalContent {...props} />
+    </ModalErrorBoundary>
   );
 }
