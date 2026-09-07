@@ -1072,6 +1072,15 @@ def generate_imis_summary_text(item, imis_records, dg_trinh=0, selected_record=N
         and (r.get("ten_vt") or r.get("mo_ta") or r.get("ten_hang_hoa") or "").strip() != ""
     ]
 
+    if selected_record == "NONE":
+        return {
+            "status": "IMIS_DESELECTED",
+            "is_deselected": True,
+            "tu_ngay": fmt_tu,
+            "den_ngay": fmt_den,
+            "summary_text": f"{date_header}, các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán nên thẩm định viên không áp dụng làm căn cứ thẩm định."
+        }
+
     if not valid_records:
         return {
             "status": "NO_IMIS_DATA",

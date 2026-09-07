@@ -1229,8 +1229,9 @@ def api_search_sources():
     den_ngay = req.get("den_ngay")
     ma_vt = req.get("ma_vt", "")
     item = req.get("item", kw)
-    dg_trinh = float(req.get("dg_trinh") or 0)
     selected_record = req.get("selected_record")
+    if req.get("is_deselected") or selected_record == "NONE":
+        selected_record = "NONE"
     use_average = req.get("use_average", False)
 
     if not kw:

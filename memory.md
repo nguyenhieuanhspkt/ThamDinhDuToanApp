@@ -72,7 +72,14 @@
    - "Tra 5 cơ sở" ưu tiên tốc độ tối đa (1-2s / mục) để phục vụ duyệt nhanh danh mục.
    - Bước AI Thuyết minh chuyển thành tùy chọn (chỉ chạy khi thẩm định viên chủ động yêu cầu).
    - Bổ sung nút Hủy chọn / Chọn lại cho Mua Sắm Công trong View 3.
+   - **Nút Hủy Chọn Căn Cứ IMIS (Cơ sở 3) & Bấm lại để Hủy Chọn trên từng dòng kết quả IMIS**:
+      + Cơ chế Toggle deselect linh hoạt: Thẩm định viên nhấp lại vào dòng hợp đồng IMIS đang chọn (hoặc nút Phương án Đơn vị EVN cụ thể / Đơn giá trung bình) sẽ chuyển ngay sang trạng thái HỦY CHỌN (`is_deselected: true`, `selected_record: 'NONE'`).
+      + Bổ sung nút bấm chuyên dụng **`✕ Hủy Chọn IMIS`** màu đỏ trên thanh Tùy chọn Phương án giúp thao tác 1-click rõ ràng.
+      + Hiệu ứng hover trực quan: nút *"✓ Đã Chọn"* khi di chuột vào tự động hiển thị *"✕ Hủy Chọn"* màu đỏ nổi bật.
+      + Bản thuyết minh tự động cập nhật sang trạng thái *(ĐÃ HỦY CHỌN)*: *"Đã tra cứu CSDL EVN IMIS theo từ khóa [...], các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán nên thẩm định viên không áp dụng làm căn cứ thẩm định."*
+      + Trạng thái hủy chọn được tự động lưu ngầm vào `chung_cu_imis.json`, truyền đúng lên backend (`app.py`, `imis_core.py`) và đồng bộ OneDrive EVN Cache, ngăn việc tự động chọn đè record khi mở lại.
    - Thêm thông số thể hiện tiến độ đã lưu CSDL thẩm định (X / 98 mục) trên giao diện.
+   - Thêm nút mở nhanh thư mục OneDrive Cache trên giao diện HeaderNav.
 
 ---
 

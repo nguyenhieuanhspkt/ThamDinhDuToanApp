@@ -332,7 +332,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
         summary: imisResults?.summary || {},
         summary_text: imisResults?.summary_text || imisResults?.summary?.summary_text || '',
         keyword: kw,
-        used_keyword: kw
+        used_keyword: kw,
+        selected_record: imisResults?.selected_record,
+        is_deselected: imisResults?.is_deselected,
+        use_average: imisResults?.use_average
       });
     } else if (activePillar === 'msc' && mscResults) {
       const smartKw = getDefaultImisKeyword(currentItem.ten_vt);
@@ -575,7 +578,10 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
                   erp: imisResults?.erp || [],
                   summary: imisResults?.summary || {},
                   summary_text: imisResults?.summary_text || imisResults?.summary?.summary_text || '',
-                  keyword: getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt
+                  keyword: getDefaultImisKeyword(currentItem.ten_vt) || currentItem.ten_vt,
+                  selected_record: imisResults?.selected_record,
+                  is_deselected: imisResults?.is_deselected,
+                  use_average: imisResults?.use_average
                 }, 'msc')}
                 onAutoSave={(payload) => {
                   setImisResults(payload);
@@ -1371,11 +1377,27 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
     return savedKw;
   };
 
+  const getInitialImisIdx = (d, list) => {
+    if (!d) return 0;
+    if (d.is_deselected || d.selected_record === 'NONE') return null;
+    if (d.use_average || d.selected_record === 'AVERAGE') return 'AVERAGE';
+    const recs = list || d.imis || [];
+    if (d.selected_record && Array.isArray(recs)) {
+      const idx = recs.findIndex(r => 
+        (r.so_hop_dong && r.so_hop_dong === d.selected_record?.so_hop_dong) ||
+        (r.ma_vt && r.ma_vt === d.selected_record?.ma_vt) ||
+        (r.ten_vt && r.ten_vt === d.selected_record?.ten_vt)
+      );
+      return idx >= 0 ? idx : 0;
+    }
+    return 0;
+  };
+
   const initialCleanKw = getSmartImisKw(item?.ten_vt || '', data?.used_keyword || data?.keyword);
   const [searchKey, setSearchKey] = useState(initialCleanKw);
   const [tuNgay, setTuNgay] = useState('2023-01-01');
   const [denNgay, setDenNgay] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(() => getInitialImisIdx(data, data?.imis));
   const [searching, setSearching] = useState(false);
 
   // In-table client filtering states
@@ -1384,21 +1406,28 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
   const [priceFilter, setPriceFilter] = useState('ALL'); // ALL, LOWER, HIGHER
 
   useEffect(() => {
-    setImisResults(data?.imis || []);
+    const list = data?.imis || (Array.isArray(data) ? data : []);
+    setImisResults(list);
     setSummaryData(data?.summary || {});
     const smartKw = getSmartImisKw(item?.ten_vt || '', data?.used_keyword || data?.keyword);
     setSearchKey(smartKw);
-    setSelectedIdx(0);
+    setSelectedIdx(getInitialImisIdx(data, list));
     setFilterKw('');
     setFilterUnit('');
     setPriceFilter('ALL');
   }, [data, item]);
 
+  const isDeselected = selectedIdx === null || data?.is_deselected || data?.selected_record === 'NONE';
+  const DESELECTED_IMIS_TEXT = `Đã tra cứu CSDL EVN IMIS theo từ khóa [${searchKey || item?.ten_vt || ''}], các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán nên thẩm định viên không áp dụng làm căn cứ thẩm định.`;
+  const summaryText = isDeselected
+    ? ((summaryData?.status === 'IMIS_DESELECTED' && summaryData?.summary_text) ? summaryData.summary_text : (data?.summary_text && (data?.is_deselected || data?.selected_record === 'NONE') ? data.summary_text : DESELECTED_IMIS_TEXT))
+    : (summaryData?.summary_text || data?.summary_text || '');
+
   // Tự động khôi phục thuyết minh IMIS nếu dữ liệu đệm bị khuyết summary_text
   useEffect(() => {
     const list = imisResults || [];
     const curSummaryText = summaryData?.summary_text || data?.summary_text;
-    if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt) {
+    if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt && !isDeselected) {
       const kwToUse = searchKey || getDefaultImisKeyword(item.ten_vt) || item.ten_vt;
       fetch('/api/search-item-sources', {
         method: 'POST',
@@ -1423,16 +1452,17 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
               summary: resp.summary,
               summary_text: resp.summary?.summary_text || '',
               keyword: kwToUse,
-              used_keyword: kwToUse
+              used_keyword: kwToUse,
+              selected_record: resp.imis?.[0] || null,
+              is_deselected: false
             });
           }
         }
       })
       .catch(console.error);
     }
-  }, [imisResults, summaryData, data, item, dgTrinh, searchKey, searching, tuNgay, denNgay, onAutoSave]);
+  }, [imisResults, summaryData, data, item, dgTrinh, searchKey, searching, tuNgay, denNgay, onAutoSave, isDeselected]);
 
-  const summaryText = summaryData?.summary_text || data?.summary_text;
   const isConnected = imisStatus?.is_connected;
   const candidates = (data?.candidates && data.candidates.length > 0)
     ? data.candidates
@@ -1475,7 +1505,9 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           summary_text: sumData?.summary_text || resp.summary_text || '',
           keyword: cleanKw,
           used_keyword: cleanKw,
-          selected_record: imisList[0] || null
+          selected_record: imisList[0] || null,
+          is_deselected: false,
+          use_average: false
         });
       }
     } catch (e) {
@@ -1489,10 +1521,63 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
     triggerSearchWithKw(searchKey);
   };
 
+  const handleDeselectRecord = async () => {
+    setSelectedIdx(null);
+    const deselectText = `Đã tra cứu CSDL EVN IMIS theo từ khóa [${searchKey || item?.ten_vt || ''}], các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán nên thẩm định viên không áp dụng làm căn cứ thẩm định.`;
+    const sumData = {
+      status: 'IMIS_DESELECTED',
+      is_deselected: true,
+      summary_text: deselectText
+    };
+    setSummaryData(sumData);
+    toast.info('Đã hủy chọn hợp đồng IMIS. Không áp dụng kết quả IMIS làm căn cứ.');
+    if (onAutoSave) {
+      onAutoSave({
+        imis: imisResults,
+        erp: [],
+        summary: sumData,
+        summary_text: deselectText,
+        keyword: searchKey,
+        used_keyword: searchKey,
+        selected_record: 'NONE',
+        use_average: false,
+        is_deselected: true
+      });
+    }
+    try {
+      const res = await fetch('/api/search-item-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword: searchKey,
+          item,
+          dg_trinh: dgTrinh,
+          selected_record: 'NONE',
+          is_deselected: true,
+          tu_ngay: tuNgay,
+          den_ngay: denNgay
+        })
+      });
+      const resp = await res.json();
+      if (resp.summary) {
+        setSummaryData(resp.summary);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSelectRecord = async (indexOrRec) => {
     let rec = typeof indexOrRec === 'object' ? indexOrRec : imisResults[indexOrRec];
     let idx = typeof indexOrRec === 'number' ? indexOrRec : imisResults.indexOf(indexOrRec);
     if (idx < 0) idx = 0;
+
+    // Toggle OFF: Bấm lại vào dòng đang chọn -> HỦY CHỌN
+    if (selectedIdx === idx) {
+      await handleDeselectRecord();
+      return;
+    }
+
     setSelectedIdx(idx);
     if (!rec) return;
     try {
@@ -1504,6 +1589,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           item,
           dg_trinh: dgTrinh,
           selected_record: rec,
+          is_deselected: false,
           tu_ngay: tuNgay,
           den_ngay: denNgay
         })
@@ -1519,7 +1605,9 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           summary_text: sumData?.summary_text || summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: rec
+          selected_record: rec,
+          use_average: false,
+          is_deselected: false
         });
       }
     } catch (e) {
@@ -1528,6 +1616,10 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
   };
 
   const handleSelectAverage = async () => {
+    if (selectedIdx === 'AVERAGE') {
+      await handleDeselectRecord();
+      return;
+    }
     setSelectedIdx('AVERAGE');
     try {
       const res = await fetch('/api/search-item-sources', {
@@ -1538,6 +1630,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           item,
           dg_trinh: dgTrinh,
           use_average: true,
+          is_deselected: false,
           tu_ngay: tuNgay,
           den_ngay: denNgay
         })
@@ -1553,8 +1646,9 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           summary_text: sumData?.summary_text || summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: null,
-          use_average: true
+          selected_record: 'AVERAGE',
+          use_average: true,
+          is_deselected: false
         });
       }
     } catch (e) {
@@ -1749,42 +1843,92 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
       </div>
 
       {/* Thanh Chọn Phương Án Thẩm Định IMIS */}
-      {imisResults.length >= 2 && (
+      {imisResults.length >= 1 && (
         <div className="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200 flex items-center justify-between gap-3 text-xs shadow-xs">
           <span className="font-bold text-purple-950 flex items-center gap-1.5 shrink-0">
             <Calculator className="w-4 h-4 text-purple-700" /> Tùy chọn Phương án Căn cứ IMIS ({imisResults.length} hợp đồng):
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => handleSelectRecord(typeof selectedIdx === 'number' ? selectedIdx : 0)}
+              onClick={() => {
+                if (typeof selectedIdx === 'number') {
+                  handleDeselectRecord();
+                } else {
+                  handleSelectRecord(0);
+                }
+              }}
+              title={typeof selectedIdx === 'number' ? "Nhấp để HỦY CHỌN phương án hợp đồng cụ thể" : "Chọn áp dụng theo hợp đồng cụ thể"}
               className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border ${
-                selectedIdx !== 'AVERAGE'
-                  ? 'bg-purple-700 text-white border-purple-800 shadow-xs'
+                typeof selectedIdx === 'number'
+                  ? 'bg-purple-700 hover:bg-rose-600 text-white border-purple-800 shadow-xs group'
                   : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
               }`}
             >
-              <Pin className="w-3.5 h-3.5" /> Theo Đơn Vị EVN Cụ Thể {typeof selectedIdx === 'number' ? `(#${selectedIdx + 1})` : ''}
+              {typeof selectedIdx === 'number' ? (
+                <>
+                  <Pin className="w-3.5 h-3.5 group-hover:hidden" />
+                  <X className="w-3.5 h-3.5 hidden group-hover:inline" />
+                  <span className="group-hover:hidden">Theo Đơn Vị EVN Cụ Thể (#{selectedIdx + 1})</span>
+                  <span className="hidden group-hover:inline">Hủy Chọn Căn Cứ IMIS</span>
+                </>
+              ) : (
+                <>
+                  <Pin className="w-3.5 h-3.5" />
+                  <span>Theo Đơn Vị EVN Cụ Thể (#1)</span>
+                </>
+              )}
             </button>
-            <button
-              onClick={handleSelectAverage}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border ${
-                selectedIdx === 'AVERAGE'
-                  ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-amber-300" /> 📊 Chọn Đơn Giá Trung Bình EVN (AVG): {fmt(avgPrice)} đ
-            </button>
+            {imisResults.length >= 2 && (
+              <button
+                onClick={handleSelectAverage}
+                title={selectedIdx === 'AVERAGE' ? "Nhấp để HỦY CHỌN phương án giá trung bình" : "Chọn áp dụng đơn giá trung bình"}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 border ${
+                  selectedIdx === 'AVERAGE'
+                    ? 'bg-emerald-700 hover:bg-rose-600 text-white border-emerald-800 shadow-xs group'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {selectedIdx === 'AVERAGE' ? (
+                  <>
+                    <BarChart3 className="w-3.5 h-3.5 text-amber-300 group-hover:hidden" />
+                    <X className="w-3.5 h-3.5 hidden group-hover:inline" />
+                    <span className="group-hover:hidden">📊 Chọn Đơn Giá Trung Bình EVN (AVG): {fmt(avgPrice)} đ</span>
+                    <span className="hidden group-hover:inline">Hủy Chọn Giá Trung Bình</span>
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
+                    <span>📊 Chọn Đơn Giá Trung Bình EVN (AVG): {fmt(avgPrice)} đ</span>
+                  </>
+                )}
+              </button>
+            )}
+            {selectedIdx !== null && (
+              <button
+                onClick={handleDeselectRecord}
+                title="Hủy chọn toàn bộ căn cứ IMIS (không áp dụng kết quả này làm mốc so sánh)"
+                className="px-2.5 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1 bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-600 hover:text-white shadow-2xs"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Hủy Chọn IMIS</span>
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Bản Thuyết Minh Căn Cứ IMIS EVN Tự Động */}
       {summaryText && (
-        <div className="p-4 rounded-xl border-2 border-purple-300 bg-purple-50/80 text-slate-900 shadow-sm transition">
+        <div className={`p-4 rounded-xl border-2 shadow-sm transition ${
+          isDeselected || summaryData?.status === 'IMIS_DESELECTED'
+            ? 'bg-slate-100 border-slate-300 text-slate-700'
+            : 'border-purple-300 bg-purple-50/80 text-slate-900'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <h5 className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 text-purple-900">
-              <FileText className="w-4 h-4 text-purple-700" /> 📄 BẢN THUYẾT MINH CĂN CỨ IMIS EVN (TỰ ĐỘNG TỔNG HỢP)
+            <h5 className={`font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 ${
+              isDeselected || summaryData?.status === 'IMIS_DESELECTED' ? 'text-slate-700' : 'text-purple-900'
+            }`}>
+              <FileText className="w-4 h-4 text-purple-700" /> 📄 BẢN THUYẾT MINH CĂN CỨ IMIS EVN {isDeselected ? '(ĐÃ HỦY CHỌN)' : '(TỰ ĐỘNG TỔNG HỢP)'}
             </h5>
             <button
               onClick={copyToClipboard}
@@ -1884,7 +2028,7 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredImisResults.map((r, i) => {
-                const isSelected = imisResults[selectedIdx] === r || imisResults.indexOf(r) === selectedIdx;
+                const isSelected = !isDeselected && (imisResults[selectedIdx] === r || imisResults.indexOf(r) === selectedIdx);
                 const matchScore = r.match_score || 80;
                 const dg = parseFloat(r.don_gia || r.gia || r.donGia || 0);
                 const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
@@ -1894,14 +2038,26 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
                     <td className="py-2 px-2 border-r text-center">
                       <button
                         onClick={() => handleSelectRecord(r)}
-                        className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
+                        title={isSelected ? "Bấm để HỦY CHỌN dòng này" : "Chọn dòng này làm căn cứ thẩm định"}
+                        className={`text-[10px] px-2.5 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto group ${
                           isSelected
-                            ? 'bg-purple-700 text-white shadow-xs'
+                            ? 'bg-purple-700 hover:bg-rose-600 text-white shadow-xs'
                             : 'bg-slate-200 hover:bg-purple-100 text-slate-700'
                         }`}
                       >
-                        {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
-                        {isSelected ? 'Đã Chọn' : 'Chọn'}
+                        {isSelected ? (
+                          <>
+                            <Check className="w-3 h-3 group-hover:hidden" />
+                            <X className="w-3 h-3 hidden group-hover:inline" />
+                            <span className="group-hover:hidden">Đã Chọn</span>
+                            <span className="hidden group-hover:inline">Hủy Chọn</span>
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="w-3 h-3" />
+                            <span>Chọn</span>
+                          </>
+                        )}
                       </button>
                     </td>
                     <td className="py-2 px-2 border-r text-center font-mono font-bold">
@@ -1958,7 +2114,9 @@ function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, 
           summary_text: summaryText,
           keyword: searchKey,
           used_keyword: searchKey,
-          selected_record: imisResults[selectedIdx]
+          selected_record: typeof selectedIdx === 'number' ? imisResults[selectedIdx] : (selectedIdx === 'AVERAGE' ? 'AVERAGE' : 'NONE'),
+          is_deselected: isDeselected,
+          use_average: selectedIdx === 'AVERAGE'
         })}
         nextLabel="Cơ sở 4 (MSC)"
         prevLabel="Cơ sở 2 (ERP)"

@@ -277,12 +277,12 @@
     },
     {
       "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 1508000,
+      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 1.508.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 836.800 đ/Cái (HĐ: Nhập kho vật tư (HĐ:136/2021) theo hóa đơn số 466. 467 ngày 12.07.2022 ngày 2022-07-28. SL: 2 Cái); Các đợt nhập khác: 1.250.000 đ, 18.374.000 đ\n• Cơ sở 3 (EVN IMIS): IMIS EVN: 58.500 đ/Cái (Công ty Thủy điện Huội Quảng - Bản Chát - Chi nhánh Tập đoàn Điện lực Việt Nam)\n• Cơ sở 4 (Mua Sắm Công e-GP): e-GP MSC: 385.000 đ/Cái (Kết quả trúng thầu)\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 58.500 đ/Cái.",
+      "don_gia_thong_nhat": 58500.0,
       "don_gia_trinh": 1508000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 7247500.0,
       "hsx_xx": "Minimax/ Trung Quốc",
       "id": 10,
       "ma_vt": "Chưa có mã vật tư",
@@ -292,11 +292,12 @@
       "so_luong": 5,
       "ten_vt": "Union tee - Union tee \n- Type: T - Union tee \n- Model: T - PL A3C \n- Part no.: 125645 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressive ring (at three ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "ten_vt_goc": "Union tee",
-      "thanh_tien_thong_nhat": 7540000,
+      "thanh_tien_thong_nhat": 292500.0,
       "thanh_tien_trinh": 7540000,
       "thong_so_kt": "Union tee \n- Type: T - Union tee \n- Model: T - PL A3C \n- Part no.: 125645 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressive ring (at three ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "thue": "0.08",
-      "tien_thue": 603200
+      "tien_thue": 603200,
+      "search_keyword": "DPR 10-L/S"
     },
     {
       "co_so_thong_nhat": "",
