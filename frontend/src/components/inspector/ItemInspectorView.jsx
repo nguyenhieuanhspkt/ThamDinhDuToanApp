@@ -790,9 +790,15 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
     }
   }, [erpResults, summaryData, data, item, dgTrinh, searchKey, searching, mapping, onAutoSave]);
 
-  const summaryText = summaryData?.summary_text || data?.summary_text;
-  const status = summaryData?.status;
-  const isWarning = status === 'ERP_WARN_RECENT_INCREASE';
+  const DESELECTED_ERP_TEXT = 'Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.';
+
+  const isDeselected = selectedIdx === null || summaryData?.status === 'ERP_DESELECTED' || data?.is_deselected || data?.selected_record === 'NONE';
+
+  const summaryText = isDeselected 
+    ? (summaryData?.summary_text && summaryData?.status === 'ERP_DESELECTED' ? summaryData.summary_text : DESELECTED_ERP_TEXT)
+    : (summaryData?.summary_text || data?.summary_text);
+  const status = isDeselected ? 'ERP_DESELECTED' : summaryData?.status;
+  const isWarning = !isDeselected && status === 'ERP_WARN_RECENT_INCREASE';
 
   const handleManualSearch = async () => {
     const cleanKw = searchKey.trim();
@@ -840,6 +846,26 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
 
   const handleDeselectRecord = async () => {
     setSelectedIdx(null);
+    const sumData = {
+      status: 'ERP_DESELECTED',
+      is_deselected: true,
+      summary_text: DESELECTED_ERP_TEXT
+    };
+    setSummaryData(sumData);
+    if (onAutoSave) {
+      onAutoSave({
+        results: erpResults,
+        mapping: mapping,
+        summary: sumData,
+        summary_text: DESELECTED_ERP_TEXT,
+        keyword: searchKey,
+        used_keyword: searchKey,
+        selected_record: 'NONE',
+        use_average: false,
+        is_deselected: true
+      });
+    }
+    toast.info('Đã hủy chọn hợp đồng ERP. Không áp dụng kết quả ERP làm căn cứ.');
     try {
       const res = await fetch('/api/erp/search', {
         method: 'POST',
@@ -852,25 +878,8 @@ function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, s
         })
       });
       const resp = await res.json();
-      const sumData = resp.summary || {
-        status: 'ERP_DESELECTED',
-        is_deselected: true,
-        summary_text: 'Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.'
-      };
-      setSummaryData(sumData);
-      toast.info('Đã hủy chọn hợp đồng ERP. Không áp dụng kết quả ERP làm căn cứ.');
-      if (onAutoSave) {
-        onAutoSave({
-          results: erpResults,
-          mapping: mapping,
-          summary: sumData,
-          summary_text: sumData?.summary_text || '',
-          keyword: searchKey,
-          used_keyword: searchKey,
-          selected_record: 'NONE',
-          use_average: false,
-          is_deselected: true
-        });
+      if (resp.summary) {
+        setSummaryData(resp.summary);
       }
     } catch (e) {
       console.error(e);

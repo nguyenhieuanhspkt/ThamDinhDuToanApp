@@ -746,6 +746,20 @@ def api_erp_search():
     cfg = imis_core.load_erp_mapping_config()
     mapping = cfg.get("mapping", {})
     
+    if selected_record == "NONE":
+        summary_data = {
+            "status": "ERP_DESELECTED",
+            "is_deselected": True,
+            "summary_text": "Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
+        }
+        return jsonify({
+            "success": True,
+            "results": results,
+            "mapping": mapping,
+            "summary": summary_data,
+            "summary_text": summary_data["summary_text"]
+        })
+
     use_average = req.get("use_average", False) or selected_record == "AVERAGE"
     summary_data = imis_core.generate_erp_summary_text(item, results, dg_trinh=dg_trinh, selected_record=selected_record, use_average=use_average)
     return jsonify({
