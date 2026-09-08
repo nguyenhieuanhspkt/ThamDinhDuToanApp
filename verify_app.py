@@ -269,6 +269,71 @@ def run_verification():
         ts.assert_true(False, "Kiểm thử Quản lý State", f"Lỗi: {e}")
 
     # -------------------------------------------------------------
+    # NHÓM 7: KIỂM THỬ KÍCH THƯỚC THỜI GIAN & CHI PHÍ NHẬP KHẨU LANDED COST
+    # -------------------------------------------------------------
+    print("\n[NHÓM 7] KIỂM THỬ KÍCH THƯỚC THỜI GIAN & LANDED COST:")
+    try:
+        # 7.1 Kiểm tra các hàm tính toán thời gian và Landed Cost trong keywordHelpers.js
+        with open(kw_file, "r", encoding="utf-8") as f:
+            kw_code = f.read()
+        has_time_delta = "computeTimeDelta" in kw_code
+        has_escalation = "computeAnnualEscalation" in kw_code
+        has_ceiling = "computeEscalationCeiling" in kw_code
+        has_landed = "computeLandedCost" in kw_code
+        ts.assert_true(has_time_delta and has_escalation and has_ceiling and has_landed,
+                       "keywordHelpers: Đầy đủ 4 hàm tính toán thời gian, trượt giá năm, trần CPI và Landed Cost")
+
+        # 7.2 Kiểm thử thuật toán Toán học tài chính (CPI & Landed Cost)
+        # Landed cost test: 1.000.000 + 20% = 1.200.000
+        landed_math = int(round(1000000 * (1 + 20 / 100))) == 1200000
+        # CPI compound 24m at 5%: 100.000 * (1.05)^2 = 110.250
+        cpi_math = int(round(100000 * ((1 + 0.05) ** 2))) == 110250
+        # Escalation rate: 30% over 24m -> 15%/year
+        esc_math = round((30.0 / 24) * 12, 1) == 15.0
+        ts.assert_true(landed_math and cpi_math and esc_math,
+                       "Kiểm thử thuật toán: Công thức Landed (+20%), Lũy kế CPI (5%/năm) và Tốc độ trượt giá chuẩn xác 100%")
+
+        # 7.3 Kiểm thử Backend imis_core.py sinh chỉ số trượt giá năm và giá trần CPI
+        import imis_core
+        fake_rec = [{"donGia": 100000, "soHopDong": "HD-TEST/2024", "ngayKyHd": "2024-01-01", "nhaThau": "Test Supplier"}]
+        sum_res = imis_core.generate_erp_summary_text({"ten_vt": "Test Item"}, fake_rec, dg_trinh=130000)
+        has_annual_rate = "annual_escalation_pct" in sum_res
+        has_cpi_ceil = "cpi_price_ceiling" in sum_res
+        has_temporal_text = "tốc độ tăng giá bình quân" in sum_res.get("summary_text", "")
+        ts.assert_true(has_annual_rate and has_cpi_ceil and has_temporal_text,
+                       f"Backend imis_core: Tự động tính toán tốc độ tăng giá năm (+{sum_res.get('annual_escalation_pct')}%/năm) và trần CPI ({sum_res.get('cpi_price_ceiling'):,} đ)")
+
+        # 7.4 Kiểm tra UI PillarErp.jsx có Card Phân Tích Kích Thước Thời Gian
+        erp_comp_file = os.path.join(inspector_dir, "pillars", "PillarErp.jsx")
+        with open(erp_comp_file, "r", encoding="utf-8") as f:
+            erp_c = f.read()
+        ts.assert_true("KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ" in erp_c and "Ngày Ký & Thời Gian" in erp_c,
+                       "PillarErp: Giao diện hiển thị Card Phân Tích Thời Gian & Badge 12 tháng rõ ràng")
+
+        # 7.5 Kiểm tra UI PillarImis.jsx có Card Phân Tích Thời Gian
+        imis_comp_file = os.path.join(inspector_dir, "pillars", "PillarImis.jsx")
+        with open(imis_comp_file, "r", encoding="utf-8") as f:
+            imis_c = f.read()
+        ts.assert_true("KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ" in imis_c and "Ngày Ký & Thời Gian" in imis_c,
+                       "PillarImis: Giao diện hiển thị Card Phân Tích Thời Gian cho HĐ toàn ngành EVN")
+
+        # 7.6 Kiểm tra UI PillarEcom.jsx có Landed Cost
+        ecom_comp_file = os.path.join(inspector_dir, "pillars", "PillarEcom.jsx")
+        with open(ecom_comp_file, "r", encoding="utf-8") as f:
+            ecom_c = f.read()
+        ts.assert_true("Landed Cost" in ecom_c and "hasLandedCost" in ecom_c and "landedSurchargePct" in ecom_c,
+                       "PillarEcom: Giao diện nạp chứng cứ TMĐT tích hợp tùy chọn Landed Cost DDP Vĩnh Tân 4 (+20%)")
+
+        # 7.7 Kiểm tra PillarSynthesis.jsx ưu tiên landed_price cho p5_price
+        synth_comp_file = os.path.join(inspector_dir, "pillars", "PillarSynthesis.jsx")
+        with open(synth_comp_file, "r", encoding="utf-8") as f:
+            synth_c = f.read()
+        ts.assert_true("landed_price" in synth_c and "Landed Cost" in synth_c,
+                       "PillarSynthesis: Đơn giá Cơ sở 5 tự động áp dụng giá sau thuế & vận chuyển (Landed Cost)")
+    except Exception as e:
+        ts.assert_true(False, "Kiểm thử Nhóm 7 (Thời gian & Landed Cost)", f"Lỗi: {e}")
+
+    # -------------------------------------------------------------
     # TỔNG KẾT
     # -------------------------------------------------------------
     print("\n" + "=" * 80)

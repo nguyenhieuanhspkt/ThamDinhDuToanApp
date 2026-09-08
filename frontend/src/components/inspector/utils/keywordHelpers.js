@@ -81,3 +81,71 @@ export const getInitialSelectedIdx = (d, list) => {
   }
   return 0;
 };
+
+export const computeTimeDelta = (dateStr) => {
+  if (!dateStr || dateStr === 'N/A' || dateStr === '—') {
+    return { months: 0, years: 0, isOver12Months: false, badgeText: '—', rawDate: dateStr };
+  }
+  let d = null;
+  const str = String(dateStr).trim();
+  if (/^\d{4}-\d{1,2}-\d{1,2}/.test(str)) {
+    const parts = str.substring(0, 10).split('-');
+    d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  } else if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(str)) {
+    const parts = str.substring(0, 10).split(/[\/\-]/);
+    d = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+  } else if (/^\d{4}$/.test(str)) {
+    d = new Date(parseInt(str, 10), 0, 1);
+  } else {
+    d = new Date(str);
+  }
+
+  if (!d || isNaN(d.getTime())) {
+    return { months: 0, years: 0, isOver12Months: false, badgeText: '—', rawDate: dateStr };
+  }
+
+  const now = new Date();
+  const refDate = (now.getFullYear() >= 2026) ? now : new Date(2026, 8, 8);
+
+  let months = (refDate.getFullYear() - d.getFullYear()) * 12 + (refDate.getMonth() - d.getMonth());
+  if (months < 0) months = 0;
+  const years = (months / 12).toFixed(1);
+  const isOver12Months = months > 12;
+
+  let badgeText = '';
+  if (months <= 12) {
+    badgeText = `🟢 Trong hạn 12T (${months} th)`;
+  } else {
+    badgeText = `🟡 Quá 12T (${months} th - ${years} năm)`;
+  }
+
+  return {
+    months,
+    years: parseFloat(years),
+    isOver12Months,
+    badgeText,
+    rawDate: dateStr
+  };
+};
+
+export const computeAnnualEscalation = (pOld, pNew, months) => {
+  if (!pOld || pOld <= 0 || !pNew || !months || months <= 0) return { totalPct: 0, annualPct: 0 };
+  const totalPct = ((pNew - pOld) / pOld) * 100;
+  const annualPct = (totalPct / months) * 12;
+  return {
+    totalPct: parseFloat(totalPct.toFixed(1)),
+    annualPct: parseFloat(annualPct.toFixed(1))
+  };
+};
+
+export const computeEscalationCeiling = (pOld, months, annualRate = 0.05) => {
+  if (!pOld || pOld <= 0) return 0;
+  const m = Math.max(0, months || 0);
+  return Math.round(pOld * Math.pow(1 + annualRate, m / 12));
+};
+
+export const computeLandedCost = (rawVnd, surchargePct = 20) => {
+  if (!rawVnd || rawVnd <= 0) return 0;
+  return Math.round(rawVnd * (1 + (surchargePct || 0) / 100));
+};
+

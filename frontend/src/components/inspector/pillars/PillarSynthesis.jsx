@@ -6,7 +6,10 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
-import { isValidErpCode, getErpDefaultKw } from '../utils/keywordHelpers.js';
+import {
+  isValidErpCode, getErpDefaultKw,
+  computeTimeDelta, computeAnnualEscalation, computeEscalationCeiling, computeLandedCost
+} from '../utils/keywordHelpers.js';
 import { PillarHeader, LoadingSpinner, SaveFooter } from '../common';
 
 export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {
@@ -84,10 +87,12 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
 
   const ecomList = ecomResults?.items || (Array.isArray(ecomResults) ? ecomResults : []);
   const p5_price = parseFloat(
+    ecomResults?.selected_record?.landed_price ||
+    ecomResults?.landed_price ||
     ecomResults?.selected_record?.price ||
     ecomResults?.selected_record?.don_gia ||
     ecomResults?.don_gia_tham_chieu ||
-    extractFirstPrice(ecomList) ||
+    extractFirstPrice(ecomList, ['landed_price', 'donGia', 'don_gia', 'price']) ||
     0
   );
 
@@ -253,8 +258,17 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
     } else if (p2_price > 0) {
       const rec = (typeof erpResults?.selected_record === 'object' && erpResults?.selected_record) || erpResults?.results?.[0];
       const poInfo = rec?.soHopDong || rec?.so_hd ? ` theo HĐ ${rec.soHopDong || rec.so_hd}` : '';
-      const dateInfo = rec?.ngayKyHd || rec?.ngayNhapKho ? ` ngày ${rec.ngayKyHd || rec.ngayNhapKho}` : '';
-      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/${unit}${poInfo}${dateInfo}.`;
+      const dateStr = rec?.ngayKyHd || rec?.ngayNhapKho || rec?.ngayChungTu;
+      const td = computeTimeDelta(dateStr);
+      let timeNote = '';
+      if (td.months > 0) {
+        timeNote = td.isOver12Months
+          ? ` (ký ngày ${dateStr}, cách đây ${td.months} tháng ~ ${td.years} năm - quá 12 tháng, tốc độ tăng giá bình quân ${computeAnnualEscalation(p2_price, dgTrinh, td.months).annualPct}%/năm so với CPI ~5.0%/năm)`
+          : ` (ký ngày ${dateStr}, cách đây ${td.months} tháng - trong hạn 12 tháng)`;
+      } else if (dateStr) {
+        timeNote = ` ngày ${dateStr}`;
+      }
+      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/${unit}${poInfo}${timeNote}.`;
     } else if (has_p2) {
       p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; kết quả đã đối soát CSDL ERP: 0 bản ghi phù hợp (vật tư chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4).`;
     } else {
@@ -270,7 +284,15 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
       const rec = (typeof imisResults?.selected_record === 'object' && imisResults?.selected_record) || imisResults?.imis?.[0];
       const dvInfo = rec?.ten_dv_mua || rec?.ten_don_vi ? ` tại ${rec.ten_dv_mua || rec.ten_don_vi}` : ' toàn ngành EVN';
       const hdInfo = rec?.so_hd || rec?.so_hop_dong ? ` theo HĐ ${rec.so_hd || rec.so_hop_dong}` : '';
-      p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/${unit}${dvInfo}${hdInfo}.`;
+      const dateStr = rec?.ngay_ky || rec?.thang_nam || rec?.nam || rec?.ngayKy;
+      const td = computeTimeDelta(dateStr);
+      let timeNote = '';
+      if (td.months > 0) {
+        timeNote = td.isOver12Months
+          ? ` (thực hiện cách đây ${td.months} tháng ~ ${td.years} năm - quá 12 tháng)`
+          : ` (thực hiện cách đây ${td.months} tháng - trong hạn 12 tháng)`;
+      }
+      p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận đơn giá trúng thầu/hợp đồng tham chiếu là ${fmt(p3_price)} VNĐ/${unit}${dvInfo}${hdInfo}${timeNote}.`;
     } else if (has_p3) {
       p3_desc = `Tra cứu theo từ khóa [${imisKw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).`;
     } else {
@@ -299,7 +321,10 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
       p5_desc = ecomResults.summary_text;
     } else if (p5_price > 0) {
       const rec = ecomResults?.selected_record || ecomResults?.items?.[0];
-      p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/${unit}.`;
+      const hasLanded = rec?.has_landed_cost ?? (rec?.currency === 'USD' || Boolean(rec?.landed_price));
+      const surcharge = rec?.landed_surcharge_pct || 20;
+      const landedNote = hasLanded ? ` [Đã tính phụ thu vận chuyển quốc tế & thuế nhập khẩu (Landed Cost DDP Vĩnh Tân 4 +${surcharge}%)]` : '';
+      p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/${unit}${landedNote}.`;
     } else {
       p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
     }

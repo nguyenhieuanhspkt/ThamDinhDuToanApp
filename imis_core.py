@@ -972,6 +972,10 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
 
     formatted_erp_price = f"{erp_price:,.0f} đ".replace(",", ".")
 
+    annual_rate = (diff_pct / months_diff) * 12 if months_diff > 0 else 0.0
+    cpi_ceiling = round(erp_price * ((1.0 + 0.05) ** (max(0, months_diff) / 12.0))) if erp_price > 0 else 0
+    fmt_cpi_ceiling = f"{cpi_ceiling:,.0f} đ".replace(",", ".")
+
     if is_within_12m:
         if abs(diff_pct) <= 1.0:
             status = "ERP_MATCH_RECENT"
@@ -999,11 +1003,15 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
     else:
         if diff_pct > 0:
             status = "ERP_EXPIRED_INCREASE"
+            cpi_eval = "nằm trong phạm vi bù trượt giá cho phép" if dg_trinh <= cpi_ceiling else f"vượt trần bù trượt giá CPI 5%/năm (+{((dg_trinh - cpi_ceiling)/cpi_ceiling * 100):.1f}%)"
             summary_text = (
                 f"Vật tư đã có lịch sử nhập kho tại NMNĐ Vĩnh Tân 4 theo {so_hd} (ngày ký {ngay_ky}, do {nha_thau} cung cấp) "
                 f"với đơn giá {formatted_erp_price}/Cái{multi_info_str}. Đơn giá trình đợt này là {formatted_trinh_price}/Cái "
-                f"(tăng +{diff_pct:.1f}% so với HĐ này). Do hợp đồng ERP cũ đã thực hiện cách đây {months_str} (> 12 tháng), "
-                f"đợt mua sắm này cần kết hợp đối chiếu thêm với Báo giá mới (Khối 1) và dữ liệu IMIS EVN (Khối 3) trước khi chốt đơn giá dự toán."
+                f"(tăng +{diff_pct:.1f}% so với HĐ này). Hợp đồng ERP đã ký cách đây {months_str} (> 12 tháng), "
+                f"tốc độ tăng giá bình quân tương ứng +{annual_rate:.1f}%/năm. "
+                f"So sánh với chỉ số trượt giá CPI tham chiếu ~5.0%/năm (mức trần cho phép sau bù trượt giá là {fmt_cpi_ceiling}/Cái), "
+                f"mức giá trình {cpi_eval}. "
+                f"Đợt mua sắm này cần kết hợp đối chiếu thêm với Báo giá mới (Khối 1) và dữ liệu IMIS EVN (Khối 3) trước khi chốt đơn giá dự toán."
             )
         else:
             status = "ERP_EXPIRED_DECREASE"
@@ -1019,6 +1027,8 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
         "months_diff": months_diff,
         "is_within_12m": is_within_12m,
         "diff_pct": diff_pct,
+        "annual_escalation_pct": round(annual_rate, 1),
+        "cpi_price_ceiling": cpi_ceiling,
         "summary_text": summary_text
     }
 

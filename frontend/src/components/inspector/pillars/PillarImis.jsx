@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Network, Database, Search, RotateCcw, Pin, AlertTriangle, CheckCircle,
-  Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, Filter, Globe, FileText, X
+  Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, Filter, Globe, FileText, X,
+  Clock, TrendingUp
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
-import { generateKeywordCandidates, getDefaultImisKeyword } from '../utils/keywordHelpers.js';
+import {
+  generateKeywordCandidates, getDefaultImisKeyword,
+  computeTimeDelta, computeAnnualEscalation, computeEscalationCeiling
+} from '../utils/keywordHelpers.js';
 import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarImis({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenImisConfig, imisStatus }) {
@@ -333,6 +337,14 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
   const validPrices = imisResults.map(r => parseFloat(r.don_gia || r.gia || r.donGia || 0)).filter(p => p > 0);
   const avgPrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : 0;
 
+  // Tính toán kích thước thời gian & tỷ lệ trượt giá năm (IMIS)
+  const selectedRec = !isDeselected && (typeof selectedIdx === 'number' ? imisResults[selectedIdx] : null);
+  const selectedDate = selectedRec?.ngay_ky || selectedRec?.thang_nam || selectedRec?.nam || selectedRec?.ngayKy;
+  const selectedTimeDelta = computeTimeDelta(selectedDate);
+  const selectedImisPrice = selectedRec ? parseFloat(selectedRec.don_gia || selectedRec.gia || selectedRec.donGia || 0) : 0;
+  const escalation = computeAnnualEscalation(selectedImisPrice, dgTrinh, selectedTimeDelta.months);
+  const priceCeiling = computeEscalationCeiling(selectedImisPrice, selectedTimeDelta.months, 0.05);
+
   return (
     <div className="space-y-4">
       {/* Top Title & Status Button */}
@@ -559,6 +571,63 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
         </div>
       )}
 
+      {/* Thẻ Phân Tích Kích Thước Thời Gian & Tốc Độ Trượt Giá So Chuẩn CPI (IMIS EVN) */}
+      {selectedRec && selectedImisPrice > 0 && selectedTimeDelta.months > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-3 text-xs shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-purple-950">
+              <Clock className="w-4 h-4 text-purple-700" />
+              <span>KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ HỢP ĐỒNG IMIS EVN</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                selectedTimeDelta.isOver12Months 
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              }`}>
+                {selectedTimeDelta.badgeText}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Ký: <b className="font-mono text-slate-700">{selectedDate || '—'}</b> (cách đây <b>{selectedTimeDelta.months}</b> tháng ~ <b>{selectedTimeDelta.years}</b> năm)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5 pt-1">
+            <div className="bg-white/90 p-2 rounded-lg border border-purple-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Tốc Độ Tăng Giá Bình Quân</div>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className={`text-sm font-black font-mono ${escalation.annualPct > 5 ? 'text-red-600' : escalation.annualPct > 0 ? 'text-purple-700' : 'text-emerald-700'}`}>
+                  {escalation.annualPct > 0 ? '+' : ''}{escalation.annualPct}% / năm
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold">({escalation.totalPct > 0 ? '+' : ''}{escalation.totalPct}% tổng)</span>
+              </div>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-purple-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Mức Trần Sau Bù CPI 5%/Năm</div>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-sm font-black font-mono text-slate-900">
+                  {fmt(priceCeiling)} đ
+                </span>
+                <span className="text-[10px] text-purple-600 font-medium">(Trần CPI)</span>
+              </div>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-purple-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Đánh Giá Tính Hợp Lý</div>
+              <div className="mt-0.5 text-[11px] font-bold">
+                {dgTrinh <= 0 ? (
+                  <span className="text-slate-500">—</span>
+                ) : dgTrinh <= priceCeiling ? (
+                  <span className="text-emerald-700 flex items-center gap-1">🟢 Đạt (Dưới trần CPI)</span>
+                ) : (
+                  <span className="text-red-600 flex items-center gap-1">🔴 Vượt trần CPI (+{fmt(dgTrinh - priceCeiling)} đ)</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bản Thuyết Minh Căn Cứ IMIS EVN Tự Động */}
       {summaryText && (
         <div className={`p-4 rounded-xl border-2 shadow-sm transition ${
@@ -663,7 +732,7 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
                 <th className="py-2.5 px-3 border-r w-44">Đơn Vị EVN / Nhà Máy</th>
                 <th className="py-2.5 px-3 border-r w-28 text-right font-mono bg-purple-100/50">Đơn Giá IMIS</th>
                 <th className="py-2.5 px-3 border-r font-bold text-emerald-900 bg-emerald-50/50">Số Hợp Đồng / PO</th>
-                <th className="py-2.5 px-3 border-r w-24">Ngày Ký / Năm</th>
+                <th className="py-2.5 px-3 border-r w-36">Ngày Ký & Thời Gian</th>
                 <th className="py-2.5 px-3 border-r">Đơn Vị Cung Cấp / Nhà Thầu</th>
                 <th className="py-2.5 px-3">Ghi Chú</th>
               </tr>
@@ -729,7 +798,20 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
                       )}
                     </td>
                     <td className="py-2 px-3 border-r font-bold text-emerald-950 bg-emerald-50/30">{r.so_hop_dong || r.so_hd || r.so_po || '—'}</td>
-                    <td className="py-2 px-3 border-r text-slate-700 font-mono">{r.ngay_ky || r.thang_nam || r.nam || '—'}</td>
+                    <td className="py-2 px-3 border-r text-slate-700 font-mono">
+                      <div className="font-semibold">{r.ngay_ky || r.thang_nam || r.nam || '—'}</div>
+                      {(() => {
+                        const td = computeTimeDelta(r.ngay_ky || r.thang_nam || r.nam);
+                        if (td.badgeText === '—') return null;
+                        return (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold mt-0.5 ${
+                            td.isOver12Months ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                          }`}>
+                            {td.badgeText}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="py-2 px-3 border-r text-slate-800 font-semibold truncate max-w-[140px]" title={r.nha_thau || r.nha_cung_cap}>
                       {r.nha_thau || r.nha_cung_cap || '—'}
                     </td>
@@ -758,7 +840,10 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
           used_keyword: searchKey,
           selected_record: typeof selectedIdx === 'number' ? imisResults[selectedIdx] : (selectedIdx === 'AVERAGE' ? 'AVERAGE' : 'NONE'),
           is_deselected: isDeselected,
-          use_average: selectedIdx === 'AVERAGE'
+          use_average: selectedIdx === 'AVERAGE',
+          time_delta: selectedTimeDelta,
+          annual_escalation_pct: escalation.annualPct,
+          price_ceiling_cpi: priceCeiling
         })}
         nextLabel="Cơ sở 4 (MSC)"
         prevLabel="Cơ sở 2 (ERP)"

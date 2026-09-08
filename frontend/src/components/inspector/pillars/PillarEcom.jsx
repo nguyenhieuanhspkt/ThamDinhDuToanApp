@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag, Search, Plus, ExternalLink, Trash2, Edit3, Save,
   RotateCcw, AlertTriangle, CheckCircle, Check, Loader2, Link,
-  DollarSign, Camera, Eye, X, Image as ImageIcon, Pin, ArrowRight, FileText
+  DollarSign, Camera, Eye, X, Image as ImageIcon, Pin, ArrowRight, FileText,
+  Truck, Ship, Percent
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
-import { generateKeywordCandidates, getDefaultImisKeyword } from '../utils/keywordHelpers.js';
+import { generateKeywordCandidates, getDefaultImisKeyword, computeLandedCost } from '../utils/keywordHelpers.js';
 import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAutoSave }) {
@@ -19,13 +20,23 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   const selectedRecord = urlItems[selectedIdx] || urlItems[0];
-  const selectedPrice  = selectedRecord ? parseFloat(selectedRecord.price || 0) : 0;
+  const rawSelPrice = selectedRecord ? parseFloat(selectedRecord.price || 0) : 0;
+  const isLandedActive = selectedRecord?.has_landed_cost ?? (selectedRecord?.currency === 'USD' || Boolean(selectedRecord?.landed_price));
+  const selLandedPrice = (isLandedActive && selectedRecord?.landed_price)
+    ? parseFloat(selectedRecord.landed_price)
+    : (isLandedActive && rawSelPrice > 0 ? computeLandedCost(rawSelPrice, selectedRecord?.landed_surcharge_pct ?? 20) : rawSelPrice);
+  const selectedPrice = selLandedPrice > 0 ? selLandedPrice : rawSelPrice;
+
   const diffAmt = dgTrinh - selectedPrice;
   const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
 
   const computeDefaultSummary = (itemsList, selRec, kw) => {
     const sRec = selRec || (itemsList && itemsList[0]);
-    const sPrice = sRec ? parseFloat(sRec.price || 0) : 0;
+    const rawPrice = sRec ? parseFloat(sRec.price || 0) : 0;
+    const hasLanded = sRec?.has_landed_cost ?? (sRec?.currency === 'USD' || Boolean(sRec?.landed_price));
+    const surchargePct = sRec?.landed_surcharge_pct ?? 20;
+    const sPrice = (hasLanded && sRec?.landed_price) ? parseFloat(sRec.landed_price) : (hasLanded && rawPrice > 0 ? computeLandedCost(rawPrice, surchargePct) : rawPrice);
+
     const dAmt = dgTrinh - sPrice;
     const dPct = sPrice > 0 ? ((dgTrinh - sPrice) / sPrice * 100) : 0;
     const thoiGian = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
@@ -35,11 +46,16 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
       : '';
     const imgInfo = sRec?.image_url ? ' kèm ảnh chụp màn hình minh chứng niêm yết' : '';
 
+    let landedDesc = '';
+    if (hasLanded && rawPrice > 0 && sPrice !== rawPrice) {
+      landedDesc = ` [Giá niêm yết web: ${fmt(rawPrice)} đ; sau khi cộng chi phí vận chuyển quốc tế, thuế NK & hải quan (+${surchargePct}%), giá Landed Cost DDP Vĩnh Tân 4 là ${fmt(sPrice)} đ]`;
+    }
+
     if (itemsList && itemsList.length > 0 && sRec) {
       if (dAmt <= 0) {
-        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}${imgInfo}; ghi nhận mức giá niêm yết công khai là ${fmt(sPrice)} đ${usdInfo}. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá niêm yết công khai trên Internet.`;
+        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}${imgInfo}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(sPrice)} đ${usdInfo}${landedDesc}. Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương đơn giá thị trường đã tính chi phí nhập cảnh Landed Cost.`;
       } else {
-        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}${imgInfo}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(sPrice)} đ${usdInfo}. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${dPct.toFixed(1)}% (+${fmt(dAmt)} đ) so với đơn giá công khai trên thị trường.`;
+        return `Đã tra cứu từ khóa [${kw}] trên thị trường Thương mại điện tử / Website nhà cung cấp (${sRec.vendor || 'Internet'}) tại đường link [${sRec.url || 'Web'}] lúc ${thoiGian}${imgInfo}; ghi nhận mức giá niêm yết công khai tham chiếu là ${fmt(sPrice)} đ${usdInfo}${landedDesc}. Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${dPct.toFixed(1)}% (+${fmt(dAmt)} đ) so với đơn giá Landed Cost DDP Vĩnh Tân 4 (${fmt(sPrice)} đ).`;
       }
     } else {
       return `Đã tra cứu từ khóa [${kw}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
@@ -76,6 +92,10 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
   const [newPriceUsd, setNewPriceUsd]   = useState('');
   const [exchangeRate, setExchangeRate] = useState('25450');
 
+  // Landed Cost (Chi phí nhập khẩu & vận chuyển DDP Vĩnh Tân 4)
+  const [hasLandedCost, setHasLandedCost]           = useState(true);
+  const [landedSurchargePct, setLandedSurchargePct] = useState('20');
+
   // Clipboard Paste Image state
   const [pastedImage, setPastedImage]               = useState(null);
   const [isPasting, setIsPasting]                   = useState(false);
@@ -84,6 +104,10 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
   const calculatedVndPrice = currency === 'USD'
     ? Math.round((parseFloat(newPriceUsd) || 0) * (parseFloat(exchangeRate) || 25450))
     : (parseFloat(newPrice) || 0);
+
+  const calculatedLandedPrice = hasLandedCost
+    ? computeLandedCost(calculatedVndPrice, parseFloat(landedSurchargePct) || 20)
+    : calculatedVndPrice;
 
   // Xử lý dán hình ảnh từ Clipboard (Ctrl + V)
   const handlePasteImageFromClipboard = async (e) => {
@@ -147,13 +171,15 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
     const isUsd = currency === 'USD';
     const usdVal = isUsd ? (parseFloat(newPriceUsd) || 0) : null;
     const rateVal = isUsd ? (parseFloat(exchangeRate) || 25450) : null;
+    const surchargeVal = parseFloat(landedSurchargePct) || 20;
+    const landedPriceVal = hasLandedCost ? computeLandedCost(finalPrice, surchargeVal) : finalPrice;
 
     let noteText = newNotes;
     if (!noteText) {
       if (isUsd && usdVal > 0) {
-        noteText = `Quy đổi từ $${usdVal.toLocaleString('en-US')} USD (Tỷ giá: ${fmt(rateVal)} đ/USD)`;
+        noteText = `Quy đổi từ $${usdVal.toLocaleString('en-US')} USD (Tỷ giá: ${fmt(rateVal)} đ/USD)${hasLandedCost ? ` + Landed Cost ${surchargeVal}%` : ''}`;
       } else {
-        noteText = pastedImage ? 'Có ảnh chụp màn hình minh chứng' : 'Thông tin niêm yết công khai';
+        noteText = pastedImage ? 'Có ảnh chụp màn hình minh chứng' : (hasLandedCost ? `Có tính Landed Cost +${surchargeVal}%` : 'Thông tin niêm yết công khai');
       }
     }
 
@@ -164,6 +190,9 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
       vendor: newVendor || (pastedImage ? 'Ảnh chụp màn hình web' : 'Website Thương mại điện tử'),
       url: newUrl.startsWith('http') ? newUrl : (newUrl ? `https://${newUrl}` : '#'),
       price: finalPrice,
+      landed_price: landedPriceVal,
+      has_landed_cost: hasLandedCost,
+      landed_surcharge_pct: surchargeVal,
       price_usd: usdVal,
       currency: currency,
       exchange_rate: rateVal,
@@ -218,7 +247,10 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
       items: urlItems,
       selected_record: selectedRecord || null,
       summary_text: summaryText,
-      search_keyword: searchKey
+      search_keyword: searchKey,
+      has_landed_cost: isLandedActive,
+      landed_surcharge_pct: selectedRecord?.landed_surcharge_pct ?? 20,
+      landed_price: selectedPrice
     };
     onSave(payload, !stayHere);
   };
@@ -449,6 +481,59 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
             </div>
           </div>
 
+          {/* Tùy Chọn Chi Phí Nhập Cảnh & Vận Chuyển (Landed Cost DDP Vĩnh Tân 4) */}
+          <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 font-bold text-amber-950 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasLandedCost}
+                  onChange={e => setHasLandedCost(e.target.checked)}
+                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-amber-700" />
+                  <span>Áp Dụng Phụ Thu Nhập Khẩu & Vận Chuyển (Landed Cost DDP Vĩnh Tân 4)</span>
+                </span>
+              </label>
+              {hasLandedCost && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-amber-900 font-bold">Phụ thu:</span>
+                  <div className="flex items-center bg-white px-2 py-0.5 rounded border border-amber-300">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={landedSurchargePct}
+                      onChange={e => setLandedSurchargePct(e.target.value)}
+                      className="w-10 text-center font-bold text-xs focus:outline-none text-amber-950 font-mono"
+                    />
+                    <span className="text-[11px] font-bold text-amber-700">%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {hasLandedCost && (
+              <div className="text-[11px] text-amber-900 bg-white/80 p-2 rounded-lg border border-amber-200/80 flex items-center justify-between">
+                <div>
+                  <span className="font-semibold">Bao gồm: </span>
+                  <span className="text-slate-600">Vận chuyển quốc tế (Air/Sea) + Thuế nhập khẩu + Thông quan & vận chuyển nội địa về Nhà máy</span>
+                </div>
+                <div className="text-right shrink-0 ml-2">
+                  <span className="font-bold text-amber-950 font-mono text-xs">
+                    Landed Cost: {fmt(calculatedLandedPrice)} đ
+                  </span>
+                  {calculatedVndPrice > 0 && (
+                    <span className="text-[10px] text-slate-500 block">
+                      (Giá gốc: {fmt(calculatedVndPrice)} đ + {landedSurchargePct}%)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Vùng Dán Ảnh Chụp Màn Hình Minh Chứng từ Clipboard */}
           <div>
             <label className="block text-[11px] font-bold text-slate-700 mb-1">
@@ -610,7 +695,7 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
                 <th className="py-2.5 px-3 border-r">Tên Vật Tư / Sản Phẩm Web</th>
                 <th className="py-2.5 px-3 border-r w-36">Sàn TMĐT / Nguồn Web</th>
                 <th className="py-2.5 px-2 border-r w-24 text-center">Ảnh Minh Chứng</th>
-                <th className="py-2.5 px-3 border-r w-36 font-mono bg-cyan-100/50 text-right">Đơn Giá Web</th>
+                <th className="py-2.5 px-3 border-r w-44 font-mono bg-cyan-100/50 text-right">Đơn Giá Web & Landed</th>
                 <th className="py-2.5 px-3 border-r font-mono">Link URL Tra Cứu</th>
                 <th className="py-2.5 px-2.5 border-r w-24 text-center">Ngày Tra Cứu</th>
                 <th className="py-2.5 px-2 text-center w-12">Xóa</th>
@@ -620,7 +705,11 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
               {urlItems.map((r, i) => {
                 const isSelected = i === selectedIdx;
                 const dg = parseFloat(r.price || 0);
-                const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+                const hasLanded = r.has_landed_cost ?? (r.currency === 'USD' || Boolean(r.landed_price));
+                const surchargePct = r.landed_surcharge_pct ?? 20;
+                const landedP = r.landed_price ? parseFloat(r.landed_price) : (hasLanded && dg > 0 ? computeLandedCost(dg, surchargePct) : dg);
+                const comparePrice = (hasLanded && landedP > 0) ? landedP : dg;
+                const diff = dgTrinh > 0 && comparePrice > 0 ? ((comparePrice - dgTrinh) / dgTrinh * 100) : 0;
                 const kwUsed = r.search_keyword || searchKey;
                 const actualSearchUrl = (r.url && r.url.includes('search')) || (r.url && r.url.includes('_nkw')) || (r.url && r.url.includes('Keyword'))
                   ? r.url
@@ -637,7 +726,14 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
                         onClick={() => {
                           setSelectedIdx(i);
                           if (onAutoSave) {
-                            onAutoSave({ items: urlItems, selected_record: r, search_keyword: searchKey });
+                            onAutoSave({
+                              items: urlItems,
+                              selected_record: r,
+                              search_keyword: searchKey,
+                              has_landed_cost: hasLanded,
+                              landed_surcharge_pct: surchargePct,
+                              landed_price: comparePrice
+                            });
                           }
                         }}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto ${
@@ -686,6 +782,11 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
                       {r.currency === 'USD' && r.price_usd && (
                         <div className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 mt-0.5 border border-emerald-200">
                           <DollarSign className="w-2.5 h-2.5" />{parseFloat(r.price_usd).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} USD
+                        </div>
+                      )}
+                      {hasLanded && landedP > 0 && (
+                        <div className="text-[10px] font-black text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded mt-0.5 border border-amber-300 block text-right" title="Landed Cost (DDP Vĩnh Tân 4)">
+                          🚢 Landed: {fmt(landedP)} đ
                         </div>
                       )}
                       {diff !== 0 && (

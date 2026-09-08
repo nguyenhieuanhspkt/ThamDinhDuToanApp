@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
   Building2, Database, Search, RotateCcw, AlertTriangle, CheckCircle,
-  Pin, Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, FileText, X
+  Pin, Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, FileText, X,
+  Clock, TrendingUp
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
-import { isValidErpCode, getErpDefaultKw, getInitialSelectedIdx } from '../utils/keywordHelpers.js';
+import {
+  isValidErpCode, getErpDefaultKw, getInitialSelectedIdx,
+  computeTimeDelta, computeAnnualEscalation, computeEscalationCeiling
+} from '../utils/keywordHelpers.js';
 import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenErpConfig }) {
@@ -259,6 +263,14 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
   const validPrices = erpResults.map(r => parseFloat(r.donGia || r.don_gia || 0)).filter(p => p > 0);
   const avgPrice = validPrices.length > 0 ? (validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : 0;
 
+  // Tính toán kích thước thời gian & tỷ lệ trượt giá năm
+  const selectedRec = typeof selectedIdx === 'number' ? erpResults[selectedIdx] : null;
+  const selectedDate = selectedRec?.ngayKyHd || selectedRec?.ngayNhapKho || selectedRec?.ngayChungTu;
+  const selectedTimeDelta = computeTimeDelta(selectedDate);
+  const selectedErpPrice = selectedRec ? parseFloat(selectedRec.donGia || selectedRec.don_gia || 0) : 0;
+  const escalation = computeAnnualEscalation(selectedErpPrice, dgTrinh, selectedTimeDelta.months);
+  const priceCeiling = computeEscalationCeiling(selectedErpPrice, selectedTimeDelta.months, 0.05);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -442,6 +454,63 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
         </div>
       )}
 
+      {/* Thẻ Phân Tích Kích Thước Thời Gian & Tốc Độ Trượt Giá So Chuẩn CPI */}
+      {selectedRec && selectedErpPrice > 0 && selectedTimeDelta.months > 0 && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 text-xs shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 font-bold text-blue-950">
+              <Clock className="w-4 h-4 text-blue-700" />
+              <span>KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ HỢP ĐỒNG #{selectedIdx + 1}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                selectedTimeDelta.isOver12Months 
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              }`}>
+                {selectedTimeDelta.badgeText}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium">
+              Ký: <b className="font-mono text-slate-700">{selectedDate || '—'}</b> (cách đây <b>{selectedTimeDelta.months}</b> tháng ~ <b>{selectedTimeDelta.years}</b> năm)
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5 pt-1">
+            <div className="bg-white/90 p-2 rounded-lg border border-blue-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Tốc Độ Tăng Giá Bình Quân</div>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className={`text-sm font-black font-mono ${escalation.annualPct > 5 ? 'text-red-600' : escalation.annualPct > 0 ? 'text-blue-700' : 'text-emerald-700'}`}>
+                  {escalation.annualPct > 0 ? '+' : ''}{escalation.annualPct}% / năm
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold">({escalation.totalPct > 0 ? '+' : ''}{escalation.totalPct}% tổng)</span>
+              </div>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-blue-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Mức Trần Sau Bù CPI 5%/Năm</div>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <span className="text-sm font-black font-mono text-slate-900">
+                  {fmt(priceCeiling)} đ
+                </span>
+                <span className="text-[10px] text-blue-600 font-medium">(Trần CPI)</span>
+              </div>
+            </div>
+
+            <div className="bg-white/90 p-2 rounded-lg border border-blue-100">
+              <div className="text-[10px] text-slate-500 font-bold uppercase">Đánh Giá Tính Hợp Lý</div>
+              <div className="mt-0.5 text-[11px] font-bold">
+                {dgTrinh <= 0 ? (
+                  <span className="text-slate-500">—</span>
+                ) : dgTrinh <= priceCeiling ? (
+                  <span className="text-emerald-700 flex items-center gap-1">🟢 Đạt (Dưới trần CPI)</span>
+                ) : (
+                  <span className="text-red-600 flex items-center gap-1">🔴 Vượt trần CPI (+{fmt(dgTrinh - priceCeiling)} đ)</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bản Thuyết Minh Căn Cứ ERP tự động */}
       {summaryText && (
         <div className={`p-4 rounded-xl border-2 shadow-sm transition ${
@@ -484,7 +553,7 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
                 {isColActive('don_gia') && <th className="py-2.5 px-3 border-r w-28 text-right font-mono bg-blue-100/50">Đơn Giá ERP</th>}
                 {isColActive('thanh_tien') && <th className="py-2.5 px-3 border-r w-32 text-right font-mono">Thành Tiền</th>}
                 {isColActive('so_hop_dong') && <th className="py-2.5 px-3 border-r font-bold text-emerald-900 bg-emerald-50/50">Số Hợp Đồng</th>}
-                {isColActive('ngay_ky_hd') && <th className="py-2.5 px-3 border-r w-24">Ngày Ký HĐ</th>}
+                {isColActive('ngay_ky_hd') && <th className="py-2.5 px-3 border-r w-36">Ngày Ký & Thời Gian</th>}
                 {isColActive('so_phieu_nhap') && <th className="py-2.5 px-3 border-r w-24">Số Phiếu Nhập</th>}
                 {isColActive('ngay_nhap_kho') && <th className="py-2.5 px-3 border-r w-24">Ngày Nhập</th>}
                 {isColActive('nha_thau') && <th className="py-2.5 px-3 border-r">Nhà Thầu Cung Cấp</th>}
@@ -554,7 +623,22 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
                     )}
                     {isColActive('thanh_tien') && <td className="py-2 px-3 text-right font-mono text-slate-800 border-r">{fmt(r.thanhTien || 0)} đ</td>}
                     {isColActive('so_hop_dong') && <td className="py-2 px-3 border-r font-bold text-emerald-950 bg-emerald-50/30">{r.soHopDong || '—'}</td>}
-                    {isColActive('ngay_ky_hd') && <td className="py-2 px-3 border-r text-slate-700 font-mono">{r.ngayKyHd || r.ngayChungTu || '—'}</td>}
+                    {isColActive('ngay_ky_hd') && (
+                      <td className="py-2 px-3 border-r text-slate-700 font-mono">
+                        <div className="font-semibold">{r.ngayKyHd || r.ngayChungTu || '—'}</div>
+                        {(() => {
+                          const td = computeTimeDelta(r.ngayKyHd || r.ngayNhapKho || r.ngayChungTu);
+                          if (td.badgeText === '—') return null;
+                          return (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-bold mt-0.5 ${
+                              td.isOver12Months ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                            }`}>
+                              {td.badgeText}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    )}
                     {isColActive('so_phieu_nhap') && <td className="py-2 px-3 border-r font-mono text-slate-600">{r.soPhieuNhap || r.soChungTu || '—'}</td>}
                     {isColActive('ngay_nhap_kho') && <td className="py-2 px-3 border-r text-slate-600 font-mono">{r.ngayNhapKho || r.ngayChungTu || '—'}</td>}
                     {isColActive('nha_thau') && <td className="py-2 px-3 border-r text-slate-800 font-semibold truncate max-w-[140px]" title={r.nhaThau}>{r.nhaThau || 'NMNĐ Vĩnh Tân 4'}</td>}
@@ -580,7 +664,10 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
           used_keyword: searchKey,
           selected_record: typeof selectedIdx === 'number' ? erpResults[selectedIdx] : (selectedIdx === 'AVERAGE' ? 'AVERAGE' : 'NONE'),
           is_deselected: selectedIdx === null,
-          use_average: selectedIdx === 'AVERAGE'
+          use_average: selectedIdx === 'AVERAGE',
+          time_delta: selectedTimeDelta,
+          annual_escalation_pct: escalation.annualPct,
+          price_ceiling_cpi: priceCeiling
         })}
         nextLabel="Cơ sở 3 (IMIS)"
         prevLabel="Cơ sở 1 (BG)"
