@@ -1,16 +1,52 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Globe, Search, RotateCcw, Pin, AlertTriangle, CheckCircle,
-  Check, BarChart3, Calculator, Loader2, ExternalLink, Filter,
-  ChevronLeft, ChevronRight, XCircle, ArrowRight, Save, Award, Building2,
-  FileText, Database
-} from 'lucide-react';
-import { useToast } from '../../ui/Toast.jsx';
-import { fmt } from '../utils/formatters.js';
-import { generateKeywordCandidates, getDefaultImisKeyword } from '../utils/keywordHelpers.js';
-import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
+  Globe,
+  Search,
+  RotateCcw,
+  Pin,
+  AlertTriangle,
+  CheckCircle,
+  Check,
+  BarChart3,
+  Calculator,
+  Loader2,
+  ExternalLink,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  XCircle,
+  ArrowRight,
+  Save,
+  Award,
+  Building2,
+  FileText,
+  Database,
+} from "lucide-react";
+import { useToast } from "../../ui/Toast.jsx";
+import { fmt } from "../utils/formatters.js";
+import {
+  generateKeywordCandidates,
+  getDefaultImisKeyword,
+} from "../utils/keywordHelpers.js";
+import {
+  PillarHeader,
+  LoadingSpinner,
+  SaveFooter,
+  EmptyState,
+} from "../common";
 
-export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenMscConfig, mscStatus }) {
+export default function PillarMsc({
+  loading,
+  saving,
+  data,
+  dgTrinh,
+  item,
+  onSave,
+  onAutoSave,
+  saved,
+  onOpenMscConfig,
+  mscStatus,
+}) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
   const getSmartMscKw = (rawName, savedKw) => {
@@ -19,58 +55,77 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
     return savedKw;
   };
 
-  const defaultKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
+  const defaultKw = getSmartMscKw(
+    item?.ten_vt || "",
+    data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu,
+  );
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
   const [mscResponse, setMscResponse] = useState(data || null);
-  const [selectedIdx, setSelectedIdx] = useState(() => (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'MSC_DESELECTED' || data?.summary?.is_deselected) ? null : 0);
+  const [selectedIdx, setSelectedIdx] = useState(() =>
+    data?.is_deselected ||
+    data?.selected_record === "NONE" ||
+    data?.summary?.status === "MSC_DESELECTED" ||
+    data?.summary?.is_deselected
+      ? null
+      : 0,
+  );
 
   // Pagination states
   const [pageNumber, setPageNumber] = useState(0);
   const [pageSize, setPageSize] = useState(20);
 
   // In-table quick filters
-  const [filterKw, setFilterKw] = useState('');
-  const [filterOrigin, setFilterOrigin] = useState('');
-  const [priceFilter, setPriceFilter] = useState('ALL'); // ALL, LOWER, HIGHER
+  const [filterKw, setFilterKw] = useState("");
+  const [filterOrigin, setFilterOrigin] = useState("");
+  const [priceFilter, setPriceFilter] = useState("ALL"); // ALL, LOWER, HIGHER
 
-  const triggerSearch = useCallback(async (kw, pNum = 0, pSz = pageSize) => {
-    const targetKw = (kw || searchKey || '').trim();
-    if (!targetKw) return;
+  const triggerSearch = useCallback(
+    async (kw, pNum = 0, pSz = pageSize) => {
+      const targetKw = (kw || searchKey || "").trim();
+      if (!targetKw) return;
 
-    setSearching(true);
-    try {
-      const res = await fetch('/api/msc/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keyword: targetKw, item, save_evidence: true, page_number: pNum, page_size: pSz })
-      });
-      const resData = await res.json();
-      if (resData.success) {
-        setMscResponse(resData);
-        setSelectedIdx(0);
-        setPageNumber(pNum);
-        setPageSize(pSz);
-        const resAnalysis = resData.analysis || resData;
-        const resItems = resAnalysis.items || resData.items || [];
-        if (onAutoSave) {
-          onAutoSave({
-            analysis: resAnalysis,
-            items: resItems,
+      setSearching(true);
+      try {
+        const res = await fetch("/api/msc/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             keyword: targetKw,
-            used_keyword: targetKw,
-            tu_khoa_tra_cuu: targetKw,
-            selected_record: resItems[0] || null
-          });
+            item,
+            save_evidence: true,
+            page_number: pNum,
+            page_size: pSz,
+          }),
+        });
+        const resData = await res.json();
+        if (resData.success) {
+          setMscResponse(resData);
+          setSelectedIdx(0);
+          setPageNumber(pNum);
+          setPageSize(pSz);
+          const resAnalysis = resData.analysis || resData;
+          const resItems = resAnalysis.items || resData.items || [];
+          if (onAutoSave) {
+            onAutoSave({
+              analysis: resAnalysis,
+              items: resItems,
+              keyword: targetKw,
+              used_keyword: targetKw,
+              tu_khoa_tra_cuu: targetKw,
+              selected_record: resItems[0] || null,
+            });
+          }
         }
+      } catch (e) {
+        console.error("Lỗi tra cứu Mua Sắm Công:", e);
+      } finally {
+        setSearching(false);
       }
-    } catch (e) {
-      console.error('Lỗi tra cứu Mua Sắm Công:', e);
-    } finally {
-      setSearching(false);
-    }
-  }, [searchKey, pageSize, item, onAutoSave]);
+    },
+    [searchKey, pageSize, item, onAutoSave],
+  );
 
   const autoSearchedRef = useRef({});
 
@@ -79,54 +134,85 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
       setMscResponse(data);
     }
   }, [data]);
+  const curItemIdRef = useRef(item?.id);
 
   useEffect(() => {
-    const smartKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
+    // Chỉ reset phân trang và bộ lọc khi THỰC SỰ chuyển sang mục vật tư (item) khác
+    const isDifferentItem = curItemIdRef.current !== item?.id;
+    if (isDifferentItem) {
+      curItemIdRef.current = item?.id;
+      setPageNumber(0);
+      setFilterKw("");
+      setFilterOrigin("");
+      setPriceFilter("ALL");
+    }
+
+    const smartKw = getSmartMscKw(
+      item?.ten_vt || "",
+      data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu,
+    );
     setSearchKey(smartKw);
-    if (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'MSC_DESELECTED' || data?.summary?.is_deselected) {
+    if (
+      data?.is_deselected ||
+      data?.selected_record === "NONE" ||
+      data?.summary?.status === "MSC_DESELECTED" ||
+      data?.summary?.is_deselected
+    ) {
       setSelectedIdx(null);
     } else {
       setSelectedIdx(0);
     }
-    setPageNumber(0);
-    setFilterKw('');
-    setFilterOrigin('');
-    setPriceFilter('ALL');
 
-    // Single-trigger lock: Auto-search ONLY ONCE per item ID if no evidence data exists
-    if (!data && item?.id && item?.ten_vt && smartKw && !autoSearchedRef.current[item.id]) {
+    // Auto-search ONLY ONCE per item ID if no evidence data exists
+    if (
+      !data &&
+      item?.id &&
+      item?.ten_vt &&
+      smartKw &&
+      !autoSearchedRef.current[item.id]
+    ) {
       autoSearchedRef.current[item.id] = smartKw;
-      triggerSearch(smartKw);
+      triggerSearch(smartKw, 0, pageSize);
     }
   }, [data, item?.id, item?.ten_vt]);
 
-  const analysis = mscResponse?.analysis || (mscResponse?.items ? mscResponse : null);
+  const analysis =
+    mscResponse?.analysis || (mscResponse?.items ? mscResponse : null);
   const itemsList = analysis?.items || mscResponse?.items || [];
   const keywordUsed = analysis?.keyword || searchKey;
 
-  const totalElements = analysis?.total ?? mscResponse?.total ?? itemsList.length;
-  const totalPages = analysis?.total_pages ?? mscResponse?.total_pages ?? (Math.ceil(totalElements / pageSize) || 1);
+  const totalElements =
+    analysis?.total ?? mscResponse?.total ?? itemsList.length;
+  const totalPages =
+    analysis?.total_pages ??
+    mscResponse?.total_pages ??
+    (Math.ceil(totalElements / pageSize) || 1);
 
-  const isConnected = mscStatus?.active ?? (data?.success || (itemsList && itemsList.length > 0));
+  const isConnected =
+    mscStatus?.active ?? (data?.success || (itemsList && itemsList.length > 0));
 
   // Client-side filtering logic
-  const filteredItems = itemsList.filter(r => {
+  const filteredItems = itemsList.filter((r) => {
     const dg = parseFloat(r.don_gia || 0);
-    if (priceFilter === 'LOWER' && (dgTrinh <= 0 || dg > dgTrinh)) return false;
-    if (priceFilter === 'HIGHER' && (dgTrinh <= 0 || dg <= dgTrinh)) return false;
+    if (priceFilter === "LOWER" && (dgTrinh <= 0 || dg > dgTrinh)) return false;
+    if (priceFilter === "HIGHER" && (dgTrinh <= 0 || dg <= dgTrinh))
+      return false;
 
     if (filterKw.trim()) {
       const fkw = filterKw.trim().toLowerCase();
-      const matchName = (r.danh_muc || '').toLowerCase().includes(fkw)
-        || (r.ma_tbmt || '').toLowerCase().includes(fkw)
-        || (r.ben_moi_thau || '').toLowerCase().includes(fkw)
-        || (r.thong_so_kt || '').toLowerCase().includes(fkw);
+      const matchName =
+        (r.danh_muc || "").toLowerCase().includes(fkw) ||
+        (r.ma_tbmt || "").toLowerCase().includes(fkw) ||
+        (r.ben_moi_thau || "").toLowerCase().includes(fkw) ||
+        (r.thong_so_kt || "").toLowerCase().includes(fkw);
       if (!matchName) return false;
     }
 
     if (filterOrigin.trim()) {
       const fori = filterOrigin.trim().toLowerCase();
-      const matchOri = (r.xuat_xu || '').toLowerCase().includes(fori) || (r.hang_sx || '').toLowerCase().includes(fori);
+      const matchOri =
+        (r.xuat_xu || "").toLowerCase().includes(fori) ||
+        (r.hang_sx || "").toLowerCase().includes(fori);
       if (!matchOri) return false;
     }
 
@@ -135,25 +221,43 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
 
   // Determine selected record or minimum price record
   const isDeselected = selectedIdx === null;
-  const selectedRecord = isDeselected ? null : (filteredItems[selectedIdx] || itemsList[selectedIdx] || null);
-  const selectedPrice = selectedRecord ? parseFloat(selectedRecord.don_gia || 0) : 0;
+  const selectedRecord = isDeselected
+    ? null
+    : filteredItems[selectedIdx] || itemsList[selectedIdx] || null;
+  const selectedPrice = selectedRecord
+    ? parseFloat(selectedRecord.don_gia || 0)
+    : 0;
   const diffAmt = dgTrinh - selectedPrice;
-  const diffPct = selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice * 100) : 0;
+  const diffPct =
+    selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice) * 100 : 0;
 
-  const thoiGianTraCuu = analysis?.thoi_gian_tra_cuu || new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ngày ' + new Date().toLocaleDateString('vi-VN');
+  const thoiGianTraCuu =
+    analysis?.thoi_gian_tra_cuu ||
+    new Date().toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }) +
+      " ngày " +
+      new Date().toLocaleDateString("vi-VN");
 
   const DESELECTED_MSC_TEXT = `Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [${keywordUsed}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.`;
 
   // Build justification text
-  let summaryText = '';
+  let summaryText = "";
   if (isDeselected) {
-    summaryText = (data?.summary_text && (data?.is_deselected || data?.selected_record === 'NONE')) ? data.summary_text : DESELECTED_MSC_TEXT;
+    summaryText =
+      data?.summary_text &&
+      (data?.is_deselected || data?.selected_record === "NONE")
+        ? data.summary_text
+        : DESELECTED_MSC_TEXT;
   } else if (itemsList.length > 0 && selectedRecord) {
-    const benMoiThauStr = selectedRecord.ben_moi_thau ? `, Bên mời thầu: ${selectedRecord.ben_moi_thau}` : '';
+    const benMoiThauStr = selectedRecord.ben_moi_thau
+      ? `, Bên mời thầu: ${selectedRecord.ben_moi_thau}`
+      : "";
     if (diffAmt <= 0) {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
     } else {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
     }
   } else if (mscResponse && !searching) {
     summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu} nhưng chưa ghi nhận kết quả trúng thầu tương tự.`;
@@ -168,13 +272,15 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
     const rec = filteredItems[index] || itemsList[index];
     const recPrice = rec ? parseFloat(rec.don_gia || 0) : 0;
     const diffA = dgTrinh - recPrice;
-    const diffP = recPrice > 0 ? ((dgTrinh - recPrice) / recPrice * 100) : 0;
-    const benMoiThauStr = rec?.ben_moi_thau ? `, Bên mời thầu: ${rec.ben_moi_thau}` : '';
-    let newSumText = '';
+    const diffP = recPrice > 0 ? ((dgTrinh - recPrice) / recPrice) * 100 : 0;
+    const benMoiThauStr = rec?.ben_moi_thau
+      ? `, Bên mời thầu: ${rec.ben_moi_thau}`
+      : "";
+    let newSumText = "";
     if (diffA <= 0) {
-      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
     } else {
-      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffP.toFixed(1)}% (+${fmt(diffA)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffP.toFixed(1)}% (+${fmt(diffA)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
     }
 
     toast.success(`Đã chọn kết quả e-GP làm căn cứ tham chiếu!`);
@@ -187,14 +293,16 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,
         selected_record: rec,
-        is_deselected: false
+        is_deselected: false,
       });
     }
   };
 
   const handleDeselectRecord = () => {
     setSelectedIdx(null);
-    toast.info('Đã hủy chọn gói thầu e-GP. Không áp dụng kết quả Mua Sắm Công làm căn cứ.');
+    toast.info(
+      "Đã hủy chọn gói thầu e-GP. Không áp dụng kết quả Mua Sắm Công làm căn cứ.",
+    );
     if (onAutoSave) {
       onAutoSave({
         analysis,
@@ -203,8 +311,8 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
         keyword: searchKey,
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,
-        selected_record: 'NONE',
-        is_deselected: true
+        selected_record: "NONE",
+        is_deselected: true,
       });
     }
   };
@@ -212,8 +320,48 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
   const copyToClipboard = () => {
     if (summaryText) {
       navigator.clipboard.writeText(summaryText);
-      toast.success('Đã sao chép thuyết minh Mua Sắm Công vào Clipboard!');
+      toast.success("Đã sao chép thuyết minh Mua Sắm Công vào Clipboard!");
     }
+  };
+  const copyTableAsMarkdown = () => {
+    if (!filteredItems || filteredItems.length === 0) {
+      toast.info("Không có dữ liệu để copy!");
+      return;
+    }
+
+    let md =
+      "| STT | Mã TBMT | Tên Danh Mục | Thông Số Kỹ Thuật | Bên Mời Thầu | Nhà Thầu Trúng | Giá Trúng Thầu | Xuất Xứ | Hãng |\n";
+    md += "|:---:|:---|:---|:---|:---|:---|---:|:---:|:---:|\n";
+
+    filteredItems.forEach((r, idx) => {
+      const stt = idx + 1;
+      const tbmt = r.ma_tbmt || "—";
+      const name = (
+        r.danh_muc ||
+        r.danhMucHangHoa ||
+        r.ten_hang_hoa ||
+        r.ten_vt ||
+        "—"
+      ).replace(/\|/g, " ");
+      const spec = (r.thong_so_kt || r.cauHinh || "—")
+        .replace(/\|/g, " ")
+        .replace(/\n/g, " ");
+      const cdt = (r.ben_moi_thau || r.tenCdtBmt || r.chuDauTu || "—").replace(
+        /\|/g,
+        " ",
+      );
+      const winner = (r.nha_thau_trung || "—").replace(/\|/g, " ");
+      const price = fmt(parseFloat(r.don_gia || 0)) + " đ";
+      const origin = (r.xuat_xu || "—").replace(/\|/g, " ");
+      const brand = (r.hang_sx || r.hang_san_xuat || "—").replace(/\|/g, " ");
+
+      md += `| ${stt} | ${tbmt} | ${name} | ${spec} | ${cdt} | ${winner} | ${price} | ${origin} | ${brand} |\n`;
+    });
+
+    navigator.clipboard.writeText(md);
+    toast.success(
+      `Đã sao chép toàn bộ ${filteredItems.length} dòng thành bảng Markdown!`,
+    );
   };
 
   return (
@@ -222,17 +370,24 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
       <div className="flex items-center justify-between border-b pb-3">
         <div className="flex items-center gap-3">
           <h4 className="font-bold text-sm text-orange-900 uppercase tracking-wide flex items-center gap-2">
-            <Globe className="w-5 h-5 text-orange-700" /> KHỐI 4: CỔNG MUA SẮM CÔNG QUỐC GIA (e-GP)
+            <Globe className="w-5 h-5 text-orange-700" /> KHỐI 4: CỔNG MUA SẮM
+            CÔNG QUỐC GIA (e-GP)
           </h4>
           <span
             className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border flex items-center gap-1 ${
-              isConnected ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300 animate-pulse'
+              isConnected
+                ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                : "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
             }`}
-            title={mscStatus?.created_at ? `Session cURL nạp lúc ${mscStatus.created_at} ${mscStatus.age_str}` : 'Chưa thiết lập cURL'}
+            title={
+              mscStatus?.created_at
+                ? `Session cURL nạp lúc ${mscStatus.created_at} ${mscStatus.age_str}`
+                : "Chưa thiết lập cURL"
+            }
           >
             {isConnected
-              ? `🌐 Session e-GP: 200 OK ${mscStatus?.age_str || ''}`
-              : '🔴 Session: Hết hạn / Chưa cấu hình'}
+              ? `🌐 Session e-GP: 200 OK ${mscStatus?.age_str || ""}`
+              : "🔴 Session: Hết hạn / Chưa cấu hình"}
           </span>
         </div>
 
@@ -240,7 +395,8 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
           onClick={onOpenMscConfig}
           className="bg-orange-100 hover:bg-orange-200 text-orange-900 border border-orange-300 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
         >
-          <Database className="w-3.5 h-3.5 text-orange-700" /> Cấu Hình cURL Session
+          <Database className="w-3.5 h-3.5 text-orange-700" /> Cấu Hình cURL
+          Session
         </button>
       </div>
 
@@ -249,7 +405,10 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-900 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Phiên cURL e-GP Mua Sắm Công chưa kích hoạt hoặc đã hết hạn cookie.</span>
+            <span>
+              Phiên cURL e-GP Mua Sắm Công chưa kích hoạt hoặc đã hết hạn
+              cookie.
+            </span>
           </div>
           <button
             onClick={onOpenMscConfig}
@@ -269,7 +428,9 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
               type="text"
               value={searchKey}
               onChange={(e) => setSearchKey(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && triggerSearch(searchKey, 0, pageSize)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && triggerSearch(searchKey, 0, pageSize)
+              }
               placeholder="Nhập từ khóa tra cứu đấu thầu Mua Sắm Công e-GP..."
               className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 font-medium"
             />
@@ -279,7 +440,11 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
             disabled={searching}
             className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm disabled:opacity-60"
           >
-            {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {searching ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
             Tra Cứu e-GP
           </button>
         </div>
@@ -300,8 +465,8 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
                   }}
                   className={`px-2.5 py-1 rounded-lg border font-semibold transition flex items-center gap-1 shadow-2xs ${
                     searchKey.toLowerCase() === c.keyword.toLowerCase()
-                      ? 'bg-orange-600 text-white border-orange-700 font-bold'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-orange-100 hover:border-orange-300'
+                      ? "bg-orange-600 text-white border-orange-700 font-bold"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-orange-100 hover:border-orange-300"
                   }`}
                   title={`${c.label}: "${c.keyword}"`}
                 >
@@ -321,9 +486,18 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
       {itemsList.length > 0 && (
         <div className="bg-orange-50/70 p-3 rounded-xl border border-orange-200 flex flex-wrap items-center justify-between gap-3 text-xs shadow-2xs">
           <div className="flex items-center gap-2 font-bold text-orange-950">
-            <span>📊 Tổng cộng: <strong className="text-orange-700 font-mono text-sm">{totalElements}</strong> kết quả trúng thầu</span>
+            <span>
+              📊 Tổng cộng:{" "}
+              <strong className="text-orange-700 font-mono text-sm">
+                {totalElements}
+              </strong>{" "}
+              kết quả trúng thầu
+            </span>
             <span className="text-slate-300">|</span>
-            <span className="text-slate-600 font-medium">Trang {pageNumber + 1} / {totalPages} (Đang nạp {itemsList.length} dòng)</span>
+            <span className="text-slate-600 font-medium">
+              Trang {pageNumber + 1} / {totalPages} (Đang nạp {itemsList.length}{" "}
+              dòng)
+            </span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -342,12 +516,14 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
             {/* Page Size Selector */}
             <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-300 text-[11px]">
               <span className="text-slate-500 font-medium">Số dòng:</span>
-              {[20, 50, 100].map(sz => (
+              {[20, 50, 100].map((sz) => (
                 <button
                   key={sz}
                   onClick={() => triggerSearch(searchKey, 0, sz)}
                   className={`px-2 py-0.5 rounded font-bold transition ${
-                    pageSize === sz ? 'bg-orange-600 text-white shadow-2xs' : 'text-slate-700 hover:bg-slate-100'
+                    pageSize === sz
+                      ? "bg-orange-600 text-white shadow-2xs"
+                      : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
                   {sz}
@@ -358,14 +534,26 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
             {/* Page Navigator */}
             <div className="flex items-center gap-1">
               <button
-                onClick={() => triggerSearch(searchKey, Math.max(0, pageNumber - 1), pageSize)}
+                onClick={() =>
+                  triggerSearch(
+                    searchKey,
+                    Math.max(0, pageNumber - 1),
+                    pageSize,
+                  )
+                }
                 disabled={pageNumber === 0 || searching}
                 className="px-2.5 py-1 bg-white hover:bg-orange-100 text-slate-800 rounded-lg border border-slate-300 font-bold disabled:opacity-40 transition"
               >
                 ◄ Trước
               </button>
               <button
-                onClick={() => triggerSearch(searchKey, Math.min(totalPages - 1, pageNumber + 1), pageSize)}
+                onClick={() =>
+                  triggerSearch(
+                    searchKey,
+                    Math.min(totalPages - 1, pageNumber + 1),
+                    pageSize,
+                  )
+                }
                 disabled={pageNumber >= totalPages - 1 || searching}
                 className="px-2.5 py-1 bg-white hover:bg-orange-100 text-slate-800 rounded-lg border border-slate-300 font-bold disabled:opacity-40 transition"
               >
@@ -378,16 +566,23 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
 
       {/* Bản Thuyết Minh Căn Cứ Mua Sắm Công Quốc Gia */}
       {summaryText && (
-        <div className={`p-4 rounded-xl border-2 transition ${
-          isDeselected
-            ? 'bg-slate-50/90 border-slate-300 text-slate-800'
-            : 'border-orange-300 bg-orange-50/80 text-slate-900 shadow-sm'
-        }`}>
+        <div
+          className={`p-4 rounded-xl border-2 transition ${
+            isDeselected
+              ? "bg-slate-50/90 border-slate-300 text-slate-800"
+              : "border-orange-300 bg-orange-50/80 text-slate-900 shadow-sm"
+          }`}
+        >
           <div className="flex items-center justify-between mb-2">
-            <h5 className={`font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 ${
-              isDeselected ? 'text-slate-700' : 'text-orange-950'
-            }`}>
-              <FileText className={`w-4 h-4 ${isDeselected ? 'text-slate-500' : 'text-orange-700'}`} /> 📄 BẢN THUYẾT MINH CĂN CỨ MUA SẮM CÔNG QUỐC GIA (TỰ ĐỘNG TỔNG HỢP)
+            <h5
+              className={`font-extrabold text-xs uppercase tracking-wide flex items-center gap-1.5 ${
+                isDeselected ? "text-slate-700" : "text-orange-950"
+              }`}
+            >
+              <FileText
+                className={`w-4 h-4 ${isDeselected ? "text-slate-500" : "text-orange-700"}`}
+              />{" "}
+              📄 BẢN THUYẾT MINH CĂN CỨ MUA SẮM CÔNG QUỐC GIA (TỰ ĐỘNG TỔNG HỢP)
             </h5>
             <div className="flex items-center gap-2">
               {!isDeselected ? (
@@ -422,19 +617,20 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
         <div className="bg-slate-100/90 p-2.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 flex-1 min-w-[280px]">
             <span className="font-bold text-slate-700 shrink-0 flex items-center gap-1 text-[11px]">
-              <Filter className="w-3.5 h-3.5 text-slate-500" /> Lọc tại chỗ ({filteredItems.length}/{itemsList.length}):
+              <Filter className="w-3.5 h-3.5 text-slate-500" /> Lọc tại chỗ (
+              {filteredItems.length}/{itemsList.length}):
             </span>
             <input
               type="text"
               value={filterKw}
-              onChange={e => setFilterKw(e.target.value)}
+              onChange={(e) => setFilterKw(e.target.value)}
               placeholder="Lọc Hàng hóa / Mã TBMT / Bên mời thầu / Thông số..."
               className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg flex-1 focus:outline-none focus:border-orange-500 font-medium"
             />
             <input
               type="text"
               value={filterOrigin}
-              onChange={e => setFilterOrigin(e.target.value)}
+              onChange={(e) => setFilterOrigin(e.target.value)}
               placeholder="Lọc Xuất xứ / Hãng SX..."
               className="px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg flex-1 focus:outline-none focus:border-orange-500 font-medium"
             />
@@ -443,36 +639,50 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
           <div className="flex items-center gap-1.5 text-[11px]">
             <span className="font-semibold text-slate-500">Mức Giá:</span>
             <button
-              onClick={() => setPriceFilter('ALL')}
+              onClick={() => setPriceFilter("ALL")}
               className={`px-2 py-1 rounded-lg font-bold border transition ${
-                priceFilter === 'ALL' ? 'bg-slate-800 text-white border-slate-900 shadow-2xs' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-200'
+                priceFilter === "ALL"
+                  ? "bg-slate-800 text-white border-slate-900 shadow-2xs"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-200"
               }`}
             >
               Tất Cả
             </button>
             <button
-              onClick={() => setPriceFilter('LOWER')}
+              onClick={() => setPriceFilter("LOWER")}
               className={`px-2 py-1 rounded-lg font-bold border transition ${
-                priceFilter === 'LOWER' ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs' : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                priceFilter === "LOWER"
+                  ? "bg-emerald-700 text-white border-emerald-800 shadow-2xs"
+                  : "bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50"
               }`}
             >
               🟢 Giá &lt; Trình
             </button>
             <button
-              onClick={() => setPriceFilter('HIGHER')}
+              onClick={() => setPriceFilter("HIGHER")}
               className={`px-2 py-1 rounded-lg font-bold border transition ${
-                priceFilter === 'HIGHER' ? 'bg-red-700 text-white border-red-800 shadow-2xs' : 'bg-white text-red-800 border-red-300 hover:bg-red-50'
+                priceFilter === "HIGHER"
+                  ? "bg-red-700 text-white border-red-800 shadow-2xs"
+                  : "bg-white text-red-800 border-red-300 hover:bg-red-50"
               }`}
             >
               🔴 Giá &gt; Trình
             </button>
+            {/* Thêm nút Copy Cả Bảng này vào cạnh các nút lọc giá */}
+            <button
+              onClick={copyTableAsMarkdown}
+              className="px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white rounded-lg font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+              title="Sao chép toàn bộ bảng danh sách hiện tại thành Markdown Table để hỏi AI"
+            >
+              📋 Copy Cả Bảng (MD)
+            </button>
 
-            {(filterKw || filterOrigin || priceFilter !== 'ALL') && (
+            {(filterKw || filterOrigin || priceFilter !== "ALL") && (
               <button
                 onClick={() => {
-                  setFilterKw('');
-                  setFilterOrigin('');
-                  setPriceFilter('ALL');
+                  setFilterKw("");
+                  setFilterOrigin("");
+                  setPriceFilter("ALL");
                 }}
                 className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg font-bold transition border border-amber-300"
               >
@@ -491,13 +701,25 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
           <table className="w-full text-xs text-left border-collapse min-w-[850px]">
             <thead className="bg-orange-50 text-orange-950 font-bold border-b border-orange-200">
               <tr>
-                <th className="py-2.5 px-2 border-r w-24 text-center">Căn Cứ</th>
-                <th className="py-2.5 px-3 border-r min-w-[180px]">Tên Danh Mục Hàng Hóa (e-GP)</th>
-                <th className="py-2.5 px-3 border-r min-w-[220px]">Thông Số Kỹ Thuật Chi Tiết</th>
-                <th className="py-2.5 px-3 border-r font-mono min-w-[200px]">Mã TBMT & Bên Mời Thầu / Chủ Đầu Tư</th>
+                <th className="py-2.5 px-2 border-r w-24 text-center">
+                  Căn Cứ
+                </th>
+                <th className="py-2.5 px-3 border-r min-w-[180px]">
+                  Tên Danh Mục Hàng Hóa (e-GP)
+                </th>
+                <th className="py-2.5 px-3 border-r min-w-[220px]">
+                  Thông Số Kỹ Thuật Chi Tiết
+                </th>
+                <th className="py-2.5 px-3 border-r font-mono min-w-[200px]">
+                  Mã TBMT & Bên Mời Thầu / Chủ Đầu Tư
+                </th>
                 <th className="py-2.5 px-3 border-r w-20 text-center">ĐVT</th>
-                <th className="py-2.5 px-3 border-r w-20 text-right">Khối Lượng</th>
-                <th className="py-2.5 px-3 border-r w-32 text-right font-mono bg-orange-100/50">Giá Dự Thầu (Trúng)</th>
+                <th className="py-2.5 px-3 border-r w-20 text-right">
+                  Khối Lượng
+                </th>
+                <th className="py-2.5 px-3 border-r w-32 text-right font-mono bg-orange-100/50">
+                  Giá Dự Thầu (Trúng)
+                </th>
                 <th className="py-2.5 px-3 border-r">Xuất Xứ</th>
                 <th className="py-2.5 px-3">Hãng Sản Xuất</th>
               </tr>
@@ -506,44 +728,89 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
               {filteredItems.map((r, i) => {
                 const isSelected = !isDeselected && i === selectedIdx;
                 const dg = parseFloat(r.don_gia || 0);
-                const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh * 100) : 0;
+                const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh) * 100 : 0;
 
                 // Smart Title-Spec Splitter logic
-                let rawName = r.danh_muc || r.danhMucHangHoa || r.ten_hang_hoa || r.ten_vt || '—';
+                let rawName =
+                  r.danh_muc ||
+                  r.danhMucHangHoa ||
+                  r.ten_hang_hoa ||
+                  r.ten_vt ||
+                  "—";
                 let cleanName = rawName;
-                let specFromTitle = '';
+                let specFromTitle = "";
 
-                const splitMatch = rawName.match(/^(.*?)\s+-\s+((?:Model|Yếu\s*tố|Dải\s*đo|Nguồn|Tiêu\s*chuẩn|Công\s*nghệ|Part|P\/N|KT|Kích\s*thước|Đặc\s*tính)[\s:].*)$/i);
+                const splitMatch = rawName.match(
+                  /^(.*?)\s+-\s+((?:Model|Yếu\s*tố|Dải\s*đo|Nguồn|Tiêu\s*chuẩn|Công\s*nghệ|Part|P\/N|KT|Kích\s*thước|Đặc\s*tính)[\s:].*)$/i,
+                );
                 if (splitMatch) {
                   cleanName = splitMatch[1].trim();
                   specFromTitle = splitMatch[2].trim();
                 }
 
-                const modelCode = r.ky_ma_hieu || r.kyMaHieu || '';
-                const modelBadge = modelCode ? `Model/Mã hiệu: ${modelCode}` : '';
+                const modelCode = r.ky_ma_hieu || r.kyMaHieu || "";
+                const modelBadge = modelCode
+                  ? `Model/Mã hiệu: ${modelCode}`
+                  : "";
 
                 let specParts = [];
                 if (r.thong_so_kt) specParts.push(r.thong_so_kt);
-                if (r.cauHinh && r.cauHinh !== 'Theo yêu cầu kỹ thuật' && !specParts.includes(r.cauHinh)) specParts.push(r.cauHinh);
-                if (r.cau_hinh && r.cau_hinh !== 'Theo yêu cầu kỹ thuật' && !specParts.includes(r.cau_hinh)) specParts.push(r.cau_hinh);
-                if (specFromTitle && !specParts.includes(specFromTitle)) specParts.push(specFromTitle);
-                if (modelBadge && !specParts.some(p => p.toLowerCase().includes(modelCode.toLowerCase()))) specParts.push(modelBadge);
-                if (r.xuat_xu && r.xuat_xu.length > 25 && !specParts.includes(r.xuat_xu)) specParts.push(r.xuat_xu);
+                if (
+                  r.cauHinh &&
+                  r.cauHinh !== "Theo yêu cầu kỹ thuật" &&
+                  !specParts.includes(r.cauHinh)
+                )
+                  specParts.push(r.cauHinh);
+                if (
+                  r.cau_hinh &&
+                  r.cau_hinh !== "Theo yêu cầu kỹ thuật" &&
+                  !specParts.includes(r.cau_hinh)
+                )
+                  specParts.push(r.cau_hinh);
+                if (specFromTitle && !specParts.includes(specFromTitle))
+                  specParts.push(specFromTitle);
+                if (
+                  modelBadge &&
+                  !specParts.some((p) =>
+                    p.toLowerCase().includes(modelCode.toLowerCase()),
+                  )
+                )
+                  specParts.push(modelBadge);
+                if (
+                  r.xuat_xu &&
+                  r.xuat_xu.length > 25 &&
+                  !specParts.includes(r.xuat_xu)
+                )
+                  specParts.push(r.xuat_xu);
 
-                const specText = Array.from(new Set(specParts)).join(' | ');
-                const benMoiThau = r.ben_moi_thau || r.tenCdtBmt || r.tenBenMoiThau || r.tenChuDauTu || r.chuDauTu || '';
-                const nhaThauTrung = r.nha_thau_trung || (Array.isArray(r.winningName) && r.winningName.length > 0 ? r.winningName[0] : (typeof r.winningName === 'string' ? r.winningName : ''));
+                const specText = Array.from(new Set(specParts)).join(" | ");
+                const benMoiThau =
+                  r.ben_moi_thau ||
+                  r.tenCdtBmt ||
+                  r.tenBenMoiThau ||
+                  r.tenChuDauTu ||
+                  r.chuDauTu ||
+                  "";
+                const nhaThauTrung =
+                  r.nha_thau_trung ||
+                  (Array.isArray(r.winningName) && r.winningName.length > 0
+                    ? r.winningName[0]
+                    : typeof r.winningName === "string"
+                      ? r.winningName
+                      : "");
 
-                let cleanOrigin = r.xuat_xu || '—';
+                let cleanOrigin = r.xuat_xu || "—";
                 if (r.xuat_xu && r.xuat_xu.length > 25) {
-                  const match = r.xuat_xu.match(/(?:Xuất\s*xứ|NSX\/Xuất\s*xứ|Origin)[\s:]*([^\n;]+)/i);
+                  const match = r.xuat_xu.match(
+                    /(?:Xuất\s*xứ|NSX\/Xuất\s*xứ|Origin)[\s:]*([^\n;]+)/i,
+                  );
                   if (match) {
                     cleanOrigin = match[1].trim();
-                  } else if (r.xuat_xu.includes('/')) {
-                    const parts = r.xuat_xu.split('/');
+                  } else if (r.xuat_xu.includes("/")) {
+                    const parts = r.xuat_xu.split("/");
                     cleanOrigin = parts[parts.length - 1].trim();
                   } else {
-                    cleanOrigin = 'Xem thông số';
+                    cleanOrigin = "Xem thông số";
                   }
                 }
 
@@ -551,7 +818,9 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
                   <tr
                     key={i}
                     className={`transition text-[11px] ${
-                      isSelected ? 'bg-orange-100/80 border-l-4 border-l-orange-600 font-semibold' : 'hover:bg-orange-50/40'
+                      isSelected
+                        ? "bg-orange-100/80 border-l-4 border-l-orange-600 font-semibold"
+                        : "hover:bg-orange-50/40"
                     }`}
                   >
                     <td className="py-2 px-2 border-r text-center">
@@ -559,17 +828,27 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
                         onClick={() => handleSelectRecord(i)}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer ${
                           isSelected
-                            ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-xs ring-2 ring-orange-300'
-                            : 'bg-slate-200 hover:bg-orange-100 text-slate-700'
+                            ? "bg-orange-600 hover:bg-orange-700 text-white shadow-xs ring-2 ring-orange-300"
+                            : "bg-slate-200 hover:bg-orange-100 text-slate-700"
                         }`}
-                        title={isSelected ? "Bấm vào đây để HỦY CHỌN dòng này" : "Bấm để CHỌN dòng này làm căn cứ"}
+                        title={
+                          isSelected
+                            ? "Bấm vào đây để HỦY CHỌN dòng này"
+                            : "Bấm để CHỌN dòng này làm căn cứ"
+                        }
                       >
-                        {isSelected ? <Check className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
-                        {isSelected ? '✓ Đã Chọn' : 'Chọn'}
+                        {isSelected ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <Pin className="w-3 h-3" />
+                        )}
+                        {isSelected ? "✓ Đã Chọn" : "Chọn"}
                       </button>
                     </td>
                     <td className="py-2.5 px-3 border-r min-w-[180px]">
-                      <div className="font-bold text-slate-900 text-xs">{cleanName}</div>
+                      <div className="font-bold text-slate-900 text-xs">
+                        {cleanName}
+                      </div>
                     </td>
                     <td className="py-2.5 px-3 border-r min-w-[220px] text-[10.5px]">
                       {specText ? (
@@ -577,7 +856,10 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
                           <div className="font-bold text-orange-950 flex items-center gap-1 mb-1">
                             ⚡ Thông số kỹ thuật / Đặc tính:
                           </div>
-                          <div className="line-clamp-4 font-normal text-slate-800 whitespace-pre-line" title={specText}>
+                          <div
+                            className="line-clamp-4 font-normal text-slate-800 whitespace-pre-line"
+                            title={specText}
+                          >
                             {specText}
                           </div>
                         </div>
@@ -587,37 +869,60 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
                     </td>
                     <td className="py-2.5 px-3 border-r min-w-[210px]">
                       <div className="flex items-center gap-1 font-mono text-orange-950 font-extrabold text-xs">
-                        <span className="bg-orange-100 text-orange-950 px-1 py-0.2 rounded text-[9.5px] border border-orange-300">TBMT</span>
-                        {r.ma_tbmt || '—'}
+                        <span className="bg-orange-100 text-orange-950 px-1 py-0.2 rounded text-[9.5px] border border-orange-300">
+                          TBMT
+                        </span>
+                        {r.ma_tbmt || "—"}
                       </div>
                       <div className="mt-1.5 text-[10.5px] text-blue-950 bg-blue-50/90 p-1.5 rounded border border-blue-200 leading-tight">
                         <div className="font-bold text-blue-900 flex items-center gap-1 mb-0.5">
                           <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                           Chủ đầu tư / Bên mời thầu:
                         </div>
-                        <div className="font-medium text-slate-800 line-clamp-2" title={benMoiThau || 'Chưa ghi nhận tên CĐT trên TBMT này'}>
-                          {benMoiThau || 'Chưa cập nhật tên CĐT trên TBMT'}
+                        <div
+                          className="font-medium text-slate-800 line-clamp-2"
+                          title={
+                            benMoiThau || "Chưa ghi nhận tên CĐT trên TBMT này"
+                          }
+                        >
+                          {benMoiThau || "Chưa cập nhật tên CĐT trên TBMT"}
                         </div>
                         {nhaThauTrung && (
-                          <div className="mt-1 pt-1 border-t border-blue-200/60 flex items-center gap-1 text-[10px] text-emerald-900 font-semibold" title={`Nhà thầu trúng thầu: ${nhaThauTrung}`}>
+                          <div
+                            className="mt-1 pt-1 border-t border-blue-200/60 flex items-center gap-1 text-[10px] text-emerald-900 font-semibold"
+                            title={`Nhà thầu trúng thầu: ${nhaThauTrung}`}
+                          >
                             <Award className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span className="truncate">Trúng thầu: {nhaThauTrung}</span>
+                            <span className="truncate">
+                              Trúng thầu: {nhaThauTrung}
+                            </span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="py-2 px-3 border-r text-center text-slate-700">{r.dvt || r.don_vi_tinh || '—'}</td>
-                    <td className="py-2 px-3 border-r text-right font-mono text-slate-800">{fmt(r.so_luong || 1)}</td>
+                    <td className="py-2 px-3 border-r text-center text-slate-700">
+                      {r.dvt || r.don_vi_tinh || "—"}
+                    </td>
+                    <td className="py-2 px-3 border-r text-right font-mono text-slate-800">
+                      {fmt(r.so_luong || 1)}
+                    </td>
                     <td className="py-2 px-3 text-right font-mono font-extrabold border-r text-orange-950 bg-orange-50/30">
                       {fmt(dg)} đ
                       {diff !== 0 && (
-                        <div className={`text-[9.5px] font-bold ${diff > 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                          {diff > 0 ? '+' : ''}{diff.toFixed(1)}% so với trình
+                        <div
+                          className={`text-[9.5px] font-bold ${diff > 0 ? "text-red-600" : "text-emerald-700"}`}
+                        >
+                          {diff > 0 ? "+" : ""}
+                          {diff.toFixed(1)}% so với trình
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-3 border-r text-slate-700 font-medium">{cleanOrigin}</td>
-                    <td className="py-2 px-3 text-slate-800 font-medium">{r.hang_sx || r.hang_san_xuat || '—'}</td>
+                    <td className="py-2 px-3 border-r text-slate-700 font-medium">
+                      {cleanOrigin}
+                    </td>
+                    <td className="py-2 px-3 text-slate-800 font-medium">
+                      {r.hang_sx || r.hang_san_xuat || "—"}
+                    </td>
                   </tr>
                 );
               })}
@@ -625,7 +930,13 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
           </table>
         </div>
       ) : mscResponse !== null ? (
-        <EmptyState text={itemsList.length > 0 ? "Không có kết quả khớp với bộ lọc tại chỗ." : "Không tìm thấy kết quả đơn giá trúng thầu tương tự trên Cổng Mua Sắm Công e-GP."} />
+        <EmptyState
+          text={
+            itemsList.length > 0
+              ? "Không có kết quả khớp với bộ lọc tại chỗ."
+              : "Không tìm thấy kết quả đơn giá trúng thầu tương tự trên Cổng Mua Sắm Công e-GP."
+          }
+        />
       ) : (
         <EmptyState text="Nhấn vào Tra Cứu e-GP hoặc chọn từ khóa đề xuất để tìm kiếm..." />
       )}
@@ -633,16 +944,18 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
       <SaveFooter
         saving={saving}
         saved={saved}
-        onSave={() => onSave({
-          analysis,
-          items: itemsList,
-          summary_text: summaryText,
-          keyword: searchKey,
-          used_keyword: searchKey,
-          tu_khoa_tra_cuu: searchKey,
-          selected_record: isDeselected ? 'NONE' : selectedRecord,
-          is_deselected: isDeselected
-        })}
+        onSave={() =>
+          onSave({
+            analysis,
+            items: itemsList,
+            summary_text: summaryText,
+            keyword: searchKey,
+            used_keyword: searchKey,
+            tu_khoa_tra_cuu: searchKey,
+            selected_record: isDeselected ? "NONE" : selectedRecord,
+            is_deselected: isDeselected,
+          })
+        }
         nextLabel="Cơ sở 5 (TMĐT)"
         prevLabel="Cơ sở 3 (IMIS)"
       />

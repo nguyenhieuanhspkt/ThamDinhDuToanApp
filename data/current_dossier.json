@@ -87,7 +87,8 @@
       "ten_vt_goc": "Solenoid van 600250-70900533",
       "thanh_tien_thong_nhat": 45046500,
       "thanh_tien_trinh": 320000000,
-      "thong_so_kt": "Solenoid van:\nMã thiết bị: 600250-70900533\nLoại van: Van điều khiển ống dẫn (spool control valve) được vận hành bằng khí nén (pilot-operated).\nĐiện áp: 24 VAC.\nCổng kết nối: 1/4\" NPT.\nÁp suất hoạt động: 35 đến 150 psig (2.4 đến 10.3 bar) với không khí đã lọc.\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nGắn kết: Gắn trực tiếp giao diện NAMUR.\nNhà sản xuất: Bray International."
+      "thong_so_kt": "Solenoid van:\nMã thiết bị: 600250-70900533\nLoại van: Van điều khiển ống dẫn (spool control valve) được vận hành bằng khí nén (pilot-operated).\nĐiện áp: 24 VAC.\nCổng kết nối: 1/4\" NPT.\nÁp suất hoạt động: 35 đến 150 psig (2.4 đến 10.3 bar) với không khí đã lọc.\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nGắn kết: Gắn trực tiếp giao diện NAMUR.\nNhà sản xuất: Bray International.",
+      "search_keyword": "600250"
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
@@ -281,13 +282,13 @@
       "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-A H400\n- Type: G1\n- Load description: Spare\n- Capacity: 65kW\n- Details:\n• MCCB: TS250H ETS 160 4 – AL (Handle mechanism switch ON/OFF/TRIP attached)\n• Cable: Wire (Sq) – XHHW/SIS 70, included cosse 70-10 (Qty: 06), length total 1000mm x 3-wires\n• Soft power cable: 2mm (height) x 20mm (width) x 500mm (length), 3-wires\n• Power side terminal plug: 1’ry clip 4P 250A, included Male & Female plug\n• Load side power terminal plug: 2’ry clip 4P 250A, included Male & Female plug\n• Control terminal plug: 3’ry 24P, included Male & Female plug\n• Unit size/ Door type: 400/ G1\n• Cable trough: 60mm (height) x 35mm (width) x 400mm (length) \n- Manufacturer: LS Electric, Korea"
     },
     {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 183501000,
+      "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
+      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Tủ MCC bucket (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 183.501.000 VNĐ (Số lượng: 1 Bộ).\n• Đánh giá Chứng cứ Thẩm định: Đạt 40/100 điểm (Hạng C - 2/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 183.501.000 VNĐ/Bộ từ CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG (Trang 3 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Chưa đối chiếu CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4.\n- Cơ sở 3 (EVN IMIS): Chưa đối chiếu CSDL Hợp đồng mua sắm toàn ngành EVN IMIS.\n- Cơ sở 4 (Mua Sắm Công e-GP): Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [LS Electric], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [Tủ MCC bucket] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 183.501.000 VNĐ/Bộ.",
+      "don_gia_thong_nhat": 183501000.0,
       "don_gia_trinh": 183501000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Khắc phục theo BBKT 1002/2026/VH-VT4 | Vật tư mua mới, chưa đề xuất trong KHSXKD 2026",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "LS/ Hàn Quốc",
       "id": 14,
       "ma_vt": "Chưa có mã vật tư",
@@ -297,7 +298,7 @@
       "so_luong": 1,
       "ten_vt": "Tủ MCC bucket - MCC unit order code: P0BHC01GH004R-BH200. Type S - MCC bucket \n- MCC unit order code: P0BHC01GH004R-B H200\n- Load description: Space\n- Type: S\n- Unit size/ Door type: 200/ S\n- Manufacturer: LS Electric, Korea",
       "ten_vt_goc": "Tủ MCC bucket - MCC unit order code: P0BHC01GH004R-BH200. Type S",
-      "thanh_tien_thong_nhat": 183501000,
+      "thanh_tien_thong_nhat": 183501000.0,
       "thanh_tien_trinh": 183501000,
       "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-B H200\n- Load description: Space\n- Type: S\n- Unit size/ Door type: 200/ S\n- Manufacturer: LS Electric, Korea"
     },
