@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Globe, Search, RotateCcw, Pin, AlertTriangle, CheckCircle,
   Check, BarChart3, Calculator, Loader2, ExternalLink, Filter,
-  ChevronLeft, ChevronRight, XCircle, ArrowRight, Save, Award, Building2
+  ChevronLeft, ChevronRight, XCircle, ArrowRight, Save, Award, Building2,
+  FileText, Database
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
 import { generateKeywordCandidates, getDefaultImisKeyword } from '../utils/keywordHelpers.js';
-import { PillarHeader, LoadingSpinner, SaveFooter } from '../common';
+import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenMscConfig, mscStatus }) {
   const toast = useToast();

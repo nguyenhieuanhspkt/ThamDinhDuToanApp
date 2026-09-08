@@ -7,6 +7,7 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal.jsx';
 import ERPConfigModal from './components/modals/ERPConfigModal.jsx';
 import IMISConfigModal from './components/modals/IMISConfigModal.jsx';
 import MSCConfigModal from './components/modals/MSCConfigModal.jsx';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 import { AlertTriangle, Database, X } from 'lucide-react';
 
 export default function App() {
@@ -146,26 +147,28 @@ export default function App() {
 
       {/* Main Full-Screen View Container */}
       <main className="flex-1 flex overflow-hidden relative">
-        {activeView === 'quotes' && (
-          <QuotesWorkspace folderPath={folderPath} />
-        )}
+        <ErrorBoundary key={activeView} title="Đã xảy ra sự cố khi hiển thị giao diện">
+          {activeView === 'quotes' && (
+            <QuotesWorkspace folderPath={folderPath} />
+          )}
 
-        {activeView === 'grid' && (
-          <GridMatrixView onSelectInspectorItem={handleSelectInspectorItem} />
-        )}
+          {activeView === 'grid' && (
+            <GridMatrixView onSelectInspectorItem={handleSelectInspectorItem} />
+          )}
 
-        {activeView === 'inspector' && (
-          <ItemInspectorView
-            selectedIndex={inspectorIndex}
-            onNavigateIndex={setInspectorIndex}
-            onOpenPdfPage={handleOpenPdfPage}
-            onOpenErpConfig={() => setIsErpConfigOpen(true)}
-            onOpenImisConfig={() => setIsImisConfigOpen(true)}
-            onOpenMscConfig={() => setIsMscConfigOpen(true)}
-            imisStatus={imisStatus}
-            mscStatus={mscStatus}
-          />
-        )}
+          {activeView === 'inspector' && (
+            <ItemInspectorView
+              selectedIndex={inspectorIndex}
+              onNavigateIndex={setInspectorIndex}
+              onOpenPdfPage={handleOpenPdfPage}
+              onOpenErpConfig={() => setIsErpConfigOpen(true)}
+              onOpenImisConfig={() => setIsImisConfigOpen(true)}
+              onOpenMscConfig={() => setIsMscConfigOpen(true)}
+              imisStatus={imisStatus}
+              mscStatus={mscStatus}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Project Manager Modal */}

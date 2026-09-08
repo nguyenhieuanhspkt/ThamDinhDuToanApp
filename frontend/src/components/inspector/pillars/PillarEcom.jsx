@@ -7,7 +7,7 @@ import {
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
 import { generateKeywordCandidates, getDefaultImisKeyword } from '../utils/keywordHelpers.js';
-import { PillarHeader, LoadingSpinner, SaveFooter } from '../common';
+import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSave, saved, onAutoSave }) {
   const toast = useToast();

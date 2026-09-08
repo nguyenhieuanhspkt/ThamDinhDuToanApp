@@ -14,6 +14,7 @@ import {
   PillarEcom,
   PillarSynthesis
 } from './pillars';
+import ErrorBoundary from '../common/ErrorBoundary.jsx';
 
 export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOpenPdfPage, onOpenErpConfig, onOpenImisConfig, onOpenMscConfig, imisStatus, mscStatus }) {
   const toast = useToast();
@@ -302,73 +303,75 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
 
           {/* Pillar Content */}
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-1">
-            {activePillar === 'quotes' && (
-              <PillarQuotes
-                loading={loading.quotes} saving={saving}
-                minQuote={minQuote} supplierMatches={supplierMatches}
-                dgTrinh={dgTrinh} onOpenPdfPage={onOpenPdfPage}
-                onSave={() => saveStep('quotes', { min_quote: minQuote, matches: supplierMatches }, 'erp')}
-                saved={evSt.has_quotes}
-              />
-            )}
+            <ErrorBoundary key={`${activePillar}_${currentItem?.id || selectedIndex}`} title={`Lỗi hiển thị Khối ${PILLARS[activePillar]?.title || activePillar}`}>
+              {activePillar === 'quotes' && (
+                <PillarQuotes
+                  loading={loading.quotes} saving={saving}
+                  minQuote={minQuote} supplierMatches={supplierMatches}
+                  dgTrinh={dgTrinh} onOpenPdfPage={onOpenPdfPage}
+                  onSave={() => saveStep('quotes', { min_quote: minQuote, matches: supplierMatches }, 'erp')}
+                  saved={evSt.has_quotes}
+                />
+              )}
 
-            {activePillar === 'erp' && (
-              <PillarErp
-                loading={loading.erp} saving={saving}
-                data={erpResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('erp', payload, 'imis')}
-                onAutoSave={(payload) => autoSaveStep('erp', payload)}
-                saved={evSt.has_erp}
-                onOpenErpConfig={onOpenErpConfig}
-              />
-            )}
+              {activePillar === 'erp' && (
+                <PillarErp
+                  loading={loading.erp} saving={saving}
+                  data={erpResults} dgTrinh={dgTrinh} item={currentItem}
+                  onSave={(payload) => saveStep('erp', payload, 'imis')}
+                  onAutoSave={(payload) => autoSaveStep('erp', payload)}
+                  saved={evSt.has_erp}
+                  onOpenErpConfig={onOpenErpConfig}
+                />
+              )}
 
-            {activePillar === 'imis' && (
-              <PillarImis
-                loading={loading.imis} saving={saving}
-                data={imisResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('imis', payload, 'muasamcong')}
-                onAutoSave={(payload) => autoSaveStep('imis', payload)}
-                saved={evSt.has_imis}
-                onOpenImisConfig={onOpenImisConfig}
-                imisStatus={imisStatus}
-              />
-            )}
+              {activePillar === 'imis' && (
+                <PillarImis
+                  loading={loading.imis} saving={saving}
+                  data={imisResults} dgTrinh={dgTrinh} item={currentItem}
+                  onSave={(payload) => saveStep('imis', payload, 'muasamcong')}
+                  onAutoSave={(payload) => autoSaveStep('imis', payload)}
+                  saved={evSt.has_imis}
+                  onOpenImisConfig={onOpenImisConfig}
+                  imisStatus={imisStatus}
+                />
+              )}
 
-            {activePillar === 'msc' && (
-              <PillarMsc
-                loading={loading.msc} saving={saving}
-                data={mscResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload) => saveStep('muasamcong', payload, 'ecom')}
-                onAutoSave={(payload) => autoSaveStep('muasamcong', payload)}
-                saved={evSt.has_msc}
-                onOpenMscConfig={onOpenMscConfig}
-                mscStatus={mscStatus}
-              />
-            )}
+              {activePillar === 'msc' && (
+                <PillarMsc
+                  loading={loading.msc} saving={saving}
+                  data={mscResults} dgTrinh={dgTrinh} item={currentItem}
+                  onSave={(payload) => saveStep('muasamcong', payload, 'ecom')}
+                  onAutoSave={(payload) => autoSaveStep('muasamcong', payload)}
+                  saved={evSt.has_msc}
+                  onOpenMscConfig={onOpenMscConfig}
+                  mscStatus={mscStatus}
+                />
+              )}
 
-            {activePillar === 'ecom' && (
-              <PillarEcom
-                loading={loading.ecom} saving={saving}
-                data={ecomResults} dgTrinh={dgTrinh} item={currentItem}
-                onSave={(payload, goNext = true) => saveStep('ecom', payload, goNext ? 'synthesis' : null)}
-                saved={evSt.has_ecom}
-                onAutoSave={(payload) => autoSaveStep('ecom', payload)}
-              />
-            )}
+              {activePillar === 'ecom' && (
+                <PillarEcom
+                  loading={loading.ecom} saving={saving}
+                  data={ecomResults} dgTrinh={dgTrinh} item={currentItem}
+                  onSave={(payload, goNext = true) => saveStep('ecom', payload, goNext ? 'synthesis' : null)}
+                  saved={evSt.has_ecom}
+                  onAutoSave={(payload) => autoSaveStep('ecom', payload)}
+                />
+              )}
 
-            {activePillar === 'synthesis' && (
-              <PillarSynthesis
-                loading={false} saving={saving}
-                data={synthesisResults}
-                dgTrinh={dgTrinh} item={currentItem}
-                quoteEvidence={quoteEvidence} erpResults={erpResults}
-                imisResults={imisResults} mscResults={mscResults}
-                ecomResults={ecomResults} evidenceStatus={evSt}
-                onSave={(payload) => saveStep('synthesis', payload, null)}
-                saved={evSt.has_syn}
-              />
-            )}
+              {activePillar === 'synthesis' && (
+                <PillarSynthesis
+                  loading={false} saving={saving}
+                  data={synthesisResults}
+                  dgTrinh={dgTrinh} item={currentItem}
+                  quoteEvidence={quoteEvidence} erpResults={erpResults}
+                  imisResults={imisResults} mscResults={mscResults}
+                  ecomResults={ecomResults} evidenceStatus={evSt}
+                  onSave={(payload) => saveStep('synthesis', payload, null)}
+                  saved={evSt.has_syn}
+                />
+              )}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   Building2, Database, Search, RotateCcw, AlertTriangle, CheckCircle,
-  Pin, Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, FileText
+  Pin, Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, FileText, X
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
 import { isValidErpCode, getErpDefaultKw, getInitialSelectedIdx } from '../utils/keywordHelpers.js';
-import { PillarHeader, LoadingSpinner, SaveFooter } from '../common';
+import { PillarHeader, LoadingSpinner, SaveFooter, EmptyState } from '../common';
 
 export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave, onAutoSave, saved, onOpenErpConfig }) {
   const toast = useToast();
