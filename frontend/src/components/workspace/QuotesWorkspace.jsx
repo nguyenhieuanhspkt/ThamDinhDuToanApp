@@ -1,21 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import LeftSidebar from './LeftSidebar.jsx';
-import PDFCenterViewer from './PDFCenterViewer.jsx';
-import SpreadsheetGrid from './SpreadsheetGrid.jsx';
-import FolderPickerModal from '../modals/FolderPickerModal.jsx';
-import { useToast } from '../ui/Toast.jsx';
+import React, { useState, useEffect } from "react";
+import LeftSidebar from "./LeftSidebar.jsx";
+import PDFCenterViewer from "./PDFCenterViewer.jsx";
+import SpreadsheetGrid from "./SpreadsheetGrid.jsx";
+import FolderPickerModal from "../modals/FolderPickerModal.jsx";
+import { useToast } from "../ui/Toast.jsx";
 
-export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelectInspectorItem }) {
+export default function QuotesWorkspace({
+  folderPath: initialFolderPath,
+  onSelectInspectorItem,
+}) {
   const toast = useToast();
 
+  const DEFAULT_FOLDER =
+    "D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định";
+
+  // CODE MỚI: Khởi tạo mặc định, sau đó sẽ load đồng bộ từ active_project.json qua API
   const [folderPath, setFolderPath] = useState(
-    initialFolderPath ||
-      'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định'
+    initialFolderPath || DEFAULT_FOLDER,
   );
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [dossierData, setDossierData] = useState(null);
   const [dossierItems, setDossierItems] = useState([]);
-  const [currentFilter, setFilter] = useState('all');
+  const [currentFilter, setFilter] = useState("all");
   const [activeFilename, setActiveFilename] = useState(null);
   const [activeFilePath, setActiveFilePath] = useState(null);
   const [activeQuoteData, setActiveQuoteData] = useState(null);
@@ -24,7 +30,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
   useEffect(() => {
-    fetch('/api/dossier')
+    fetch("/api/dossier")
       .then((res) => res.json())
       .then((data) => {
         setDossierItems(data.items || []);
@@ -35,10 +41,13 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
   const fetchDossier = async (targetPath = folderPath, forceRescan = true) => {
     setIsLoadingDossier(true);
     try {
-      const res = await fetch('/api/quotes/dossier', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: targetPath, force_rescan: forceRescan })
+      const res = await fetch("/api/quotes/dossier", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder_path: targetPath,
+          force_rescan: forceRescan,
+        }),
       });
       const data = await res.json();
 
@@ -53,18 +62,39 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
           setActiveQuoteData(null);
         }
       } else {
-        setDossierData({ folder_path: targetPath, quotes: [], scans: [], docs: [], total_files: 0 });
+        setDossierData({
+          folder_path: targetPath,
+          quotes: [],
+          scans: [],
+          docs: [],
+          total_files: 0,
+        });
       }
     } catch (e) {
-      console.error('Lỗi nạp thư mục báo giá:', e);
-      toast.error('Lỗi kết nối khi quét thư mục báo giá!');
+      console.error("Lỗi nạp thư mục báo giá:", e);
+      toast.error("Lỗi kết nối khi quét thư mục báo giá!");
     } finally {
       setIsLoadingDossier(false);
     }
   };
 
+  // CODE MỚI: Tải đường dẫn báo giá từ active_project.json khi khởi chạy component
   useEffect(() => {
-    fetchDossier(folderPath, true);
+    fetch("/api/project/quotes-path")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.active_quotes_folder_path) {
+          const loadedPath = data.active_quotes_folder_path;
+          setFolderPath(loadedPath);
+          fetchDossier(loadedPath, true);
+        } else {
+          fetchDossier(DEFAULT_FOLDER, true);
+        }
+      })
+      .catch((err) => {
+        console.error("Lỗi tải active_quotes_folder_path từ dự án:", err);
+        fetchDossier(DEFAULT_FOLDER, true);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -75,10 +105,10 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
     setIsLoadingQuote(true);
 
     try {
-      const res = await fetch('/api/quotes/item-data', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, folder_path: targetFolder })
+      const res = await fetch("/api/quotes/item-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, folder_path: targetFolder }),
       });
       const data = await res.json();
       if (data.success) {
@@ -87,7 +117,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         setActiveQuoteData(null);
       }
     } catch (e) {
-      console.error('Lỗi nạp chi tiết báo giá:', e);
+      console.error("Lỗi nạp chi tiết báo giá:", e);
       setActiveQuoteData(null);
     } finally {
       setIsLoadingQuote(false);
@@ -96,22 +126,24 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
 
   const handleSaveQuote = async (updatedQuote) => {
     try {
-      const res = await fetch('/api/quotes/save-override', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: folderPath, quote: updatedQuote })
+      const res = await fetch("/api/quotes/save-override", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder_path: folderPath, quote: updatedQuote }),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('Đã lưu hiệu chỉnh dữ liệu báo giá thành công!');
+        toast.success("Đã lưu hiệu chỉnh dữ liệu báo giá thành công!");
         setActiveQuoteData(updatedQuote);
         fetchDossier(folderPath, false);
       } else {
-        toast.error('Lỗi lưu dữ liệu: ' + (data.message || 'Không rõ nguyên nhân'));
+        toast.error(
+          "Lỗi lưu dữ liệu: " + (data.message || "Không rõ nguyên nhân"),
+        );
       }
     } catch (e) {
-      console.error('Lỗi kết nối khi lưu báo giá:', e);
-      toast.error('Lỗi mạng khi gửi dữ liệu lưu!');
+      console.error("Lỗi kết nối khi lưu báo giá:", e);
+      toast.error("Lỗi mạng khi gửi dữ liệu lưu!");
     }
   };
 
@@ -119,28 +151,51 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
     if (pageNum && pageNum > 0) setPageNumber(pageNum);
   };
 
-  const handleSelectFolder = (newPath) => {
+  // CODE MỚI: Lưu path mới vào active_project.json thay vì localStorage khi chọn folder khác
+  const handleSelectFolder = async (newPath) => {
     setFolderPath(newPath);
+
+    try {
+      const res = await fetch("/api/project/quotes-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder_path: newPath }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Hiển thị thông báo thành công ra giao diện UI
+        toast.success(
+          "Đã lưu đường dẫn báo giá vào active_project.json thành công!",
+        );
+      } else {
+        toast.error("Lỗi khi lưu: " + (data.message || "Không rõ nguyên nhân"));
+      }
+    } catch (e) {
+      console.error("Lỗi kết nối khi lưu đường dẫn:", e);
+      toast.error("Lỗi mạng khi lưu đường dẫn vào file dự án!");
+    }
+
     fetchDossier(newPath, true);
   };
 
   const handleApproveAll = async () => {
     try {
-      const res = await fetch('/api/quotes/approve-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: folderPath })
+      const res = await fetch("/api/quotes/approve-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder_path: folderPath }),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success(data.message || 'Đã phê duyệt CSDL Dự Án thành công!');
+        toast.success(data.message || "Đã phê duyệt CSDL Dự Án thành công!");
         fetchDossier(folderPath, false);
       } else {
-        toast.error('Lỗi phê duyệt: ' + (data.message || ''));
+        toast.error("Lỗi phê duyệt: " + (data.message || ""));
       }
     } catch (e) {
-      console.error('Lỗi phê duyệt CSDL:', e);
-      toast.error('Lỗi kết nối máy chủ!');
+      console.error("Lỗi phê duyệt CSDL:", e);
+      toast.error("Lỗi kết nối máy chủ!");
     }
   };
 

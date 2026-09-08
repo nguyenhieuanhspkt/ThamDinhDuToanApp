@@ -1,31 +1,76 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Folder, FolderOpen, History, Check, X, HardDrive, ArrowUp, FolderPlus, Monitor } from 'lucide-react';
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Folder,
+  FolderOpen,
+  History,
+  Check,
+  X,
+  HardDrive,
+  ArrowUp,
+  FolderPlus,
+  Monitor,
+} from "lucide-react";
 
-export default function FolderPickerModal({ isOpen, onClose, currentPath, onSelectFolder }) {
-  const [inputPath, setInputPath] = useState(currentPath || '');
+export default function FolderPickerModal({
+  isOpen,
+  onClose,
+  currentPath,
+  onSelectFolder,
+}) {
+  const [inputPath, setInputPath] = useState(currentPath || "");
   const [parentPath, setParentPath] = useState(null);
   const [subdirs, setSubdirs] = useState([]);
   const [isLoadingTree, setIsLoadingTree] = useState(false);
   const [isOpeningNative, setIsOpeningNative] = useState(false);
   const fileInputRef = useRef(null);
 
-  const [recentFolders, setRecentFolders] = useState([
-    'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định',
-    'D:\\TaskApp_kiet\\Các Báo giá gửi Thẩm định',
-    'D:\\TaskApp_kiet\\thamdinhdutoanApp\\data\\quotes'
-  ]);
+  // 1. Khai báo danh sách mặc định & đọc từ localStorage
+  const DEFAULT_RECENT = [
+    "D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định",
+    "D:\\TaskApp_kiet\\Các Báo giá gửi Thẩm định",
+    "D:\\TaskApp_kiet\\thamdinhdutoanApp\\data\\quotes",
+  ];
+
+  const [recentFolders, setRecentFolders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("recent_quote_folders");
+      return saved ? JSON.parse(saved) : DEFAULT_RECENT;
+    } catch (e) {
+      return DEFAULT_RECENT;
+    }
+  });
+
+  // 2. Khai báo hàm lưu nguyền trợ (đặt SAU setRecentFolders)
+  const saveToRecent = (newPath) => {
+    if (!newPath || !newPath.trim()) return;
+    const trimmed = newPath.trim();
+
+    setRecentFolders((prev) => {
+      // Đẩy path mới lên đầu, loại bỏ trùng lặp và giữ tối đa 5 thư mục
+      const updated = [trimmed, ...prev.filter((p) => p !== trimmed)].slice(
+        0,
+        5,
+      );
+      try {
+        localStorage.setItem("recent_quote_folders", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Lỗi khi lưu vào localStorage:", e);
+      }
+      return updated;
+    });
+  };
 
   const fetchFolderTree = async (targetPath) => {
     setIsLoadingTree(true);
     try {
-      const res = await fetch('/api/quotes/browse-folders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: targetPath || inputPath })
+      const res = await fetch("/api/quotes/browse-folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: targetPath || inputPath }),
       });
 
-      const contentType = res.headers.get('content-type') || '';
-      if (res.ok && contentType.includes('application/json')) {
+      const contentType = res.headers.get("content-type") || "";
+      if (res.ok && contentType.includes("application/json")) {
         const data = await res.json();
         if (data.success) {
           setInputPath(data.current_path);
@@ -43,10 +88,12 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
   const handleOpenNativeExplorer = async () => {
     setIsOpeningNative(true);
     try {
-      const res = await fetch('/api/quotes/native-browse-folder', { method: 'POST' });
-      const contentType = res.headers.get('content-type') || '';
+      const res = await fetch("/api/quotes/native-browse-folder", {
+        method: "POST",
+      });
+      const contentType = res.headers.get("content-type") || "";
 
-      if (res.ok && contentType.includes('application/json')) {
+      if (res.ok && contentType.includes("application/json")) {
         const data = await res.json();
         if (data.success && data.folder_path) {
           setInputPath(data.folder_path);
@@ -55,8 +102,7 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
           return;
         }
       }
-      
-      // Fallback: Trigger browser native folder selector
+
       if (fileInputRef.current) {
         fileInputRef.current.click();
       }
@@ -72,16 +118,19 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
   const handleHtml5DirectorySelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const firstFile = e.target.files[0];
-      let selectedFolderPath = '';
+      let selectedFolderPath = "";
 
       if (firstFile.path) {
         selectedFolderPath = firstFile.path.substring(
           0,
-          Math.max(firstFile.path.lastIndexOf('\\'), firstFile.path.lastIndexOf('/'))
+          Math.max(
+            firstFile.path.lastIndexOf("\\"),
+            firstFile.path.lastIndexOf("/"),
+          ),
         );
       } else {
-        const relPath = firstFile.webkitRelativePath || '';
-        const folderName = relPath.split('/')[0] || '';
+        const relPath = firstFile.webkitRelativePath || "";
+        const folderName = relPath.split("/")[0] || "";
         if (folderName) {
           selectedFolderPath = `D:\\TaskApp_kiet\\${folderName}`;
         }
@@ -97,7 +146,7 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
 
   useEffect(() => {
     if (isOpen) {
-      const initPath = currentPath || 'D:\\TaskApp_kiet';
+      const initPath = currentPath || "D:\\TaskApp_kiet";
       setInputPath(initPath);
       fetchFolderTree(initPath);
     }
@@ -105,10 +154,13 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
 
   if (!isOpen) return null;
 
+  // 3. Thực hiện LƯU khi bấm nút "Xác Nhận Chọn Thư Mục Này"
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (inputPath && inputPath.trim()) {
-      onSelectFolder(inputPath.trim());
+      const finalPath = inputPath.trim();
+      saveToRecent(finalPath); // <--- LƯU VÀO RECENT TẠI ĐÂY
+      onSelectFolder(finalPath);
       onClose();
     }
   };
@@ -132,7 +184,6 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      {/* Hidden HTML5 Native Directory Input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -150,25 +201,33 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
               <FolderOpen className="w-4 h-4 text-teal-300" />
             </div>
             <div>
-              <h3 className="text-xs font-bold tracking-wide">CHỌN THƯ MỤC BÁO GIÁ GỐC (PDF)</h3>
-              <p className="text-[10.5px] text-teal-200">Mở cửa sổ Windows Explorer chọn thư mục trực tiếp</p>
+              <h3 className="text-xs font-bold tracking-wide">
+                CHỌN THƯ MỤC BÁO GIÁ GỐC (PDF)
+              </h3>
+              <p className="text-[10.5px] text-teal-200">
+                Mở cửa sổ Windows Explorer chọn thư mục trực tiếp
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-teal-200 hover:text-white p-1">
+          <button
+            onClick={onClose}
+            className="text-teal-200 hover:text-white p-1"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
         <div className="p-5 flex flex-col gap-3.5 text-xs overflow-y-auto flex-1">
-          {/* NATIVE WINDOWS EXPLORER BUTTON (NỔI BẬT HÀNG ĐẦU) */}
           <div className="bg-emerald-50 border border-emerald-300 p-3 rounded-xl flex items-center justify-between shadow-2xs">
             <div>
               <h4 className="font-bold text-emerald-950 text-xs flex items-center gap-1.5">
-                <Monitor className="w-4 h-4 text-emerald-700" /> Duyệt Thư Mục Qua Windows Explorer
+                <Monitor className="w-4 h-4 text-emerald-700" /> Duyệt Thư Mục
+                Qua Windows Explorer
               </h4>
               <p className="text-[11px] text-emerald-800 mt-0.5">
-                Mở cửa sổ chọn thư mục chuẩn của Windows (giống ứng dụng Desktop)
+                Mở cửa sổ chọn thư mục chuẩn của Windows (giống ứng dụng
+                Desktop)
               </p>
             </div>
             <button
@@ -178,14 +237,15 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
               className="bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white font-bold px-3.5 py-2 rounded-lg text-xs shadow flex items-center gap-1.5 shrink-0 transition"
             >
               <FolderOpen className="w-4 h-4 text-emerald-200" />
-              {isOpeningNative ? 'Đang mở...' : 'Duyệt Windows...'}
+              {isOpeningNative ? "Đang mở..." : "Duyệt Windows..."}
             </button>
           </div>
 
           {/* Path Input Bar */}
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1">
-              <HardDrive className="w-3.5 h-3.5 text-teal-700" /> Đường dẫn thư mục hiện tại:
+              <HardDrive className="w-3.5 h-3.5 text-teal-700" /> Đường dẫn thư
+              mục hiện tại:
             </label>
             <div className="flex items-center gap-1.5">
               <input
@@ -209,7 +269,8 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
           <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50 flex flex-col min-h-[130px] max-h-[180px]">
             <div className="bg-slate-200/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 flex items-center justify-between border-b shrink-0">
               <span className="flex items-center gap-1">
-                <FolderPlus className="w-3.5 h-3.5 text-teal-800" /> Thư mục con bên trong:
+                <FolderPlus className="w-3.5 h-3.5 text-teal-800" /> Thư mục con
+                bên trong:
               </span>
               {parentPath && (
                 <button
@@ -224,9 +285,13 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
 
             <div className="p-2 overflow-y-auto flex-1 space-y-1">
               {isLoadingTree ? (
-                <div className="text-center py-4 text-gray-400 text-xs italic">Đang tải danh mục...</div>
+                <div className="text-center py-4 text-gray-400 text-xs italic">
+                  Đang tải danh mục...
+                </div>
               ) : subdirs.length === 0 ? (
-                <div className="text-center py-4 text-gray-400 text-xs italic">Không có thư mục con nào.</div>
+                <div className="text-center py-4 text-gray-400 text-xs italic">
+                  Không có thư mục con nào.
+                </div>
               ) : (
                 subdirs.map((sd, idx) => (
                   <button
@@ -246,7 +311,8 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
           {/* Recent Folders */}
           <div>
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-              <History className="w-3 h-3 text-amber-600" /> Thư mục đã dùng gần đây:
+              <History className="w-3 h-3 text-amber-600" /> Thư mục đã dùng gần
+              đây:
             </span>
             <div className="flex flex-col gap-1 mt-1">
               {recentFolders.map((path, idx) => (
@@ -256,15 +322,17 @@ export default function FolderPickerModal({ isOpen, onClose, currentPath, onSele
                   onClick={() => handleSelectRecent(path)}
                   className={`text-left p-1.5 rounded-lg border text-xs flex items-center justify-between transition ${
                     inputPath === path
-                      ? 'bg-teal-50 border-teal-300 font-bold text-teal-900'
-                      : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700'
+                      ? "bg-teal-50 border-teal-300 font-bold text-teal-900"
+                      : "bg-white hover:bg-gray-50 border-gray-200 text-gray-700"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 truncate font-mono text-[10.5px]">
                     <Folder className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span className="truncate">{path}</span>
                   </span>
-                  {inputPath === path && <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />}
+                  {inputPath === path && (
+                    <Check className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                  )}
                 </button>
               ))}
             </div>

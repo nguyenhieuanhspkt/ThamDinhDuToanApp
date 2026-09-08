@@ -279,7 +279,33 @@ def api_load_project(filename):
     except Exception as e:
         return jsonify({"success": False, "message": f"Lỗi đọc dự án: {e}"}), 500
 
+@app.route("/api/project/quotes-path", methods=["GET", "POST"])
+def api_project_quotes_path():
+    """Đọc hoặc cập nhật đường dẫn thư mục báo giá của dự án đang active trong active_project.json"""
+    if not os.path.exists(ACTIVE_PROJECT_FILE):
+        return jsonify({"success": False, "message": "Chưa có dự án active"}), 404
+        
+    try:
+        with open(ACTIVE_PROJECT_FILE, "r", encoding="utf-8") as f:
+            proj_config = json.load(f)
+    except Exception:
+        proj_config = {}
 
+    if request.method == "POST":
+        req_data = request.get_json() or {}
+        new_path = req_data.get("folder_path", "").strip()
+        if new_path:
+            proj_config["active_quotes_folder_path"] = new_path
+            with open(ACTIVE_PROJECT_FILE, "w", encoding="utf-8") as f:
+                json.dump(proj_config, f, ensure_ascii=False, indent=2)
+            return jsonify({"success": True, "message": "Đã lưu đường dẫn báo giá vào active_project.json"})
+        return jsonify({"success": False, "message": "Đường dẫn không hợp lệ"}), 400
+
+    # Phương thức GET: trả về path đang lưu (nếu có)
+    return jsonify({
+        "success": True, 
+        "active_quotes_folder_path": proj_config.get("active_quotes_folder_path", "")
+    })
 @app.route("/api/projects/delete/<filename>", methods=["DELETE"])
 def api_delete_project(filename):
     """Xóa một dự án đã lưu."""
