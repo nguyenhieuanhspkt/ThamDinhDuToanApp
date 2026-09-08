@@ -195,9 +195,49 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     window.location.href = `/api/items/${itemId}/export-pdf`;
   };
 
-  const handleOpenExistingAudit = (it) => {
+  const handleOpenExistingAudit = async (it) => {
     const itemId = it.id || items.indexOf(it) + 1;
     const kw = it.search_keyword || itemKeywords[itemId] || extractDefaultKeyword(it);
+
+    // Bóc tách giá quote gốc thực tế nếu đã scan
+    const itemMatch = quoteMatches[itemId] || {};
+    const qPriceInit = itemMatch.lowest_price || it.lowest_quote_price || it.don_gia_nha_thau_thap_nhat || it.don_gia_trinh || 0;
+    const qVendorInit = itemMatch.lowest_vendor || it.lowest_quote_vendor || it.ten_nha_thau_thap_nhat || 'Nhà thầu chào';
+
+    // Nhận diện cơ sở được chọn thực tế từ co_so_thong_nhat
+    const csTn = (it.co_so_thong_nhat || '').toLowerCase();
+    const isErpMatch = csTn.includes('erp') || csTn.includes('vĩnh tân 4');
+    const isImisMatch = csTn.includes('imis');
+    const isMscMatch = csTn.includes('mua sắm công') || csTn.includes('e-gp');
+    const isEcomMatch = csTn.includes('tmđt') || csTn.includes('thương mại điện tử') || csTn.includes('web');
+
+    const initialSteps = [
+      {
+        name: '1. Báo Giá Gốc (PDF)',
+        detail: qPriceInit > 0 ? `Báo giá chào thấp nhất: ${fmt(qPriceInit)} đ (${qVendorInit})` : 'Đã đối chiếu thư mục báo giá',
+        price: qPriceInit
+      },
+      {
+        name: '2. ERP Vĩnh Tân 4',
+        detail: `Mã ERP: ${it.ma_vt || 'Tra cứu theo tên'}${isErpMatch ? ' (Cơ sở chốt giá)' : ''}`,
+        price: isErpMatch ? (it.don_gia_thong_nhat || 0) : 0
+      },
+      {
+        name: '3. EVN IMIS Toàn Ngành',
+        detail: `Hợp đồng phát điện toàn ngành EVN${isImisMatch ? ' (Cơ sở chốt giá)' : ''}`,
+        price: isImisMatch ? (it.don_gia_thong_nhat || 0) : 0
+      },
+      {
+        name: '4. Mua Sắm Công e-GP',
+        detail: `Đấu thầu qua mạng muasamcong.mpi.gov.vn${isMscMatch ? ' (Cơ sở chốt giá)' : ''}`,
+        price: isMscMatch ? (it.don_gia_thong_nhat || 0) : 0
+      },
+      {
+        name: '5. TMĐT & Tham Khảo Web',
+        detail: `Tham chiếu thị trường công nghiệp${isEcomMatch ? ' (Cơ sở chốt giá)' : ''}`,
+        price: isEcomMatch ? (it.don_gia_thong_nhat || 0) : 0
+      }
+    ];
 
     const auditData = {
       item_id: itemId,
@@ -214,15 +254,10 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         coverage_score: 90,
         summary_text: it.danh_gia_ttd
       },
-      steps: [
-        { name: '1. Báo Giá Gốc (PDF)', detail: it.co_so_thong_nhat?.includes('báo giá') ? it.co_so_thong_nhat : 'Đã đối chiếu thư mục báo giá', price: it.don_gia_thong_nhat },
-        { name: '2. ERP Vĩnh Tân 4', detail: `Mã ERP: ${it.ma_vt || 'Tra cứu theo tên'}`, price: it.don_gia_thong_nhat },
-        { name: '3. EVN IMIS Toàn Ngành', detail: 'Hợp đồng phát điện toàn ngành EVN', price: it.don_gia_thong_nhat },
-        { name: '4. Mua Sắm Công e-GP', detail: 'Đấu thầu qua mạng muasamcong.mpi.gov.vn', price: 0 },
-        { name: '5. TMĐT & Tham Khảo Web', detail: 'Tham chiếu thị trường công nghiệp', price: 0 }
-      ]
+      steps: initialSteps
     };
 
+    // Mở modal lập tức (phản hồi 0ms)
     setAuditModal({
       isOpen: true,
       item: it,
@@ -231,6 +266,110 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       activeStep: 6,
       auditData: auditData
     });
+
+    // Nạp dữ liệu chứng cứ thật 100% từ Backend
+    try {
+      const resTrail = await fetch(`/api/items/${itemId}/evidence/audit_trail`);
+      if (resTrail.ok) {
+        const dataTrail = await resTrail.json();
+        if (dataTrail.success && dataTrail.data && Array.isArray(dataTrail.data.steps) && dataTrail.data.steps.length > 0) {
+          setAuditModal(prev => {
+            if (!prev.isOpen || (prev.item?.id !== it.id && prev.item !== it)) return prev;
+            return {
+              ...prev,
+              auditData: {
+                ...prev.auditData,
+                ...dataTrail.data,
+                result: dataTrail.data.result || prev.auditData.result,
+                synthesis: {
+                  ...prev.auditData.synthesis,
+                  summary_text: it.danh_gia_ttd || dataTrail.data.synthesis?.summary_text
+                }
+              }
+            };
+          });
+          return;
+        }
+      }
+
+      // Dự phòng: nạp từ /api/evidence/get
+      const resEv = await fetch(`/api/evidence/get?item_id=${itemId}`);
+      if (resEv.ok) {
+        const dataEv = await resEv.json();
+        if (dataEv.success && dataEv.evidence) {
+          const ev = dataEv.evidence;
+          const qPrice = ev.quotes?.min_price || qPriceInit;
+          const qSupplier = ev.quotes?.matches?.[0]?.company || qVendorInit;
+
+          let erpPrice = 0;
+          let erpDetail = 'Vật tư chưa có lịch sử mua sắm ERP';
+          if (ev.erp?.results && ev.erp.results.length > 0) {
+            const r0 = ev.erp.results[0];
+            erpPrice = parseFloat(r0.don_gia || r0.donGia || 0);
+            erpDetail = ev.erp.summary_text || `Lịch sử ERP: ${fmt(erpPrice)} đ (HĐ: ${r0.so_hd || r0.soHopDong || ''})`;
+          } else if (isErpMatch) {
+            erpPrice = it.don_gia_thong_nhat || 0;
+          }
+
+          let imisPrice = 0;
+          let imisDetail = 'Chưa có dữ liệu EVN IMIS';
+          if (ev.imis?.results && ev.imis.results.length > 0) {
+            const i0 = ev.imis.results[0];
+            imisPrice = parseFloat(i0.don_gia || i0.donGia || 0);
+            imisDetail = ev.imis.summary_text || `IMIS: ${fmt(imisPrice)} đ (${i0.don_vi || ''})`;
+          } else if (isImisMatch) {
+            imisPrice = it.don_gia_thong_nhat || 0;
+          }
+
+          let mscPrice = 0;
+          let mscDetail = 'Chưa có dữ liệu Mua sắm công e-GP';
+          if (ev.muasamcong?.results && ev.muasamcong.results.length > 0) {
+            const m0 = ev.muasamcong.results[0];
+            mscPrice = parseFloat(m0.gia_trung_thau || m0.don_gia || 0);
+            mscDetail = ev.muasamcong.summary_text || `Mua sắm công: ${fmt(mscPrice)} đ`;
+          } else if (isMscMatch) {
+            mscPrice = it.don_gia_thong_nhat || 0;
+          }
+
+          let ecomPrice = 0;
+          let ecomDetail = 'Chưa có dữ liệu TMĐT';
+          if (ev.ecom?.results && ev.ecom.results.length > 0) {
+            const e0 = ev.ecom.results[0];
+            ecomPrice = parseFloat(e0.landed_price || e0.gia_vnd || e0.price_vnd || 0);
+            ecomDetail = ev.ecom.summary_text || `TMĐT: ${fmt(ecomPrice)} đ`;
+          } else if (isEcomMatch) {
+            ecomPrice = it.don_gia_thong_nhat || 0;
+          }
+
+          const realSteps = [
+            { name: '1. Báo Giá Gốc (PDF)', detail: qPrice > 0 ? `Báo giá chào thấp nhất: ${fmt(qPrice)} đ/Cái (${qSupplier})` : 'Chưa có báo giá gốc', price: qPrice },
+            { name: '2. ERP Vĩnh Tân 4', detail: erpDetail, price: erpPrice },
+            { name: '3. EVN IMIS Toàn Ngành', detail: imisDetail, price: imisPrice },
+            { name: '4. Mua Sắm Công e-GP', detail: mscDetail, price: mscPrice },
+            { name: '5. TMĐT & Tham Khảo Web', detail: ecomDetail, price: ecomPrice },
+            {
+              name: '6. AI Thuyết Minh & Chốt Giá',
+              price: it.don_gia_thong_nhat || 0,
+              summary_text: it.danh_gia_ttd,
+              detail: `Đơn giá thống nhất: ${fmt(it.don_gia_thong_nhat)} đ/Cái`
+            }
+          ];
+
+          setAuditModal(prev => {
+            if (!prev.isOpen || (prev.item?.id !== it.id && prev.item !== it)) return prev;
+            return {
+              ...prev,
+              auditData: {
+                ...prev.auditData,
+                steps: realSteps
+              }
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Không thể nạp thêm chi tiết chứng cứ ngầm:', err);
+    }
   };
 
   const fmt = (val) => (!val && val !== 0 ? '—' : Math.round(val).toLocaleString('vi-VN'));
