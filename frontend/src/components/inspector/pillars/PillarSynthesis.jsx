@@ -86,9 +86,18 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
   );
 
   const ecomList = ecomResults?.items || (Array.isArray(ecomResults) ? ecomResults : []);
+  const ecomSelRec = (typeof ecomResults?.selected_record === 'object' && ecomResults?.selected_record) || ecomList[0];
+  const ecomRawPrice = parseFloat(ecomSelRec?.price || ecomSelRec?.don_gia || 0);
+  const ecomHasLanded = ecomSelRec?.has_landed_cost ?? (ecomSelRec?.currency === 'USD' || Boolean(ecomSelRec?.landed_price));
+  const ecomSurcharge = ecomSelRec?.landed_surcharge_pct ?? 20;
+  const ecomCalcLanded = (ecomHasLanded && ecomRawPrice > 0)
+    ? (ecomSelRec?.landed_price ? parseFloat(ecomSelRec.landed_price) : computeLandedCost(ecomRawPrice, ecomSurcharge))
+    : ecomRawPrice;
+
   const p5_price = parseFloat(
     ecomResults?.selected_record?.landed_price ||
     ecomResults?.landed_price ||
+    (ecomCalcLanded > 0 ? ecomCalcLanded : 0) ||
     ecomResults?.selected_record?.price ||
     ecomResults?.selected_record?.don_gia ||
     ecomResults?.don_gia_tham_chieu ||
@@ -317,13 +326,22 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
 
     // 5. Cơ sở 5: Thương Mại Điện Tử & Giá Web
     let p5_desc = '';
-    if (ecomResults?.summary_text) {
+    const isEcomSummaryOutdated = Boolean(
+      ecomHasLanded && ecomCalcLanded > ecomRawPrice &&
+      ecomResults?.summary_text &&
+      !ecomResults.summary_text.includes('Landed Cost') &&
+      !ecomResults.summary_text.includes('nhập cảnh') &&
+      !ecomResults.summary_text.includes('vận chuyển quốc tế')
+    );
+
+    if (ecomResults?.summary_text && !isEcomSummaryOutdated) {
       p5_desc = ecomResults.summary_text;
     } else if (p5_price > 0) {
-      const rec = ecomResults?.selected_record || ecomResults?.items?.[0];
-      const hasLanded = rec?.has_landed_cost ?? (rec?.currency === 'USD' || Boolean(rec?.landed_price));
-      const surcharge = rec?.landed_surcharge_pct || 20;
-      const landedNote = hasLanded ? ` [Đã tính phụ thu vận chuyển quốc tế & thuế nhập khẩu (Landed Cost DDP Vĩnh Tân 4 +${surcharge}%)]` : '';
+      const rec = ecomSelRec;
+      const rawP = parseFloat(rec?.price || 0);
+      const landedNote = (ecomHasLanded && rawP > 0)
+        ? ` [Giá web gốc: ${fmt(rawP)} đ; sau khi tính phụ thu chi phí vận chuyển quốc tế & thuế nhập khẩu (Landed Cost DDP Vĩnh Tân 4 +${ecomSurcharge}%), đơn giá tham chiếu đề xuất là ${fmt(p5_price)} đ]`
+        : '';
       p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên thị trường TMĐT / Website nhà cung cấp (${rec?.vendor || 'Internet'}) tại link [${rec?.url || 'Web'}]; ghi nhận đơn giá niêm yết công khai tham chiếu là ${fmt(p5_price)} VNĐ/${unit}${landedNote}.`;
     } else {
       p5_desc = `Tra cứu theo từ khóa [${ecomKw}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).`;
@@ -344,7 +362,8 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
     const isOutdated = (
       (isImisDeselected && data?.summary_text && (data.summary_text.includes('58.500') || data.summary_text.includes('IMIS EVN: 58') || data.summary_text.includes('Huội Quảng') || (data?.co_so_thong_nhat?.includes('IMIS')))) ||
       (isErpDeselected && data?.summary_text && data.summary_text.includes('Lịch sử nhập kho ERP Vĩnh Tân 4:') && !data.summary_text.includes('Không áp dụng làm căn cứ')) ||
-      (isMscDeselected && data?.summary_text && data.summary_text.includes('e-GP MSC:') && !data.summary_text.includes('Không áp dụng làm căn cứ'))
+      (isMscDeselected && data?.summary_text && data.summary_text.includes('e-GP MSC:') && !data.summary_text.includes('Không áp dụng làm căn cứ')) ||
+      (ecomHasLanded && ecomCalcLanded > ecomRawPrice && data?.summary_text && !data.summary_text.includes('Landed Cost') && (data.summary_text.includes('13.743.000') || !data.summary_text.includes('16.491.600')))
     );
 
     if (data?.summary_text && !isOutdated) {

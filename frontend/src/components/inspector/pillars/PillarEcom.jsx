@@ -62,15 +62,50 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
     }
   };
 
-  const [summaryText, setSummaryText] = useState(data?.summary_text || computeDefaultSummary(data?.items || [], (data?.items || [])[0], defaultKw));
-  const [isCustom, setIsCustom] = useState(Boolean(data?.summary_text));
+  const [summaryText, setSummaryText] = useState(() => {
+    const items = data?.items || [];
+    const firstRec = items[0];
+    const recHasLanded = firstRec?.has_landed_cost ?? (firstRec?.currency === 'USD' || Boolean(firstRec?.landed_price));
+    const isOutdatedEcom = Boolean(
+      recHasLanded &&
+      data?.summary_text &&
+      !data.summary_text.includes('Landed Cost') &&
+      !data.summary_text.includes('nhập cảnh') &&
+      !data.summary_text.includes('vận chuyển quốc tế')
+    );
+    if (data?.summary_text && !isOutdatedEcom) return data.summary_text;
+    return computeDefaultSummary(items, firstRec, defaultKw);
+  });
+  const [isCustom, setIsCustom] = useState(() => {
+    const items = data?.items || [];
+    const firstRec = items[0];
+    const recHasLanded = firstRec?.has_landed_cost ?? (firstRec?.currency === 'USD' || Boolean(firstRec?.landed_price));
+    const isOutdatedEcom = Boolean(
+      recHasLanded &&
+      data?.summary_text &&
+      !data.summary_text.includes('Landed Cost') &&
+      !data.summary_text.includes('nhập cảnh') &&
+      !data.summary_text.includes('vận chuyển quốc tế')
+    );
+    return Boolean(data?.summary_text && !isOutdatedEcom);
+  });
 
   useEffect(() => {
     setSearchKey(defaultKw);
     const items = data?.items || [];
     setUrlItems(items);
     setSelectedIdx(0);
-    if (data?.summary_text) {
+    const firstRec = items[0];
+    const recHasLanded = firstRec?.has_landed_cost ?? (firstRec?.currency === 'USD' || Boolean(firstRec?.landed_price));
+    const isOutdatedEcom = Boolean(
+      recHasLanded &&
+      data?.summary_text &&
+      !data.summary_text.includes('Landed Cost') &&
+      !data.summary_text.includes('nhập cảnh') &&
+      !data.summary_text.includes('vận chuyển quốc tế')
+    );
+
+    if (data?.summary_text && !isOutdatedEcom) {
       setSummaryText(data.summary_text);
       setIsCustom(true);
     } else {
@@ -661,6 +696,38 @@ export default function PillarEcom({ loading, saving, data, dgTrinh, item, onSav
               </button>
             </div>
           </div>
+
+          {/* Cảnh báo nếu thuyết minh chưa cập nhật Landed Cost */}
+          {Boolean(
+            (selectedRecord?.has_landed_cost ?? (selectedRecord?.currency === 'USD' || Boolean(selectedRecord?.landed_price))) &&
+            rawSelPrice > 0 &&
+            summaryText &&
+            !summaryText.includes('Landed Cost') &&
+            !summaryText.includes('nhập cảnh') &&
+            !summaryText.includes('vận chuyển quốc tế')
+          ) && (
+            <div className="mb-2.5 p-2.5 rounded-lg bg-amber-100/90 border border-amber-300 text-amber-950 text-xs flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>
+                  <strong>Phát hiện:</strong> Bản thuyết minh hiện tại chưa đề cập đơn giá <strong>Landed Cost ({fmt(selLandedPrice)} đ)</strong> sau khi cộng phụ thu nhập cảnh!
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const def = computeDefaultSummary(urlItems, selectedRecord, searchKey);
+                  setSummaryText(def);
+                  setIsCustom(false);
+                  toast.success('Đã cập nhật thuyết minh bổ sung chi phí Landed Cost!');
+                }}
+                className="px-2.5 py-1 bg-amber-700 hover:bg-amber-800 text-white rounded font-bold text-[11px] shrink-0 cursor-pointer shadow-2xs transition"
+              >
+                ⚡ Cập Nhật Landed Cost Vào Thuyết Minh
+              </button>
+            </div>
+          )}
+
           <div className="relative">
             <textarea
               value={summaryText}
