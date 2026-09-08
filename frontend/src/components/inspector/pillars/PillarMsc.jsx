@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Globe, Search, RotateCcw, Pin, AlertTriangle, CheckCircle,
   Check, BarChart3, Calculator, Loader2, ExternalLink, Filter,
-  ChevronLeft, ChevronRight, XCircle, ArrowRight, Save
+  ChevronLeft, ChevronRight, XCircle, ArrowRight, Save, Award, Building2
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';

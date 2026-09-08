@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag, Search, Plus, ExternalLink, Trash2, Edit3, Save,
   RotateCcw, AlertTriangle, CheckCircle, Check, Loader2, Link,
-  DollarSign, Camera, Eye, X, Image as ImageIcon, Pin, ArrowRight
+  DollarSign, Camera, Eye, X, Image as ImageIcon, Pin, ArrowRight, FileText
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';

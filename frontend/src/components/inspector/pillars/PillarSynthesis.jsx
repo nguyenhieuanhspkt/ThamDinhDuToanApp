@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
+import { isValidErpCode, getErpDefaultKw } from '../utils/keywordHelpers.js';
 import { PillarHeader, LoadingSpinner, SaveFooter } from '../common';
 
 export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, quoteEvidence, erpResults, imisResults, mscResults, ecomResults, evidenceStatus, onSave, saved }) {

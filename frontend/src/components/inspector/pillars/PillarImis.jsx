@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Network, Database, Search, RotateCcw, Pin, AlertTriangle, CheckCircle,
-  Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save
+  Check, BarChart3, Calculator, Loader2, XCircle, ArrowRight, Save, Filter, Globe, FileText
 } from 'lucide-react';
 import { useToast } from '../../ui/Toast.jsx';
 import { fmt } from '../utils/formatters.js';
