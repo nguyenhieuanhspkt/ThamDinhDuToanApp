@@ -255,12 +255,12 @@
     },
     {
       "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 1315000,
+      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 1.315.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 620.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ:03/2022) theo hóa đơn số 00000024 ngày 01.04.2022 ngày 2022-04-04. SL: 6 Cái); Các đợt nhập khác: 18.374.000 đ, 836.800 đ\n• Cơ sở 3 (EVN IMIS): IMIS EVN: 78.000.000 đ/Cái (Công ty Nhiệt điện Duyên Hải)\n• Cơ sở 4 (Mua Sắm Công e-GP): e-GP MSC: 237.600 đ/Cái (Kết quả trúng thầu)\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 237.600 đ/Cái.",
+      "don_gia_thong_nhat": 237600.0,
       "don_gia_trinh": 1315000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 5387000.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 9,
       "ma_vt": "Chưa có mã vật tư",
@@ -270,11 +270,12 @@
       "so_luong": 5,
       "ten_vt": "Elbow union - Elbow union \n- Type: W - Elbow union \n- Model: W 10-PL A3C\n- Part no.: 174678 \n- Pipe OD: 10 (mm) \n- Include: DPR - Progressive ring (at both ends) \n  + Model: DPR 10-L/S A3D \n  + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "ten_vt_goc": "Elbow union",
-      "thanh_tien_thong_nhat": 6575000,
+      "thanh_tien_thong_nhat": 1188000.0,
       "thanh_tien_trinh": 6575000,
       "thong_so_kt": "Elbow union \n- Type: W - Elbow union \n- Model: W 10-PL A3C\n- Part no.: 174678 \n- Pipe OD: 10 (mm) \n- Include: DPR - Progressive ring (at both ends) \n  + Model: DPR 10-L/S A3D \n  + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "thue": "0.08",
-      "tien_thue": 526000
+      "tien_thue": 526000,
+      "search_keyword": "DPR"
     },
     {
       "co_so_thong_nhat": "Cơ sở 2: ERP Vĩnh Tân 4",

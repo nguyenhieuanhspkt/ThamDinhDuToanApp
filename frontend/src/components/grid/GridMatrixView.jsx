@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText, Clock, Database } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText, Clock, Database, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import AuditProgressModal from '../modals/AuditProgressModal.jsx';
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
@@ -12,10 +12,15 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const [evidenceStatus, setEvidenceStatus] = useState({});
   const [filterSaved, setFilterSaved] = useState('ALL'); // 'ALL' | 'SAVED' | 'UNSAVED'
 
+  // Sắp xếp theo đơn giá/thành tiền/STT (tăng dần/giảm dần)
+  const [sortField, setSortField] = useState(null); // 'stt' | 'dg_trinh' | 'tt_trinh' | 'dg_thong_nhat' | 'tt_thong_nhat' | 'lowest_price'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' | 'desc'
+
   // States cho 1-click 5 cơ sở & keyword management
   const [itemKeywords, setItemKeywords] = useState({});
   const [runningItemIds, setRunningItemIds] = useState(new Set());
   const [runningAllPillars, setRunningAllPillars] = useState(false);
+
 
   // State cho AuditProgressModal (Minh bạch hóa 5 cơ sở)
   const [auditModal, setAuditModal] = useState({
@@ -259,9 +264,73 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     );
   });
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else {
+        setSortField(null);
+        setSortOrder('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 opacity-30 group-hover/th:opacity-80 transition shrink-0 ml-1 inline" />;
+    }
+    if (sortOrder === 'asc') {
+      return <ArrowUp className="w-3.5 h-3.5 text-blue-700 font-extrabold shrink-0 ml-1 inline" />;
+    }
+    return <ArrowDown className="w-3.5 h-3.5 text-blue-700 font-extrabold shrink-0 ml-1 inline" />;
+  };
+
+  const sortedFilteredItems = useMemo(() => {
+    if (!sortField) return filteredItems;
+    return [...filteredItems].sort((a, b) => {
+      const origIdxA = items.indexOf(a);
+      const origIdxB = items.indexOf(b);
+      const slA = parseFloat(a.so_luong) || 1;
+      const slB = parseFloat(b.so_luong) || 1;
+
+      let valA = 0;
+      let valB = 0;
+
+      if (sortField === 'stt') {
+        valA = parseFloat(a.stt) || (origIdxA + 1);
+        valB = parseFloat(b.stt) || (origIdxB + 1);
+      } else if (sortField === 'dg_trinh') {
+        valA = parseFloat(a.don_gia_trinh) || 0;
+        valB = parseFloat(b.don_gia_trinh) || 0;
+      } else if (sortField === 'tt_trinh') {
+        valA = parseFloat(a.thanh_tien_trinh) || (slA * (parseFloat(a.don_gia_trinh) || 0));
+        valB = parseFloat(b.thanh_tien_trinh) || (slB * (parseFloat(b.don_gia_trinh) || 0));
+      } else if (sortField === 'dg_thong_nhat') {
+        valA = parseFloat(a.don_gia_thong_nhat) || 0;
+        valB = parseFloat(b.don_gia_thong_nhat) || 0;
+      } else if (sortField === 'tt_thong_nhat') {
+        valA = parseFloat(a.thanh_tien_thong_nhat) || (slA * (parseFloat(a.don_gia_thong_nhat) || 0));
+        valB = parseFloat(b.thanh_tien_thong_nhat) || (slB * (parseFloat(b.don_gia_thong_nhat) || 0));
+      } else if (sortField === 'lowest_price') {
+        const idA = a.id || origIdxA + 1;
+        const idB = b.id || origIdxB + 1;
+        valA = parseFloat(quoteMatches[idA]?.lowest_price || a.lowest_quote_price || a.don_gia_nha_thau_thap_nhat || 0);
+        valB = parseFloat(quoteMatches[idB]?.lowest_price || b.lowest_quote_price || b.don_gia_nha_thau_thap_nhat || 0);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return (a.stt || origIdxA + 1) - (b.stt || origIdxB + 1);
+    });
+  }, [filteredItems, sortField, sortOrder, items, quoteMatches]);
+
   // Summary stats
   const giam_tru = stats.total_trinh - stats.total_thong_nhat;
   const pct_giam = stats.total_trinh > 0 ? (giam_tru / stats.total_trinh * 100) : 0;
+
 
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden bg-slate-100 h-full gap-3">
@@ -363,7 +432,60 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                 <Layers className="w-3 h-3 text-amber-300" /> View 1: Cơ Sở Đơn Giá
               </button>
             </div>
+
+            {/* Quick Price Sort Toolbar */}
+            <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-xs font-bold ml-2">
+              <span className="text-[11px] text-slate-600 px-1.5 flex items-center gap-1 font-semibold">
+                <ArrowUpDown className="w-3 h-3 text-teal-700" /> Sắp xếp giá:
+              </span>
+              <button
+                onClick={() => handleSort('dg_trinh')}
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${
+                  sortField === 'dg_trinh'
+                    ? 'bg-[#003366] text-white shadow-xs font-extrabold'
+                    : 'text-slate-700 hover:bg-slate-300/70'
+                }`}
+                title="Sắp xếp theo Đơn giá trình: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+              >
+                <span>ĐG Trình</span>
+                {sortField === 'dg_trinh' ? (
+                  <span className="text-[10px] bg-blue-900/80 px-1.5 py-0.2 rounded font-black text-amber-200">
+                    {sortOrder === 'asc' ? '↑ Thấp ➔ Cao' : '↓ Cao ➔ Thấp'}
+                  </span>
+                ) : (
+                  <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />
+                )}
+              </button>
+              <button
+                onClick={() => handleSort('dg_thong_nhat')}
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${
+                  sortField === 'dg_thong_nhat'
+                    ? 'bg-emerald-700 text-white shadow-xs font-extrabold'
+                    : 'text-slate-700 hover:bg-slate-300/70'
+                }`}
+                title="Sắp xếp theo Đơn giá thống nhất: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+              >
+                <span>ĐG Thống Nhất</span>
+                {sortField === 'dg_thong_nhat' ? (
+                  <span className="text-[10px] bg-emerald-900/80 px-1.5 py-0.2 rounded font-black text-amber-200">
+                    {sortOrder === 'asc' ? '↑ Thấp ➔ Cao' : '↓ Cao ➔ Thấp'}
+                  </span>
+                ) : (
+                  <ArrowUpDown className="w-2.5 h-2.5 opacity-40" />
+                )}
+              </button>
+              {sortField && (
+                <button
+                  onClick={() => { setSortField(null); setSortOrder('asc'); }}
+                  className="px-2 py-0.5 text-[10.5px] text-red-700 hover:bg-red-100 rounded-md cursor-pointer font-bold transition ml-0.5"
+                  title="Hủy sắp xếp, quay về thứ tự STT gốc ban đầu"
+                >
+                  ✕ Mặc định
+                </button>
+              )}
+            </div>
           </div>
+
 
           <div className="flex items-center gap-3">
             {/* Master 1-Click Automation Button */}
@@ -413,7 +535,16 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <thead className="bg-slate-100 text-slate-700 font-bold sticky top-0 z-20 border-b border-slate-300 shadow-sm">
               <tr>
                 {/* Fixed Common Columns 1..3 */}
-                <th className="py-3 px-2 text-center w-10 sticky left-0 bg-slate-100 border-r border-slate-200 z-30">1. STT</th>
+                <th
+                  onClick={() => handleSort('stt')}
+                  className="py-3 px-2 text-center w-10 sticky left-0 bg-slate-100 border-r border-slate-200 z-30 cursor-pointer select-none hover:bg-slate-200 transition group/th"
+                  title="Nhấp để sắp xếp theo STT (Tăng dần / Giảm dần / Reset)"
+                >
+                  <div className="flex items-center justify-center gap-0.5">
+                    <span>1. STT</span>
+                    {renderSortIcon('stt')}
+                  </div>
+                </th>
                 <th className="py-3 px-2 text-center w-24 sticky left-10 bg-slate-100 border-r border-slate-200 z-30">2. PYCVT</th>
                 <th className="py-3 px-3 w-56 sticky left-[136px] bg-slate-100 border-r border-slate-200 z-30 shadow-sm">3. Tên vật tư</th>
 
@@ -427,20 +558,85 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                 <th className="py-3 px-2 text-right w-14 border-r border-slate-200">6. SL</th>
                 <th className="py-3 px-3 w-28 border-r border-slate-200">7. HSX/XX</th>
                 <th className="py-3 px-3 text-center w-28 border-r border-slate-200 font-mono">8. Mã ERP</th>
-                <th className="py-3 px-3 text-right w-32 border-r border-slate-200 bg-blue-50 text-[#003366]">9. ĐG Trình</th>
+                <th
+                  onClick={() => handleSort('dg_trinh')}
+                  className={`py-3 px-3 text-right w-32 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                    sortField === 'dg_trinh'
+                      ? 'bg-blue-100 text-blue-950 font-black ring-1 ring-blue-400 inset-0 shadow-inner'
+                      : 'bg-blue-50 text-[#003366] hover:bg-blue-100/70'
+                  }`}
+                  title="Nhấp để sắp xếp theo Đơn giá trình: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    <span>9. ĐG Trình</span>
+                    {renderSortIcon('dg_trinh')}
+                  </div>
+                </th>
 
                 {/* Conditional View Columns */}
                 {viewMode === 'standard' ? (
                   <>
-                    <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-blue-50 text-[#003366]">10. TT Trình</th>
-                    <th className="py-3 px-3 text-right w-32 border-r border-slate-200 bg-emerald-50 text-emerald-900">11. ĐG Thống Nhất</th>
-                    <th className="py-3 px-3 text-right w-36 border-r border-slate-200 bg-emerald-50 text-emerald-900">12. TT Thống Nhất</th>
+                    <th
+                      onClick={() => handleSort('tt_trinh')}
+                      className={`py-3 px-3 text-right w-36 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === 'tt_trinh'
+                          ? 'bg-blue-100 text-blue-950 font-black ring-1 ring-blue-400 inset-0 shadow-inner'
+                          : 'bg-blue-50 text-[#003366] hover:bg-blue-100/70'
+                      }`}
+                      title="Nhấp để sắp xếp theo Thành tiền trình: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>10. TT Trình</span>
+                        {renderSortIcon('tt_trinh')}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('dg_thong_nhat')}
+                      className={`py-3 px-3 text-right w-32 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === 'dg_thong_nhat'
+                          ? 'bg-emerald-100 text-emerald-950 font-black ring-1 ring-emerald-400 inset-0 shadow-inner'
+                          : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100/70'
+                      }`}
+                      title="Nhấp để sắp xếp theo Đơn giá thống nhất: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>11. ĐG Thống Nhất</span>
+                        {renderSortIcon('dg_thong_nhat')}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort('tt_thong_nhat')}
+                      className={`py-3 px-3 text-right w-36 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === 'tt_thong_nhat'
+                          ? 'bg-emerald-100 text-emerald-950 font-black ring-1 ring-emerald-400 inset-0 shadow-inner'
+                          : 'bg-emerald-50 text-emerald-900 hover:bg-emerald-100/70'
+                      }`}
+                      title="Nhấp để sắp xếp theo Thành tiền thống nhất: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>12. TT Thống Nhất</span>
+                        {renderSortIcon('tt_thong_nhat')}
+                      </div>
+                    </th>
                     <th className="py-3 px-3 text-right w-20 border-r border-slate-200 bg-amber-50 text-amber-900">13. % Giảm</th>
                   </>
                 ) : (
                   <>
                     <th className="py-3 px-3 w-72 border-r border-slate-200 bg-amber-50/80 text-amber-950 font-bold">10. Ghi chú cơ sở đơn giá</th>
-                    <th className="py-3 px-3 text-right w-44 border-r border-slate-200 bg-purple-50 text-purple-950 font-bold">11. ĐG Nhà thầu thấp nhất</th>
+                    <th
+                      onClick={() => handleSort('lowest_price')}
+                      className={`py-3 px-3 text-right w-44 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === 'lowest_price'
+                          ? 'bg-purple-100 text-purple-950 font-black ring-1 ring-purple-400 inset-0 shadow-inner'
+                          : 'bg-purple-50 text-purple-950 hover:bg-purple-100/70'
+                      }`}
+                      title="Nhấp để sắp xếp theo Đơn giá nhà thầu thấp nhất: Thấp ➔ Cao hoặc Cao ➔ Thấp"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>11. ĐG Nhà thầu thấp nhất</span>
+                        {renderSortIcon('lowest_price')}
+                      </div>
+                    </th>
                     <th className="py-3 px-3 w-48 border-r border-slate-200 bg-purple-50 text-purple-950 font-bold">12. Tên Nhà thầu thấp nhất</th>
                   </>
                 )}
@@ -451,14 +647,15 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             </thead>
 
             <tbody className="divide-y divide-slate-200/80">
-              {filteredItems.length === 0 ? (
+              {sortedFilteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={viewMode === 'standard' ? 15 : 14} className="text-center py-16 text-slate-400 text-xs italic">
                     {searchQuery ? `Không tìm thấy mục nào khớp "${searchQuery}"` : 'Chưa có dòng dự toán. Hãy nạp file Excel.'}
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((it, idx) => {
+                sortedFilteredItems.map((it, idx) => {
+
                   const origIdx = items.indexOf(it);
                   const itemId = it.id || origIdx + 1;
                   const sl = parseFloat(it.so_luong) || 1;
