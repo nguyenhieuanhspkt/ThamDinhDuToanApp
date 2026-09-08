@@ -385,13 +385,13 @@
       "thong_so_kt": "Van điện từ 221S25F-S2TBC2,\nVan 2 chiều, kích thước đường ống 1 inch,\nĐiện áp cuộn điện từ (coil) 24 VDC,\nNhà sản xuất: Parker"
     },
     {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 18522000,
+      "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
+      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m (Mã ERP: 2.46.35.037.CHN.00.000).\n• Đơn giá trình thẩm định: 19.300.000 VNĐ (Số lượng: 35 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 60/100 điểm (Hạng B - 3/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 85/100 điểm (🟡 Hợp Lý (Nằm trong biên độ giá trung bình thị trường)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 18.522.000 VNĐ/Cái từ CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU (Trang 3 Báo giá); đơn giá chào đối chiếu thấp hơn 778.000 VNĐ/Cái so với đơn giá trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Tra cứu theo từ khóa [2.46.35.037.CHN.00.000] trong CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là 21.200.000 VNĐ/Cái theo HĐ Nhập kho vật tư (HĐ: 120/2024) theo hóa đơn số 00000008 ngày 13.01.2025 (ký ngày 2025-01-16 00:00:00, cách đây 20 tháng ~ 1.7 năm - quá 12 tháng, tốc độ tăng giá bình quân -5.4%/năm so với CPI ~5.0%/năm).\n- Cơ sở 3 (EVN IMIS): Chưa đối chiếu CSDL Hợp đồng mua sắm toàn ngành EVN IMIS.\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [SS-T6-S-065-20] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là 27.390.000 VNĐ/Cái (Nhà thầu Swagelok).\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đề xuất duyệt đơn giá thẩm định thống nhất là 18.522.000 VNĐ/Cái. Tiết kiệm dự toán 27.230.000 VNĐ (-4.0%).",
+      "don_gia_thong_nhat": 18522000.0,
       "don_gia_trinh": 19300000,
       "dvt": "Cái",
       "ghi_chu": "2.46.35.037.CHN.00.000 | Khu vực hoàn nguyên xử lý nước230/2026/PXH-VT4 | Không có trong KHSXKD 2026",
-      "gia_tri_giam": 27230000,
+      "gia_tri_giam": 27230000.0,
       "hsx_xx": "Swagelok/ Đức",
       "id": 19,
       "ma_vt": "2.46.35.037.CHN.00.000",
@@ -401,7 +401,7 @@
       "so_luong": 35,
       "ten_vt": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m - Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m",
       "ten_vt_goc": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m",
-      "thanh_tien_thong_nhat": 648270000,
+      "thanh_tien_thong_nhat": 648270000.0,
       "thanh_tien_trinh": 675500000,
       "thong_so_kt": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m"
     },
@@ -2129,13 +2129,13 @@
       "thong_so_kt": "Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm; NSX: Kobelco/tương đương"
     },
     {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 750.000.000 đ/Cái (08-27-26. BV-VT 4. . 1.620.000.000 vnd. 3 trang. R1.)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4.\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [TP400 PP], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 750.000.000 đ/Bộ.",
-      "don_gia_thong_nhat": 750000000,
+      "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
+      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Phôi inconel 718, đường kính D50mm (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 90.000.000 VNĐ (Số lượng: 1 Mét).\n• Đánh giá Chứng cứ Thẩm định: Đạt 100/100 điểm (Hạng A - 5/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 90.000.000 VNĐ/Mét từ CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU (Trang 2 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Phôi inconel 718], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [Phôi inconel 718, đường kính D50mm] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [Phôi inconel 718], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 5 (Thương Mại Điện Tử): Đã tra cứu từ khóa [Phôi inconel 718, đường kính D50mm] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 90.000.000 VNĐ/Mét.",
+      "don_gia_thong_nhat": 90000000.0,
       "don_gia_trinh": 90000000,
       "dvt": "Mét",
       "ghi_chu": "Chưa mua sắm | Mua sắm để gia công bulong tháo nửa dưới hộp chèn hơi số 2 theo Văn bản khuyến cáo số 3360/EPS-PXSCC-VT | Vật tư đặt tên theo nguyên tắc chuẩn hóa, không tồn khoVật tư không có trong KHSXKD năm 2026",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "Baosteel/ Trung Quốc",
       "id": 102,
       "ma_vt": "Chưa có mã vật tư",
@@ -2145,7 +2145,7 @@
       "so_luong": 1,
       "ten_vt": "Phôi inconel 718, đường kính D50mm - Phôi inconel 718, đường kính D50mm",
       "ten_vt_goc": "Phôi inconel 718, đường kính D50mm",
-      "thanh_tien_thong_nhat": 750000000,
+      "thanh_tien_thong_nhat": 90000000.0,
       "thanh_tien_trinh": 90000000,
       "thong_so_kt": "Phôi inconel 718, đường kính D50mm"
     },

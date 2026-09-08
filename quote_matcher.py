@@ -445,6 +445,7 @@ def match_item_in_quotes(item, quotes_data):
     part_no = str(item.get("part_no") or "").strip()
     ten_vt = str(item.get("ten_vt") or "").strip()
     dg_trinh = float(item.get("don_gia_trinh") or 0)
+    target_stt = str(item.get("stt") or item.get("id") or "").strip()
     target_combined = f"{ten_vt} {part_no}".upper()
     target_codes = extract_meaningful_identifiers(target_combined)
 
@@ -459,6 +460,12 @@ def match_item_in_quotes(item, quotes_data):
         best_reasons = []
 
         for it in q["items"]:
+            cand_du_toan_stt = str(it.get("du_toan_stt") or "").strip()
+            if target_stt and cand_du_toan_stt and cand_du_toan_stt == target_stt:
+                best_match = it
+                best_score = 999  # Đánh dấu điểm ưu tiên tuyệt đối
+                best_reasons = ["Ghép nối thủ công từ giao diện bóc tách"]
+                break
             cand_name = (it.get("ten_vt") or "").strip()
             cand_tskt = (it.get("tskt") or "").strip()
             cand_price = float(it.get("don_gia") or 0)
@@ -520,7 +527,7 @@ def match_item_in_quotes(item, quotes_data):
                 best_reasons = reasons
 
         # Chỉ chấp nhận báo giá có độ tương đồng thực sự cao (Score >= 80)
-        if best_match and best_score >= 80:
+        if best_match and (best_score >= 80 or best_score == 999):
             supplier_matches.append({
                 "company": q["company"],
                 "filename": q["filename"],
@@ -531,7 +538,7 @@ def match_item_in_quotes(item, quotes_data):
                 "quoted_tskt": best_match["tskt"],
                 "don_gia": best_match["don_gia"],
                 "is_match_trinh": abs(best_match["don_gia"] - dg_trinh) < 1.0,
-                "score": best_score,
+                "score": 300 if best_score == 999 else best_score, # Gán điểm hiển thị giao diện
                 "match_reason": " • ".join(best_reasons) if best_reasons else "Độ tương đồng cao"
             })
 
