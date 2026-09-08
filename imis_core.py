@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Module: imis_core.py
-Lõi kỹ thuật tra cứu Live API EVN IMIS và CSDL Kế toán ERP Vĩnh Tân 4.
+Lõi kỹ thuật tra cứu Live API EVN IMIS và CSDL lịch sử mua sắm ERP Vĩnh Tân 4.
 Kế thừa trọn vẹn logic từ imis_cli.py cho ứng dụng ThamDinhDuToanApp.
 """
 
@@ -868,13 +868,13 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
         return {
             "status": "ERP_DESELECTED",
             "is_deselected": True,
-            "summary_text": "Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
+            "summary_text": "Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
         }
 
     if not erp_records or len(erp_records) == 0:
         return {
             "status": "NO_ERP_DATA",
-            "summary_text": "Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4. Căn cứ đơn giá sẽ được thẩm định và xác định dựa trên Báo giá mới nhận (Khối 1), CSDL IMIS EVN (Khối 3) và Mua Sắm Công (Khối 4)."
+            "summary_text": "Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4. Căn cứ đơn giá sẽ được thẩm định và xác định dựa trên Báo giá mới nhận (Khối 1), CSDL IMIS EVN (Khối 3) và Mua Sắm Công (Khối 4)."
         }
 
     dg_trinh = float(dg_trinh or (item.get("don_gia_trinh") if isinstance(item, dict) else 0) or 0)
@@ -900,7 +900,7 @@ def generate_erp_summary_text(item, erp_records, dg_trinh=0, selected_record=Non
         range_str = f"dao động từ {formatted_min} đến {formatted_max}" if count_n > 1 and min_price != max_price else f"thống nhất {formatted_avg}"
 
         summary_text = (
-            f"Vật tư có {count_n} đợt mua sắm lịch sử trên CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4 "
+            f"Vật tư có {count_n} đợt mua sắm lịch sử trên CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 "
             f"với đơn giá trung bình là {formatted_avg}/Cái ({range_str}). "
             f"Đơn giá trình đợt này là {formatted_trinh_price}/Cái "
             f"({'+' if diff_pct > 0 else ''}{diff_pct:.1f}% so với đơn giá trung bình ERP). "
@@ -1232,9 +1232,10 @@ def generate_imis_keyword_candidates(raw_kw):
 
     # Tier 2: Mã Model / Mã Thiết Bị
     model_matches = re.findall(r'\b[A-Z0-9]{2,10}(?:\s+[A-Z0-9]{2,10})*\b', raw_kw)
+    ignore_models = {"MINIMAX", "INPUT", "OUTPUT", "MODBUS", "24 VAC", "220 VAC", "110 VAC", "24 VDC", "220 V", "110 V", "50 HZ", "60 HZ"}
     for m in model_matches:
         m_str = m.strip()
-        if len(m_str) >= 3 and not m_str.isdigit() and m_str.upper() not in ["MINIMAX", "INPUT", "OUTPUT", "MODBUS"] and m_str.lower() not in seen:
+        if len(m_str) >= 3 and not m_str.isdigit() and m_str.upper() not in ignore_models and m_str.lower() not in seen:
             candidates.append({"tier": 2, "label": "Mã Model / Thiết bị", "keyword": m_str, "tag": "Tier 2"})
             seen.add(m_str.lower())
             break

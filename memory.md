@@ -1,5 +1,5 @@
 # 🧠 MEMORY.MD — ThamDinhDuToanApp
-> **Cập nhật ngày:** 2026-09-07 17:35 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
+> **Cập nhật ngày:** 2026-09-08 15:40 | **Tác giả:** Nguyễn Anh Hiếu (hieuna)  
 > **Repository GitHub:** `https://github.com/nguyenhieuanhspkt/ThamDinhDuToanApp.git`  
 > **Thư mục dự án khuyến nghị:** `D:\TaskApp_kiet\thamdinhdutoanApp`  
 > **Thư mục Backup Cache/Dữ liệu ngoài Git (OneDrive EVN):** `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`
@@ -35,22 +35,31 @@
 
 ## 3. CÁC NÂNG CẤP QUAN TRỌNG ĐÃ HOÀN THÀNH
 
-### A. Đợt Nâng Cấp Ngày 06/09/2026:
-1. **Tích hợp Cột "🔑 Từ Khóa Tra Cứu (5 Cơ Sở)" & Nút "⚡ Tra 5 Cơ Sở" (1-Click Automation) trên Màn hình Ma trận (`GridMatrixView.jsx`)**:
-   - Thêm ô hiển thị / nhập từ khóa tra cứu trực tiếp trên từng dòng vật tư trong Ma trận Dự toán.
-   - Nút bấm **`⚡ Tra 5 Cơ Sở`** tại từng dòng tự động kích hoạt quét tuần tự 5 nguồn chứng cứ và gọi AI sinh thuyết minh tức thì.
-   - Nút master **`⚡ Tra Cứu Tự Động Tất Cả (1-Click All)`** trên Toolbar hỗ trợ tự động hóa toàn bộ danh mục vật tư.
-   - Backend API `@app.route("/api/items/<id>/run-5-pillars")` và `@app.route("/api/items/<id>/update-keyword")` xử lý nhanh chóng, lưu từ khóa trực tiếp vào file hồ sơ JSON.
+### A. Đợt Nâng Cấp Ngày 08/09/2026:
+1. **Nút Bấm Chuyên Dụng "🔄 Cập Nhật Thuyết Minh" Trên Khối 2: ERP Vĩnh Tân 4 (`PillarErp.jsx`)**:
+   - Tích hợp nút bấm **`🔄 Cập Nhật Thuyết Minh`** với tone xanh navy chuyên nghiệp (`bg-blue-800 hover:bg-blue-900`) ngay tại thanh tiêu đề của card `📄 BẢN THUYẾT MINH CĂN CỨ ERP (TỰ ĐỘNG TỔNG HỢP)`, nằm cạnh nút `📋 Sao Chép`.
+   - **Cơ chế xử lý thông minh (`handleRefreshSummary`)**:
+     + Nhận diện ngữ cảnh thẩm định: nếu đang chọn Đơn Giá Trung Bình (`AVERAGE`), hệ thống tính toán lại bài thuyết minh theo đơn giá bình quân các đợt mua sắm; nếu đang chọn HĐ cụ thể, tính toán lại theo HĐ đó.
+     + Khi đang ở trạng thái **HỦY CHỌN (`DESELECTED`)**, nút tự động khôi phục về căn cứ tối ưu nhất (ưu tiên Đơn Giá TB nếu có $\ge 2$ hợp đồng lịch sử, hoặc HĐ đầu tiên nếu có 1 hợp đồng).
+     + Tự động phát hiện nếu danh sách kết quả đang rỗng để tra cứu lại bằng mã ERP / từ khóa trước khi sinh thuyết minh.
+     + Hiển thị biểu tượng xoay vòng `Loader2` chống click trùng lặp, bật Toast thông báo `✅ Đã cập nhật và đồng bộ lại Bản Thuyết Minh ERP!`.
+     + Tự động lưu ngầm (`onAutoSave`) đồng bộ vào `chung_cu_erp.json` và thư mục OneDrive EVN Cache.
 
-2. **Chuẩn hóa Văn phong Nội bộ "Tổ Thẩm Định Dự Toán" (Appraisal Team Persona)**:
-   - Cập nhật toàn bộ AI System Prompt & User Prompt (`ai_synthesis.py`), chữ ký phê duyệt (`pdf_report_generator.py`) và dữ liệu mẫu (`current_dossier.json`) theo đúng góc nhìn chuyên viên nội bộ thuộc Tổ Thẩm định Dự toán - NMNĐ Vĩnh Tân 4 (thay vì tư vấn độc lập bên ngoài).
+2. **Khắc Phục Lỗi Cập Nhật Thuyết Minh ERP & Lỗi Thiếu Mã Vật Tư (`app.py`, `PillarErp.jsx`)**:
+   - **Xử lý triệt để nguyên nhân bị chặn bởi `useEffect`**: Trước đây biến `curSummaryText` trong `useEffect` kiểm tra khôi phục thuyết minh đã có sẵn giá trị cũ, dẫn đến việc `return` sớm và không tự làm mới thuyết minh khi người dùng đổi phương án sang `AVERAGE`.
+   - **Sửa lỗi thiếu tham số `ma_vt`**: Bổ sung truyền `ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(searchKey) ? searchKey : "")` trong các hàm gọi API `handleSelectRecord`, `handleSelectAverage`, `handleDeselectRecord`.
+   - **Nâng cấp Backend API `/api/erp/search` (`app.py`)**: Tự động nhận diện và trích xuất `ma_vt` từ `keyword` nếu keyword khớp định dạng chuẩn mã ERP EVN (`x.xx.xx...`), tránh việc fuzzy matching text thuần túy trả về 0 kết quả đối với các vật tư có mã ERP chuẩn xác.
 
-3. **Xuất Báo Cáo Thẩm Định PDF Chuẩn 2 Trang A4 (`pdf_report_generator.py`)**:
-   - Tự động bóc tách thông tin vật tư, bảng tổng hợp 5 cơ sở giá và bài thuyết minh đánh giá vào file PDF định dạng chuẩn 2 trang A4 nét đẹp, không trùng lặp dòng.
+3. **Tích hợp Cột 13: Ý Kiến Thẩm Định (`GridMatrixView.jsx`) & Modal Quản Lý Dự Án (`SaveAsModal.jsx`, `AuditProgressModal.jsx`)**:
+   - Thêm Cột 13 (Ý kiến Tổ Thẩm định) trên Ma trận Thẩm định View 1: hiển thị tóm tắt ý kiến thẩm định và liên kết nhanh đến báo cáo chi tiết.
+   - Thêm modal `SaveAsModal.jsx`: Cho phép thẩm định viên lưu dự án hiện tại thành tên mới (Save As) để tạo phiên bản thẩm định dự phòng hoặc so sánh các phương án.
+   - Nâng cấp `AuditProgressModal.jsx`: Tải 100% dữ liệu chứng cứ thực tế của cả 5 cơ sở khi mở bản thẩm định có sẵn, hiển thị trạng thái hoàn chỉnh của từng mục vật tư.
 
-4. **Hệ thống Lưu Trữ & Đồng Bộ qua OneDrive EVN Cache (`ThamDinhDuToanAppCache`)**:
-   - Toàn bộ thao tác người dùng (sửa đơn giá, sửa từ khóa, bài thuyết minh, chứng cứ 5 cơ sở của 98 mục vật tư) được lưu trữ tại `data/` và đồng bộ 24/7 sang `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`.
-   - Giúp mọi PC (Office PC / Home PC) mở project đều khôi phục chính xác 100% dữ liệu credentials IMIS, CSDL ERP và tiến trình đã làm.
+4. **Kiểm Thử Tự Động (End-to-End Automation Test với Playwright)**:
+   - Xây dựng kịch bản kiểm thử Playwright tự động trên mục vật tư STT 12 (`Cảm biến đo khối lượng Loadcell RTNC3/10T`, mã ERP `3.96.13.021.GER.00.000`):
+     + Truy cập UI `http://localhost:5173`, mở chi tiết STT 12, chuyển sang Tab Cơ sở 2: ERP.
+     + Kiểm chứng sự hiện diện và tương tác của nút `🔄 Cập Nhật Thuyết Minh`.
+     + Kích hoạt nút và xác nhận nội dung thuyết minh được tính toán, sinh ra chính xác bài thuyết minh Đơn giá trung bình 2 đợt mua sắm lịch sử (`113.232.916 đ/Cái`, khoảng dao động từ `57.465.833 đ` đến `169.000.000 đ`, chênh lệch `+3.9%` so với đơn giá trình `117.600.000 đ`).
 
 ---
 
@@ -81,9 +90,26 @@
    - Thêm thông số thể hiện tiến độ đã lưu CSDL thẩm định (X / 98 mục) trên giao diện.
    - Thêm nút mở nhanh thư mục OneDrive Cache trên giao diện HeaderNav.
 
+### C. Đợt Nâng Cấp Ngày 06/09/2026:
+1. **Tích hợp Cột "🔑 Từ Khóa Tra Cứu (5 Cơ Sở)" & Nút "⚡ Tra 5 Cơ Sở" (1-Click Automation) trên Màn hình Ma trận (`GridMatrixView.jsx`)**:
+   - Thêm ô hiển thị / nhập từ khóa tra cứu trực tiếp trên từng dòng vật tư trong Ma trận Dự toán.
+   - Nút bấm **`⚡ Tra 5 Cơ Sở`** tại từng dòng tự động kích hoạt quét tuần tự 5 nguồn chứng cứ và gọi AI sinh thuyết minh tức thì.
+   - Nút master **`⚡ Tra Cứu Tự Động Tất Cả (1-Click All)`** trên Toolbar hỗ trợ tự động hóa toàn bộ danh mục vật tư.
+   - Backend API `@app.route("/api/items/<id>/run-5-pillars")` và `@app.route("/api/items/<id>/update-keyword")` xử lý nhanh chóng, lưu từ khóa trực tiếp vào file hồ sơ JSON.
+
+2. **Chuẩn hóa Văn phong Nội bộ "Tổ Thẩm Định Dự Toán" (Appraisal Team Persona)**:
+   - Cập nhật toàn bộ AI System Prompt & User Prompt (`ai_synthesis.py`), chữ ký phê duyệt (`pdf_report_generator.py`) và dữ liệu mẫu (`current_dossier.json`) theo đúng góc nhìn chuyên viên nội bộ thuộc Tổ Thẩm định Dự toán - NMNĐ Vĩnh Tân 4 (thay vì tư vấn độc lập bên ngoài).
+
+3. **Xuất Báo Cáo Thẩm Định PDF Chuẩn 2 Trang A4 (`pdf_report_generator.py`)**:
+   - Tự động bóc tách thông tin vật tư, bảng tổng hợp 5 cơ sở giá và bài thuyết minh đánh giá vào file PDF định dạng chuẩn 2 trang A4 nét đẹp, không trùng lặp dòng.
+
+4. **Hệ thống Lưu Trữ & Đồng Bộ qua OneDrive EVN Cache (`ThamDinhDuToanAppCache`)**:
+   - Toàn bộ thao tác người dùng (sửa đơn giá, sửa từ khóa, bài thuyết minh, chứng cứ 5 cơ sở của 98 mục vật tư) được lưu trữ tại `data/` và đồng bộ 24/7 sang `D:\OneDrive_Hieuna\OneDrive - EVN\Hiếu\ThamDinhDuToanAppCache`.
+   - Giúp mọi PC (Office PC / Home PC) mở project đều khôi phục chính xác 100% dữ liệu credentials IMIS, CSDL ERP và tiến trình đã làm.
+
 ---
 
-### C. Đợt Nâng Cấp Ngày 05/09/2026:
+### D. Đợt Nâng Cấp Ngày 05/09/2026:
 1. **Tự động Đăng nhập & Gia hạn ngầm EVN IMIS (Auto Re-Auth 24/7)**:
    - Credentials lưu ngoài Git tại `D:\OneDrive_Hieuna\...\ThamDinhDuToanAppCache\config\evn_imis_credentials.json`.
    - Tự động gia hạn Token ngầm mà không làm ngắt đoạn thao tác người dùng.

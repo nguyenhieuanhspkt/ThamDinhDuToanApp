@@ -134,7 +134,7 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
   });
 
   // Determine selected record or minimum price record
-  const isDeselected = selectedIdx === null || data?.is_deselected || data?.selected_record === 'NONE';
+  const isDeselected = selectedIdx === null;
   const selectedRecord = isDeselected ? null : (filteredItems[selectedIdx] || itemsList[selectedIdx] || null);
   const selectedPrice = selectedRecord ? parseFloat(selectedRecord.don_gia || 0) : 0;
   const diffAmt = dgTrinh - selectedPrice;
@@ -166,11 +166,23 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
     }
     setSelectedIdx(index);
     const rec = filteredItems[index] || itemsList[index];
+    const recPrice = rec ? parseFloat(rec.don_gia || 0) : 0;
+    const diffA = dgTrinh - recPrice;
+    const diffP = recPrice > 0 ? ((dgTrinh - recPrice) / recPrice * 100) : 0;
+    const benMoiThauStr = rec?.ben_moi_thau ? `, Bên mời thầu: ${rec.ben_moi_thau}` : '';
+    let newSumText = '';
+    if (diffA <= 0) {
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+    } else {
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || '—'}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || '—'}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffP.toFixed(1)}% (+${fmt(diffA)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+    }
+
     toast.success(`Đã chọn kết quả e-GP làm căn cứ tham chiếu!`);
     if (onAutoSave) {
       onAutoSave({
         analysis,
         items: itemsList,
+        summary_text: newSumText,
         keyword: searchKey,
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,

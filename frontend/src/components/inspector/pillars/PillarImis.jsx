@@ -63,10 +63,10 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
     setPriceFilter('ALL');
   }, [data, item]);
 
-  const isDeselected = selectedIdx === null || data?.is_deselected || data?.selected_record === 'NONE';
+  const isDeselected = selectedIdx === null;
   const DESELECTED_IMIS_TEXT = `Đã tra cứu CSDL EVN IMIS theo từ khóa [${searchKey || item?.ten_vt || ''}], các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán nên thẩm định viên không áp dụng làm căn cứ thẩm định.`;
   const summaryText = isDeselected
-    ? ((summaryData?.status === 'IMIS_DESELECTED' && summaryData?.summary_text) ? summaryData.summary_text : (data?.summary_text && (data?.is_deselected || data?.selected_record === 'NONE') ? data.summary_text : DESELECTED_IMIS_TEXT))
+    ? DESELECTED_IMIS_TEXT
     : (summaryData?.summary_text || data?.summary_text || '');
 
   // Tự động khôi phục thuyết minh IMIS nếu dữ liệu đệm bị khuyết summary_text
@@ -248,7 +248,7 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
         onAutoSave({
           imis: imisResults,
           summary: sumData,
-          summary_text: sumData?.summary_text || summaryText,
+          summary_text: sumData?.summary_text || '',
           keyword: searchKey,
           used_keyword: searchKey,
           selected_record: rec,

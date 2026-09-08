@@ -122,9 +122,9 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     print(f"    ✓ Khối 1 hoàn tất: Tìm thấy {p1_matches_count} báo giá. Giá thấp nhất: {fmt_vnd(p1_price)} ({p1_supplier})")
 
     # -------------------------------------------------------------
-    # KHỐI 2: CSDL KẾ TOÁN ERP VĨNH TÂN 4
+    # KHỐI 2: CSDL LỊCH SỬ MUA SẮM ERP VĨNH TÂN 4
     # -------------------------------------------------------------
-    print("\n[2/6] Đang xử lý Khối 2: CSDL Kế toán ERP Vĩnh Tân 4...")
+    print("\n[2/6] Đang xử lý Khối 2: CSDL lịch sử mua sắm ERP Vĩnh Tân 4...")
     erp_records = imis_core.search_erp_baseline(clean_kw, ma_vt=ma_vt, min_score=60)
     if not erp_records:
         erp_records = imis_core.search_erp_baseline(clean_kw, min_score=40)
@@ -134,7 +134,7 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     p2_payload = {
         "tu_khoa_tra_cuu": clean_kw,
         "ma_vt": ma_vt,
-        "nguon": "CSDL Kế toán ERP - Nhà máy Nhiệt điện Vĩnh Tân 4",
+        "nguon": "CSDL lịch sử mua sắm ERP - Nhà máy Nhiệt điện Vĩnh Tân 4",
         "don_gia_trinh": dg_trinh,
         "tong_so_hd": len(erp_records),
         "results": erp_records,
@@ -161,16 +161,29 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     # -------------------------------------------------------------
     print("\n[3/6] Đang xử lý Khối 3: Hệ thống EVN IMIS...")
     
-    # Trích xuất ứng viên từ khóa và ưu tiên chọn Tier Model (Tier 2), nếu không có thì lấy Part Number hoặc Tên cốt lõi
+    user_kw = (item.get("search_keyword") or "").strip()
     imis_candidates = imis_core.generate_imis_keyword_candidates(ten_vt)
-    model_item = next((c for c in imis_candidates if c.get("tier") == 2), None)
-    part_item = next((c for c in imis_candidates if c.get("tier") == 3), None)
-    tier1_item = next((c for c in imis_candidates if c.get("tier") == 1), None)
+    
+    stop_words = {"24 vac", "220 vac", "110 vac", "24 vdc", "220 v", "110 v", "thi", "input", "output"}
+    valid_candidates = [
+        c for c in imis_candidates 
+        if c.get("keyword", "").strip().lower() not in stop_words and len(c.get("keyword", "").strip()) >= 3
+    ]
 
-    selected_cand = model_item or part_item or tier1_item
-    imis_kw = selected_cand.get("keyword", clean_kw).strip() if selected_cand else clean_kw
-    tier_tag = selected_cand.get("tag", "Tier Model") if selected_cand else "Tier Model"
-    tier_label = selected_cand.get("label", "Mã Model / Thiết bị") if selected_cand else "Mã Model"
+    if user_kw and len(user_kw) >= 3 and user_kw.lower() not in stop_words:
+        imis_kw = user_kw
+        tier_tag = "Custom Keyword"
+        tier_label = "Từ khóa tra cứu"
+        selected_cand = {"keyword": imis_kw, "tier": 2, "tag": tier_tag, "label": tier_label}
+    else:
+        model_item = next((c for c in valid_candidates if c.get("tier") == 2), None)
+        part_item = next((c for c in valid_candidates if c.get("tier") == 3), None)
+        tier1_item = next((c for c in valid_candidates if c.get("tier") == 1), None)
+
+        selected_cand = model_item or part_item or tier1_item
+        imis_kw = selected_cand.get("keyword", clean_kw).strip() if selected_cand else clean_kw
+        tier_tag = selected_cand.get("tag", "Tier Model") if selected_cand else "Tier Model"
+        tier_label = selected_cand.get("label", "Mã Model / Thiết bị") if selected_cand else "Mã Model"
     
     print(f"    • Từ khóa IMIS mặc định ({tier_label}): [{imis_kw}]")
     
@@ -246,57 +259,99 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     # KHỐI 5: THƯƠNG MẠI ĐIỆN TỬ / WEB URL (Dùng Tier Model)
     # -------------------------------------------------------------
     print(f"\n[5/6] Đang xử lý Khối 5: TMĐT & Giá Web (Từ khóa {tier_label}: [{imis_kw}])...")
-    search_q = f"{imis_kw}".strip()
-    ecom_summary = (
-        f"Tra cứu {tier_label} [{search_q}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); "
-        f"kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp Foxboro/Minimax, "
-        f"các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai "
-        f"(yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote)."
-    )
-    search_q_url = re.sub(r'\s+', '+', search_q)
-    p5_payload = {
-        "keyword": search_q,
-        "search_keyword": search_q,
-        "used_keyword": search_q,
-        "tier": selected_cand.get("tier", 2) if selected_cand else 2,
-        "items": [],
-        "selected_record": None,
-        "ebay_search_url": f"https://www.ebay.com/sch/i.html?_nkw={search_q_url}",
-        "google_search_url": f"https://www.google.com/search?q={search_q_url}",
-        "summary_text": ecom_summary,
-        "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    with open(os.path.join(item_dir, "chung_cu_ecom.json"), "w", encoding="utf-8") as f:
-        json.dump(p5_payload, f, ensure_ascii=False, indent=2)
-    print(f"    ✓ Khối 5 hoàn tất: Đã lưu chứng cứ TMĐT & liên kết tra cứu web.")
+    ecom_file = os.path.join(item_dir, "chung_cu_ecom.json")
+    p5_price = 0
+    p5_desc = ""
+    p5_payload = None
+    if os.path.exists(ecom_file):
+        try:
+            with open(ecom_file, "r", encoding="utf-8") as f:
+                p5_payload = json.load(f)
+        except Exception:
+            pass
+
+    if p5_payload and (p5_payload.get("selected_record") or p5_payload.get("items")):
+        sel = p5_payload.get("selected_record") or (p5_payload.get("items")[0] if p5_payload.get("items") else None)
+        if sel:
+            # Check Landed Cost for foreign price
+            is_foreign = sel.get("currency") in ["USD", "EUR", "JPY"] or (sel.get("price_usd") and sel.get("price_usd") > 0)
+            base_p = float(sel.get("price") or 0)
+            if is_foreign and not sel.get("has_landed_cost"):
+                # Automatically apply Landed Cost +20%
+                landed_p = round(base_p * 1.20)
+                sel["has_landed_cost"] = True
+                sel["landed_surcharge_pct"] = 20
+                sel["landed_price"] = landed_p
+                p5_payload["has_landed_cost"] = True
+                p5_payload["landed_price"] = landed_p
+                p5_payload["selected_record"] = sel
+            
+            p5_price = float(sel.get("landed_price") or sel.get("price") or 0)
+            
+            # Format note / summary
+            p5_desc = p5_payload.get("summary_text", "")
+            if not p5_desc or ("Landed" not in p5_desc and sel.get("has_landed_cost")):
+                usd_part = f" (tương đương ${sel.get('price_usd')} USD, tỷ giá {sel.get('exchange_rate', 25450):,.0f} đ/USD)" if sel.get('price_usd') else ""
+                landed_note = f" [Giá niêm yết web: {fmt_vnd(base_p)}; sau khi cộng chi phí vận chuyển quốc tế, thuế NK & hải quan (+20%), giá Landed Cost DDP Vĩnh Tân 4 là {fmt_vnd(p5_price)}]" if sel.get("has_landed_cost") else ""
+                p5_desc = (
+                    f"Đã tra cứu từ khóa [{sel.get('search_keyword') or imis_kw}] trên thị trường TMĐT / Website nhà cung cấp ({sel.get('vendor', 'Web')}) "
+                    f"tại link [{sel.get('url', '')}]; ghi nhận đơn giá niêm yết công khai tham chiếu là {fmt_vnd(p5_price)}{usd_part}{landed_note}."
+                )
+                p5_payload["summary_text"] = p5_desc
+            
+            with open(ecom_file, "w", encoding="utf-8") as f:
+                json.dump(p5_payload, f, ensure_ascii=False, indent=2)
+            print(f"    ✓ Khối 5 hoàn tất: Kế thừa chứng cứ TMĐT sẵn có (Đơn giá tham chiếu: {fmt_vnd(p5_price)}).")
+    else:
+        # Generic query
+        search_q = f"{imis_kw}".strip()
+        search_q_url = re.sub(r'\s+', '+', search_q)
+        p5_desc = (
+            f"Tra cứu {tier_label} [{search_q}] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); "
+            f"kết quả ghi nhận vật tư thuộc danh mục thiết bị chuyên dụng, "
+            f"các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai "
+            f"(yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote)."
+        )
+        p5_payload = {
+            "keyword": search_q,
+            "search_keyword": search_q,
+            "used_keyword": search_q,
+            "tier": selected_cand.get("tier", 2) if selected_cand else 2,
+            "items": [],
+            "selected_record": None,
+            "ebay_search_url": f"https://www.ebay.com/sch/i.html?_nkw={search_q_url}",
+            "google_search_url": f"https://www.google.com/search?q={search_q_url}",
+            "summary_text": p5_desc,
+            "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        with open(ecom_file, "w", encoding="utf-8") as f:
+            json.dump(p5_payload, f, ensure_ascii=False, indent=2)
+        print(f"    ✓ Khối 5 hoàn tất: Đã lưu chứng cứ TMĐT & liên kết tra cứu web.")
 
     # -------------------------------------------------------------
     # KHỐI 6: TỔNG HỢP 5 CƠ SỞ & CHỐT MỨC GIÁ THẨM ĐỊNH (AI SME EXPERT)
     # -------------------------------------------------------------
     print("\n[5.5/6] Đang xử lý AI Chuyên Gia Vật Tư Kỹ Thuật Độc Lập tinh chế Thuyết minh...")
-    active_count = 5
     coverage_score = 100
-    coverage_rank = "Hạng A"
 
     p1_desc = f"Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là {fmt_vnd(p1_price)} từ {p1_supplier} (Trang {p1_page} Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình."
     
-    p2_desc = (
-        f"Tra cứu mã VT [{ma_vt}] / từ khóa [{clean_kw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; "
-        f"ghi nhận lịch sử nhà máy có 02 đợt mua sắm với đơn giá dao động từ 6.015.000 đ/Cái (HĐ 115/2023) đến 17.670.000 đ/Cái (HĐ 132/2023). "
-        f"Đơn giá trình đợt này là {fmt_vnd(dg_trinh)} nằm trong khoảng dao động giá lịch sử của Nhà máy và thấp hơn -23.3% so với đợt mua HĐ 132/2023."
-    )
+    p2_desc = erp_summary.get("summary_text", "")
+    if not p2_desc:
+        if p2_price > 0:
+            p2_desc = f"Tra cứu mã VT [{ma_vt}] / từ khóa [{clean_kw}] trong CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận lịch sử có {len(erp_records)} đợt mua sắm với đơn giá tham chiếu {fmt_vnd(p2_price)}."
+        else:
+            p2_desc = f"Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [{clean_kw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét."
 
-    p3_desc = f"Tra cứu {tier_label} [{imis_kw}] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); ghi nhận không có dữ liệu hợp đồng mua sắm vật tư tương tự từ các Đơn vị Phát điện toàn Tập đoàn EVN."
-
-    p4_desc = f"Tra cứu {tier_label} [{imis_kw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận vật tư thuộc nhóm hàng đặc thù không có kết quả trúng thầu công khai tương tự trên Hệ thống e-GP."
-
-    p5_desc = ecom_summary
+    p3_desc = p3_summary_text
+    p4_desc = p4_summary_text
 
     pillars_dict = {
         "p1_price": p1_price,
         "p2_price": p2_price,
         "p3_price": p3_price,
         "p4_price": p4_price,
+        "p5_price": p5_price,
         "p1_desc": p1_desc,
         "p2_desc": p2_desc,
         "p3_desc": p3_desc,
@@ -311,6 +366,7 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     price_score = sme_result["price_score"]
     synthesis_text = sme_result["summary_text"]
     risk_flag = sme_result["risk_flag"]
+    winning_pillar = sme_result.get("winning_pillar", "Cơ sở 1: Báo Giá Gốc")
 
     print("\n[6/6] Đang xử lý Khối 6: Tổng Hợp 5 Cơ Sở & Chốt Mức Giá...")
     p6_payload = {
@@ -322,12 +378,13 @@ def run_pipeline_for_item(item_id=1, verbose=True):
         "risk_flag": risk_flag,
         "used_ai": sme_result["used_ai"],
         "summary_text": synthesis_text,
+        "winning_pillar": winning_pillar,
         "pillars": {
-            "p1": {"name": "Cơ sở 1: Báo Giá Gốc", "price": p1_price, "has": True},
-            "p2": {"name": "Cơ sở 2: ERP Vĩnh Tân 4", "price": p2_price, "has": True},
-            "p3": {"name": "Cơ sở 3: EVN IMIS", "price": p3_price, "has": True},
-            "p4": {"name": "Cơ sở 4: Mua Sắm Công e-GP", "price": p4_price, "has": True},
-            "p5": {"name": "Cơ sở 5: Thương Mại Điện Tử", "price": 0, "has": True}
+            "p1": {"name": "Cơ sở 1: Báo Giá Gốc", "price": p1_price, "has": p1_price > 0},
+            "p2": {"name": "Cơ sở 2: ERP Vĩnh Tân 4", "price": p2_price, "has": p2_price > 0},
+            "p3": {"name": "Cơ sở 3: EVN IMIS", "price": p3_price, "has": p3_price > 0},
+            "p4": {"name": "Cơ sở 4: Mua Sắm Công e-GP", "price": p4_price, "has": p4_price > 0},
+            "p5": {"name": "Cơ sở 5: Thương Mại Điện Tử", "price": p5_price, "has": p5_price > 0}
         },
         "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
@@ -341,7 +398,7 @@ def run_pipeline_for_item(item_id=1, verbose=True):
     item["don_gia_thong_nhat"] = approved_price
     item["thanh_tien_thong_nhat"] = approved_price * qty
     item["gia_tri_giam"] = savings
-    item["co_so_thong_nhat"] = "Ý kiến Chuyên gia AI & Báo giá thấp nhất DTL (Khối 1)"
+    item["co_so_thong_nhat"] = winning_pillar
     item["danh_gia_ttd"] = synthesis_text
 
     with open(CURRENT_DOSSIER_FILE, "w", encoding="utf-8") as f:
@@ -354,14 +411,54 @@ def run_pipeline_for_item(item_id=1, verbose=True):
 
     print(f"    ✓ Khối 6 hoàn tất: Đã lưu chứng cứ tổng hợp & cập nhật hồ sơ dự án.")
     print("=" * 80)
-    print("BẢN THUYẾT MINH THẨM ĐỊNH HOÀN CHỈNH (STT 1):")
+    print(f"BẢN THUYẾT MINH THẨM ĐỊNH HOÀN CHỈNH (MỤC #{item_id}):")
     print("=" * 80)
     print(synthesis_text)
     print("=" * 80)
     return p6_payload
 
 
+def run_pipeline_for_all(start_id=1, end_id=None):
+    """
+    Chạy tự động hóa thẩm định cho toàn bộ hoặc một dải mục trong hồ sơ dự án.
+    """
+    dossier = {}
+    if os.path.exists(CURRENT_DOSSIER_FILE):
+        with open(CURRENT_DOSSIER_FILE, "r", encoding="utf-8") as f:
+            dossier = json.load(f)
+    items = dossier.get("items", [])
+    total = len(items)
+    print("=" * 80)
+    print(f"BẮT ĐẦU CHẠY PIPELINE BATCH CHO TOÀN BỘ HỒ SƠ ({total} MỤC VẬT TƯ)")
+    print("=" * 80)
+    success = 0
+    errors = 0
+    for idx, it in enumerate(items, 1):
+        i_id = it.get("id") or idx
+        if end_id and (i_id < start_id or i_id > end_id):
+            continue
+        print(f"\n>>> [{idx}/{total}] Đang xử lý Mục #{i_id}: {it.get('ten_vt', '')[:50]}...")
+        try:
+            run_pipeline_for_item(i_id, verbose=False)
+            success += 1
+        except Exception as e:
+            print(f"  [X] Lỗi mục #{i_id}: {e}")
+            errors += 1
+    print("\n" + "=" * 80)
+    print(f"HOÀN TẤT CHẠY BATCH: Thành công {success}/{total}, Lỗi {errors}")
+    print("=" * 80)
+
+
 if __name__ == "__main__":
-    item_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-    run_pipeline_for_item(item_id)
+    arg = sys.argv[1] if len(sys.argv) > 1 else "1"
+    if arg.lower() in ["all", "tatca", "full"]:
+        run_pipeline_for_all()
+    elif "-" in arg:
+        parts = arg.split("-")
+        run_pipeline_for_all(int(parts[0]), int(parts[1]))
+    elif len(sys.argv) > 2:
+        run_pipeline_for_all(int(sys.argv[1]), int(sys.argv[2]))
+    else:
+        item_id = int(arg)
+        run_pipeline_for_item(item_id)
 

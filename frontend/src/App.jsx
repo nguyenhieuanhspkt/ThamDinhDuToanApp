@@ -7,13 +7,17 @@ import ProjectManagerModal from './components/modals/ProjectManagerModal.jsx';
 import ERPConfigModal from './components/modals/ERPConfigModal.jsx';
 import IMISConfigModal from './components/modals/IMISConfigModal.jsx';
 import MSCConfigModal from './components/modals/MSCConfigModal.jsx';
+import SaveAsModal from './components/modals/SaveAsModal.jsx';
 import ErrorBoundary from './components/common/ErrorBoundary.jsx';
+import { useToast } from './components/ui/Toast.jsx';
 import { AlertTriangle, Database, X } from 'lucide-react';
 
 export default function App() {
+  const toast = useToast();
   const [activeView, setActiveView] = useState('grid');
   const [inspectorIndex, setInspectorIndex] = useState(0);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isSaveAsOpen, setIsSaveAsOpen] = useState(false);
   const [isErpConfigOpen, setIsErpConfigOpen] = useState(false);
   const [isImisConfigOpen, setIsImisConfigOpen] = useState(false);
   const [isMscConfigOpen, setIsMscConfigOpen] = useState(false);
@@ -21,9 +25,11 @@ export default function App() {
   const [imisStatus, setImisStatus] = useState(null);
   const [mscStatus, setMscStatus] = useState(null);
   const [dismissBanner, setDismissBanner] = useState(false);
+  const excelInputRef = React.useRef(null);
 
   const [activeProjectId, setActiveProjectId] = useState('ThamDinhDot8_lân2.json');
   const [dossierName, setDossierName] = useState('Gói 308 - Mua sắm vật tư SCTX đợt 8 năm 2026');
+  const [refreshKey, setRefreshKey] = useState(0);
   const [folderPath, setFolderPath] = useState(
     'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Tổ Thẩm định\\Năm 2026\\Thẩm định 308_hieuna\\Các Báo giá gửi Thẩm định'
   );
@@ -90,7 +96,53 @@ export default function App() {
     if (dossier) {
       setDossierName(dossier.dossier_name || filename);
       setActiveProjectId(filename);
+      setRefreshKey((prev) => prev + 1);
       setActiveView('grid');
+    }
+  };
+
+  const handleUploadExcel = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    toast.info(`Đang nạp file Excel: ${file.name}...`);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/import-excel', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '');
+        setDossierName(cleanName);
+        setRefreshKey((prev) => prev + 1);
+        setActiveView('grid');
+        toast.success(`Nạp thành công ${data.count} mục vật tư! Hãy lưu thành dự án mới.`);
+        setIsSaveAsOpen(true);
+      } else {
+        toast.error(`Lỗi nạp Excel: ${data.message}`);
+      }
+    } catch (err) {
+      toast.error(`Lỗi kết nối khi nạp Excel: ${err}`);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveProject = async () => {
+    try {
+      const resPush = await fetch('/api/sync/onedrive-push', { method: 'POST' });
+      const data = await resPush.json();
+      if (data.success) {
+        toast.success('Đã lưu hồ sơ thành công và đồng bộ kho OneDrive!');
+      } else {
+        toast.error(`Lỗi đồng bộ: ${data.message}`);
+      }
+    } catch (err) {
+      toast.error(`Lỗi khi lưu dự án: ${err}`);
     }
   };
 
@@ -98,15 +150,24 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-100 font-sans">
+      {/* Hidden File Input for Excel Import */}
+      <input
+        type="file"
+        ref={excelInputRef}
+        accept=".xlsx, .xls"
+        className="hidden"
+        onChange={handleUploadExcel}
+      />
+
       {/* Top Header Navigation Bar */}
       <HeaderNav
         activeView={activeView}
         setActiveView={setActiveView}
         dossierName={dossierName}
         onOpenProjects={() => setIsProjectModalOpen(true)}
-        onSaveAs={() => alert("Lưu thành dự án mới")}
-        onSaveProject={() => alert("Đã lưu nhanh dự án!")}
-        onUploadExcel={() => alert("Nạp file Excel mới")}
+        onSaveAs={() => setIsSaveAsOpen(true)}
+        onSaveProject={handleSaveProject}
+        onUploadExcel={() => excelInputRef.current?.click()}
         onExportExcel={() => window.location.href = '/api/export-excel'}
         erpStatus={erpStatus}
         onOpenErpConfig={() => setIsErpConfigOpen(true)}
@@ -122,7 +183,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-200 shrink-0 animate-bounce" />
             <span>
-              <strong>Cảnh báo CSDL Kế toán ERP:</strong> Hệ thống chưa phát hiện hoặc chưa cấu hình CSDL ERP Vĩnh Tân 4. 
+              <strong>Cảnh báo CSDL lịch sử mua sắm ERP:</strong> Hệ thống chưa phát hiện hoặc chưa cấu hình CSDL ERP Vĩnh Tân 4. 
               Vui lòng thiết lập file Excel & ánh xạ 13 cột để sẵn sàng căn cứ thẩm định.
             </span>
           </div>
@@ -153,7 +214,7 @@ export default function App() {
           )}
 
           {activeView === 'grid' && (
-            <GridMatrixView onSelectInspectorItem={handleSelectInspectorItem} />
+            <GridMatrixView key={refreshKey} onSelectInspectorItem={handleSelectInspectorItem} />
           )}
 
           {activeView === 'inspector' && (
@@ -177,6 +238,18 @@ export default function App() {
         onClose={() => setIsProjectModalOpen(false)}
         onSelectProject={handleSelectProject}
         activeProjectId={activeProjectId}
+      />
+
+      {/* Save As (Create New Project) Modal */}
+      <SaveAsModal
+        isOpen={isSaveAsOpen}
+        onClose={() => setIsSaveAsOpen(false)}
+        currentName={dossierName}
+        onSaveSuccess={(newName, projId) => {
+          setDossierName(newName);
+          setActiveProjectId(projId);
+          setRefreshKey((prev) => prev + 1);
+        }}
       />
 
       {/* ERP Config & 13-Column Mapping Modal */}

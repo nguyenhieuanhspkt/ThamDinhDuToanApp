@@ -87,7 +87,7 @@ def run_verification():
         ts.assert_true(r_erp.status_code == 200, "API /api/erp/config-status phản hồi HTTP 200")
         erp_st = r_erp.json()
         rec_count = erp_st.get("record_count", 0)
-        ts.assert_true(erp_st.get("is_configured") and rec_count > 0, f"CSDL Kế toán ERP Vĩnh Tân 4 sẵn sàng ({rec_count} hợp đồng)")
+        ts.assert_true(erp_st.get("is_configured") and rec_count > 0, f"CSDL lịch sử mua sắm ERP Vĩnh Tân 4 sẵn sàng ({rec_count} hợp đồng)")
     except Exception as e:
         ts.assert_true(False, "API /api/erp/config-status", f"Lỗi: {e}")
 

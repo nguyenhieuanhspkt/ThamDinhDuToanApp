@@ -263,7 +263,7 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
     // 2. Cơ sở 2: ERP Vĩnh Tân 4
     let p2_desc = '';
     if (isErpDeselected) {
-      p2_desc = `Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [${erpKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.`;
+      p2_desc = `Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [${erpKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.`;
     } else if (p2_price > 0) {
       const rec = (typeof erpResults?.selected_record === 'object' && erpResults?.selected_record) || erpResults?.results?.[0];
       const poInfo = rec?.soHopDong || rec?.so_hd ? ` theo HĐ ${rec.soHopDong || rec.so_hd}` : '';
@@ -277,11 +277,11 @@ export default function PillarSynthesis({ loading, saving, data, dgTrinh, item, 
       } else if (dateStr) {
         timeNote = ` ngày ${dateStr}`;
       }
-      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/${unit}${poInfo}${timeNote}.`;
+      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là ${fmt(p2_price)} VNĐ/${unit}${poInfo}${timeNote}.`;
     } else if (has_p2) {
-      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4; kết quả đã đối soát CSDL ERP: 0 bản ghi phù hợp (vật tư chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4).`;
+      p2_desc = `Tra cứu theo từ khóa [${erpKw}] trong CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4; kết quả đã đối soát CSDL ERP: 0 bản ghi phù hợp (vật tư chưa từng có lịch sử nhập kho nội bộ nhà máy Vĩnh Tân 4).`;
     } else {
-      p2_desc = `Chưa đối chiếu CSDL Kế toán ERP nội bộ nhà máy Vĩnh Tân 4.`;
+      p2_desc = `Chưa đối chiếu CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4.`;
     }
     text += `- Cơ sở 2 (ERP Vĩnh Tân 4): ${p2_desc}\n`;
 

@@ -4,6 +4,7 @@ ThamDinhDuToanApp - Máy chủ Flask Server
 Phục vụ quản lý cơ sở giá và luồng trao đổi KHVT vs TTĐ
 """
 import os
+import sys
 import json
 import re
 from datetime import datetime
@@ -11,6 +12,8 @@ from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.drawing.image import Image as OpenpyxlImage
+from PIL import Image as PILImage
 import imis_core
 import quote_matcher
 import msc_matcher
@@ -228,6 +231,26 @@ def api_save_as_project():
     save_dossier_data(data)
     with open(ACTIVE_PROJECT_FILE, "w", encoding="utf-8") as fp:
         json.dump({"active_id": filename, "name": name}, fp, ensure_ascii=False, indent=2)
+
+    # Tự động sao chép thư mục tài liệu & hình ảnh chứng cứ sang dự án mới
+    try:
+        new_files_dir = os.path.join(PROJECTS_DIR, f"{safe_name}_files")
+        os.makedirs(new_files_dir, exist_ok=True)
+        cur_files_dir = get_project_files_dir()
+        dirs_to_copy = [cur_files_dir, os.path.join(DATA_DIR, "current_dossier_files")]
+        for s_dir in dirs_to_copy:
+            if os.path.exists(s_dir) and os.path.abspath(s_dir) != os.path.abspath(new_files_dir):
+                for root, dirs, files in os.walk(s_dir):
+                    rel = os.path.relpath(root, s_dir)
+                    target_dir = os.path.join(new_files_dir, rel)
+                    os.makedirs(target_dir, exist_ok=True)
+                    for f_n in files:
+                        sf = os.path.join(root, f_n)
+                        df = os.path.join(target_dir, f_n)
+                        if not os.path.exists(df):
+                            shutil.copy2(sf, df)
+    except Exception as e:
+        print(f"Lưu ý sao chép tài liệu dự án mới: {e}")
         
     return jsonify({
         "success": True,
@@ -235,6 +258,8 @@ def api_save_as_project():
         "project_id": filename,
         "name": name
     })
+
+
 
 
 @app.route("/api/projects/load/<filename>", methods=["GET"])
@@ -616,8 +641,36 @@ def api_quotes_approve_all():
     
     with open(approved_file, "w", encoding="utf-8") as f:
         json.dump(save_payload, f, ensure_ascii=False, indent=2)
+
+    # TỰ ĐỘNG HOÀN THIỆN CƠ SỞ 1 CHO TOÀN BỘ CÁC MỤC TRONG DỰ ÁN
+    dossier = load_dossier_data()
+    items = dossier.get("items", [])
+    auto_matched_count = 0
+
+    for idx, it in enumerate(items):
+        item_id = it.get("id") or (idx + 1)
+        item_dir = os.path.join(p_dir, f"item_{item_id}")
+        os.makedirs(item_dir, exist_ok=True)
         
-    return jsonify({"success": True, "message": "Đã phê duyệt toàn bộ dữ liệu báo giá vào CSDL Dự án thành công!", "approved_summary": save_payload})
+        # Chạy thuật toán đối chiếu báo giá cho mục này
+        match_res = quote_matcher.match_item_in_quotes(it, res)
+        if match_res:
+            match_res["thoi_gian_tra_cuu"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            match_res["item_id"] = item_id
+            
+            # Ghi vào file chứng cứ Cơ sở 1
+            cc_path = os.path.join(item_dir, "chung_cu_quotes.json")
+            with open(cc_path, "w", encoding="utf-8") as f:
+                json.dump(match_res, f, ensure_ascii=False, indent=2)
+            auto_matched_count += 1
+
+    msg = f"Đã phê duyệt CSDL Báo giá ({len(res.get('quotes', []))} nhà thầu) và tự động hoàn thiện Cơ sở 1 cho {auto_matched_count}/{len(items)} mục dự toán!"
+    return jsonify({
+        "success": True, 
+        "message": msg, 
+        "approved_summary": save_payload,
+        "matched_items_count": auto_matched_count
+    })
 
 
 @app.route("/api/quotes/match-item", methods=["POST"])
@@ -752,7 +805,7 @@ def api_erp_save_config():
 
 @app.route("/api/erp/search", methods=["POST"])
 def api_erp_search():
-    """Tra cứu lịch sử mua sắm CSDL Kế toán ERP Vĩnh Tân 4."""
+    """Tra cứu lịch sử mua sắm CSDL lịch sử mua sắm ERP Vĩnh Tân 4."""
     req = request.get_json() or {}
     keyword = req.get("keyword", "").strip()
     ma_vt = req.get("ma_vt", "").strip()
@@ -765,6 +818,13 @@ def api_erp_search():
     
     if not imis_core.is_valid_erp_code(ma_vt):
         ma_vt = ""
+    if not ma_vt and isinstance(item, dict) and item.get("ma_vt"):
+        cand_ma = str(item.get("ma_vt", "")).strip()
+        if imis_core.is_valid_erp_code(cand_ma):
+            ma_vt = cand_ma
+    if not ma_vt and imis_core.is_valid_erp_code(keyword):
+        ma_vt = keyword
+
     if keyword.strip().lower().startswith("chưa") or keyword.strip().lower() in ("chưa có mã vật tư", "n/a", "none"):
         keyword = (item.get("ten_vt_goc") or item.get("ten_vt") or "").split("\n")[0].split("-")[0].strip()
 
@@ -780,7 +840,7 @@ def api_erp_search():
         summary_data = {
             "status": "ERP_DESELECTED",
             "is_deselected": True,
-            "summary_text": "Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
+            "summary_text": "Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4, các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này."
         }
         return jsonify({
             "success": True,
@@ -965,9 +1025,24 @@ def api_save_evidence_step(item_id=None, step_type=None):
     os.makedirs(item_dir, exist_ok=True)
     
     fname = f"chung_cu_{step_type}.json"
-    payload["thoi_gian_luu"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(os.path.join(item_dir, fname), "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+    fpath = os.path.join(item_dir, fname)
+    existing_data = {}
+    if os.path.exists(fpath):
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+        except Exception:
+            existing_data = {}
+
+    if isinstance(existing_data, dict) and isinstance(payload, dict):
+        existing_data.update(payload)
+        final_payload = existing_data
+    else:
+        final_payload = payload
+
+    final_payload["thoi_gian_luu"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(fpath, "w", encoding="utf-8") as f:
+        json.dump(final_payload, f, ensure_ascii=False, indent=2)
 
     # Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án
     if step_type == "synthesis" or "approved_price" in payload:
@@ -1371,15 +1446,40 @@ def api_run_5_pillars(item_id):
     # 1. Báo giá gốc
     p1_desc = "Chưa nạp dữ liệu Báo giá gốc"
     p1_price = 0
+    q_matches = None
     try:
-        q_folder = quote_matcher.DEFAULT_QUOTES_DIR
-        q_overrides = get_project_quote_overrides()
-        scanned_quotes = quote_matcher.scan_quotation_folder(q_folder, overrides=q_overrides)
-        q_matches = quote_matcher.match_item_in_quotes(target_item, scanned_quotes)
+        # Ưu tiên đọc từ file chứng cứ đã đối chiếu sẵn nếu có
+        existing_q_file = os.path.join(item_dir, "chung_cu_quotes.json")
+        if not os.path.exists(existing_q_file):
+            existing_q_file = os.path.join(fallback_dir, "chung_cu_quotes.json")
+            
+        if os.path.exists(existing_q_file):
+            try:
+                with open(existing_q_file, "r", encoding="utf-8") as f:
+                    q_matches = json.load(f)
+            except Exception:
+                q_matches = None
+
+        # Nếu chưa có thì quét từ folder nguồn
+        if not q_matches or not q_matches.get("min_price"):
+            q_folder = None
+            approved_file = os.path.join(p_dir, "bao_gia_project.json")
+            if os.path.exists(approved_file):
+                try:
+                    with open(approved_file, "r", encoding="utf-8") as f:
+                        q_folder = json.load(f).get("folder_nguon")
+                except Exception:
+                    pass
+            q_folder = q_folder or quote_matcher.DEFAULT_QUOTES_DIR
+            q_overrides = get_project_quote_overrides()
+            scanned_quotes = quote_matcher.scan_quotation_folder(q_folder, overrides=q_overrides)
+            q_matches = quote_matcher.match_item_in_quotes(target_item, scanned_quotes)
+
         if q_matches and q_matches.get("min_price"):
             p1_price = float(q_matches["min_price"])
             p1_supplier = q_matches.get("matches", [{}])[0].get("company", "Nhà thầu chào") if q_matches.get("matches") else "Nhà thầu chào"
-            p1_desc = f"Báo giá chào thấp nhất: {p1_price:,.0f} đ/Cái ({p1_supplier})".replace(",", ".")
+            unit_str = target_item.get("dvt") or "Cái"
+            p1_desc = f"Báo giá chào thấp nhất: {p1_price:,.0f} đ/{unit_str} ({p1_supplier})".replace(",", ".")
             write_evidence("chung_cu_quotes.json", q_matches)
     except Exception as e:
         print(f"Pillar 1 error for item {item_id}: {e}")
@@ -1421,7 +1521,7 @@ def api_run_5_pillars(item_id):
                 other_prices = [f"{float(r.get('donGia') or r.get('don_gia') or 0):,.0f} đ".replace(",", ".") for r in recs[1:3]]
                 p2_desc += f"; Các đợt nhập khác: {', '.join(other_prices)}"
         else:
-            p2_desc = "Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4."
+            p2_desc = "Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4."
             
         erp_payload = {
             "results": recs if isinstance(recs, list) else [],
@@ -1552,25 +1652,40 @@ def api_run_5_pillars(item_id):
     p1_supplier = "Chưa có"
     p1_file = ""
     p1_count = 0
+    p1_item_name = ""
+    p1_specs = ""
+    p1_score = 0
     if 'q_matches' in locals() and q_matches:
         p1_count = len(q_matches.get("matches", []))
         if q_matches.get("matches"):
-            p1_supplier = q_matches["matches"][0].get("company", "Nhà thầu chào")
-            p1_file = q_matches["matches"][0].get("filename", "")
+            top_m = q_matches["matches"][0]
+            p1_supplier = top_m.get("company", "Nhà thầu chào")
+            p1_file = top_m.get("filename", "")
+            p1_item_name = top_m.get("quoted_name", "")
+            p1_specs = top_m.get("quoted_tskt", "")
+            p1_score = top_m.get("score", 0)
 
     p2_count = 0
     p2_contract = ""
     p2_year = ""
+    p2_item_name = ""
+    p2_specs = ""
     if 'recs' in locals() and recs:
         p2_count = len(recs)
-        p2_contract = recs[0].get("so_hd") or recs[0].get("soHopDong") or recs[0].get("soPhieuNhap") or ""
-        p2_year = str(recs[0].get("ngayNhapKho") or recs[0].get("ngayKyHd") or recs[0].get("nam") or recs[0].get("thang_nam") or "")
+        top_rec = recs[0]
+        p2_contract = top_rec.get("so_hd") or top_rec.get("soHopDong") or top_rec.get("soPhieuNhap") or ""
+        p2_year = str(top_rec.get("ngayNhapKho") or top_rec.get("ngayKyHd") or top_rec.get("nam") or top_rec.get("thang_nam") or "")
+        p2_item_name = top_rec.get("ten_vt") or top_rec.get("tenVatTu") or ""
+        p2_specs = top_rec.get("quyCach") or top_rec.get("tskt") or ""
 
     p3_count = 0
     p3_unit = ""
+    p3_item_name = ""
     if 'imis_res' in locals() and imis_res and imis_res.get("imis"):
         p3_count = len(imis_res["imis"])
-        p3_unit = imis_res["imis"][0].get("ten_don_vi", "")
+        top_imis = imis_res["imis"][0]
+        p3_unit = top_imis.get("ten_don_vi", "")
+        p3_item_name = top_imis.get("ten_hang_hoa") or top_imis.get("ten_vt") or ""
 
     audit_trail = {
         "item_id": item_id,
@@ -1591,8 +1706,11 @@ def api_run_5_pillars(item_id):
                 "status": "success" if p1_price > 0 else "empty",
                 "price": p1_price,
                 "count": p1_count,
+                "item_name": p1_item_name,
+                "specs": p1_specs,
                 "supplier": p1_supplier,
                 "file": p1_file,
+                "score": p1_score,
                 "detail": p1_desc
             },
             {
@@ -1601,7 +1719,10 @@ def api_run_5_pillars(item_id):
                 "status": "success" if p2_price > 0 else "empty",
                 "price": p2_price,
                 "count": p2_count,
+                "item_name": p2_item_name,
+                "specs": p2_specs,
                 "contract": p2_contract,
+                "contract_info": f"HĐ: {p2_contract}, {p2_year}" if p2_contract else p2_year,
                 "year": p2_year,
                 "detail": p2_desc
             },
@@ -1611,7 +1732,9 @@ def api_run_5_pillars(item_id):
                 "status": "success" if p3_price > 0 else "empty",
                 "price": p3_price,
                 "count": p3_count,
+                "item_name": p3_item_name,
                 "unit": p3_unit,
+                "supplier": p3_unit,
                 "detail": p3_desc
             },
             {
@@ -1671,137 +1794,237 @@ def api_import_excel():
         item_id = 1
         rows_list = list(ws.iter_rows(values_only=True))
         
-        # Tự động tìm dòng Tiêu đề (Header)
+        # Tự động tìm dòng Tiêu đề (Header) và phân tích các cột động
         start_row_idx = 0
-        is_13_cols_format = False
+        col_map = {}
         for idx, r in enumerate(rows_list):
             if not r:
                 continue
             r_str = " ".join([str(c or "").upper() for c in r])
-            if "THÔNG SỐ KỸ THUẬT" in r_str or "ĐƠN GIÁ MIN" in r_str or ("PYCVT" in r_str and "MÃ ERP" in r_str):
+            if ("TÊN" in r_str and ("VẬT TƯ" in r_str or "QUY CÁCH" in r_str)) or ("MÃ" in r_str and "STT" in r_str) or ("THÔNG SỐ KỸ THUẬT" in r_str) or ("PYCVT" in r_str):
                 start_row_idx = idx + 1
-                is_13_cols_format = True
+                for c_idx, val in enumerate(r):
+                    val_u = str(val or "").strip().upper()
+                    if not val_u:
+                        continue
+                    if val_u == "STT":
+                        col_map["stt"] = c_idx
+                    elif "PYCVT" in val_u:
+                        col_map["pycvt"] = c_idx
+                    elif "MÃ" in val_u and ("ERP" in val_u or "VẬT TƯ" in val_u or "VT" in val_u):
+                        col_map["ma_vt"] = c_idx
+                    elif "MÃ" in val_u and "ma_vt" not in col_map:
+                        col_map["ma_vt"] = c_idx
+                    elif ("HÃNG" in val_u or "HSX" in val_u or "XUẤT XỨ" in val_u or "NSX" in val_u):
+                        col_map["hsx_xx"] = c_idx
+                    elif "THÔNG SỐ" in val_u or "QUY CÁCH KỸ THUẬT" in val_u:
+                        col_map["thong_so_kt"] = c_idx
+                    elif "TÊN" in val_u and ("VẬT TƯ" in val_u or "QUY CÁCH" in val_u or "HÀNG" in val_u):
+                        col_map["ten_vt"] = c_idx
+                    elif val_u in ("ĐVT", "ĐƠN VỊ TÍNH", "ĐƠN VỊ"):
+                        col_map["dvt"] = c_idx
+                    elif "SỐ LƯỢNG" in val_u or val_u == "SL":
+                        col_map["so_luong"] = c_idx
+                    elif "ĐƠN GIÁ" in val_u and ("TRÌNH" in val_u or "ĐỀ NGHỊ" in val_u or "MIN" in val_u):
+                        col_map["don_gia_trinh"] = c_idx
+                    elif "THÀNH TIỀN" in val_u and ("TRÌNH" in val_u or "ĐỀ NGHỊ" in val_u or "thanh_tien_trinh" not in col_map):
+                        col_map["thanh_tien_trinh"] = c_idx
+                    elif "ĐÁNH GIÁ" in val_u or ("TỔ THẨM ĐỊNH" in val_u and "Ý KIẾN" in val_u) or "TTĐ" in val_u:
+                        col_map["danh_gia_ttd"] = c_idx
+                    elif "PHẢN BIỆN" in val_u or ("KHVT" in val_u and "Ý KIẾN" in val_u):
+                        col_map["phan_bien_khvt"] = c_idx
+                    elif "ĐƠN GIÁ" in val_u and "THỐNG NHẤT" in val_u:
+                        col_map["don_gia_thong_nhat"] = c_idx
+                    elif "THÀNH TIỀN" in val_u and "THỐNG NHẤT" in val_u:
+                        col_map["thanh_tien_thong_nhat"] = c_idx
+                    elif "GIẢM" in val_u:
+                        col_map["gia_tri_giam"] = c_idx
+                    elif "CƠ SỞ" in val_u or "CĂN CỨ" in val_u:
+                        col_map["co_so_thong_nhat"] = c_idx
+                    elif "GHI CHÚ" in val_u:
+                        col_map["ghi_chu"] = c_idx
                 break
-            elif ("TÊN" in r_str and ("QUY CÁCH" in r_str or "VẬT TƯ" in r_str)) or ("MÃ VẬT TƯ" in r_str and "STT" in r_str):
-                start_row_idx = idx + 1
-                break
+
+        def get_val(row, key, default=""):
+            if key in col_map and col_map[key] < len(row):
+                v = row[col_map[key]]
+                return default if v is None else v
+            return default
                 
         for row in rows_list[start_row_idx:]:
             if not row or not any(row):
                 continue
 
-            if is_13_cols_format:
-                pycvt = str(row[1] if len(row) > 1 else "").strip()
-                ten_vt_goc = str(row[2] if len(row) > 2 else "").strip()
-                thong_so_kt = str(row[3] if len(row) > 3 else "").strip()
-                dvt = str(row[4] if len(row) > 4 else "Cái").strip()
-                try:
-                    sl = float(row[5] if len(row) > 5 else 1)
-                except:
-                    sl = 1
-                hsx_xx = str(row[6] if len(row) > 6 else "").strip()
-                ma_erp = str(row[7] if len(row) > 7 else "").strip()
-                try:
-                    dg_trinh = float(row[8] if len(row) > 8 else 0)
-                except:
-                    dg_trinh = 0
-                try:
-                    tt_trinh = float(row[9] if len(row) > 9 else round(sl * dg_trinh, 0))
-                except:
-                    tt_trinh = round(sl * dg_trinh, 0)
-                thue = str(row[10] if len(row) > 10 else "").strip()
-                try:
-                    tien_thue = float(row[11] if len(row) > 11 else 0)
-                except:
-                    tien_thue = 0
-                ghi_chu = str(row[12] if len(row) > 12 else "").strip()
+            pycvt = str(get_val(row, "pycvt", "")).strip()
+            ma_vt = str(get_val(row, "ma_vt", "")).strip()
+            ten_vt_goc = str(get_val(row, "ten_vt", "")).strip()
+            thong_so_kt = str(get_val(row, "thong_so_kt", "")).strip()
+            hsx_xx = str(get_val(row, "hsx_xx", "")).strip()
+            dvt = str(get_val(row, "dvt", "Cái")).strip() or "Cái"
+            ghi_chu = str(get_val(row, "ghi_chu", "")).strip()
 
-                if not ten_vt_goc and not thong_so_kt:
-                    continue
-                if ten_vt_goc.upper() in ("TÊN VẬT TƯ", "STT"):
-                    continue
+            if ten_vt_goc.upper() in ("TÊN VẬT TƯ", "STT", "TÊN QUY CÁCH", "TÊN HÀNG") or ma_vt.upper() in ("MÃ VẬT TƯ", "MÃ ERP"):
+                continue
+            if not ten_vt_goc and not thong_so_kt and not ma_vt:
+                continue
 
-                full_name = f"{ten_vt_goc} - {thong_so_kt}" if (ten_vt_goc and thong_so_kt) else (ten_vt_goc or thong_so_kt)
-                part_no = thong_so_kt or ma_erp
+            if not ten_vt_goc and thong_so_kt:
+                ten_vt_goc = thong_so_kt
+                thong_so_kt = ""
 
-                items.append({
-                    "id": item_id,
-                    "pycvt": pycvt,
-                    "ma_vt": ma_erp,
-                    "part_no": part_no,
-                    "ten_vt": full_name,
-                    "ten_vt_goc": ten_vt_goc,
-                    "thong_so_kt": thong_so_kt,
-                    "hsx_xx": hsx_xx,
-                    "dvt": dvt,
-                    "so_luong": sl,
-                    "don_gia_trinh": dg_trinh,
-                    "thanh_tien_trinh": tt_trinh,
-                    "thue": thue,
-                    "tien_thue": tien_thue,
-                    "danh_gia_ttd": "",
-                    "phan_bien_khvt": "",
-                    "don_gia_thong_nhat": dg_trinh,
-                    "thanh_tien_thong_nhat": tt_trinh,
-                    "gia_tri_giam": 0,
-                    "co_so_thong_nhat": "",
-                    "ghi_chu": ghi_chu
-                })
-            else:
-                ten_vt = str(row[2] if len(row) > 2 else row[1] or "").strip()
-                if not ten_vt or ten_vt.upper() in ("TÊN QUY CÁCH", "TÊN VẬT TƯ", "TÊN QUY CÁCH KỸ THUẬT VẬT TƯ"):
-                    continue
-                    
-                ma_vt = str(row[1] if len(row) > 1 else "").strip()
-                dvt = str(row[3] if len(row) > 3 else "Cái").strip()
-                try:
-                    sl = float(row[4] if len(row) > 4 else 1)
-                except:
-                    sl = 1
-                try:
-                    dg_trinh = float(row[5] if len(row) > 5 else 0)
-                except:
-                    dg_trinh = 0
-                    
+            try:
+                sl = float(get_val(row, "so_luong", 1))
+            except:
+                sl = 1.0
+
+            try:
+                dg_trinh = float(get_val(row, "don_gia_trinh", 0))
+            except:
+                dg_trinh = 0.0
+
+            try:
+                tt_trinh = float(get_val(row, "thanh_tien_trinh", round(sl * dg_trinh, 0)))
+            except:
                 tt_trinh = round(sl * dg_trinh, 0)
-                
-                # Đọc các cột ý kiến nếu có
-                dg_ttd = str(row[7] if len(row) > 7 else "").strip()
-                pb_khvt = str(row[8] if len(row) > 8 else "").strip()
+
+            dg_ttd = str(get_val(row, "danh_gia_ttd", "")).strip()
+            pb_khvt = str(get_val(row, "phan_bien_khvt", "")).strip()
+
+            if "don_gia_thong_nhat" in col_map:
                 try:
-                    dg_tn = float(row[9] if len(row) > 9 else dg_trinh)
+                    dg_tn_raw = get_val(row, "don_gia_thong_nhat", None)
+                    if dg_tn_raw is not None and str(dg_tn_raw).strip() != "":
+                        dg_tn = float(dg_tn_raw)
+                    else:
+                        dg_tn = dg_trinh
                 except:
                     dg_tn = dg_trinh
+            else:
+                dg_tn = dg_trinh
+
+            if "thanh_tien_thong_nhat" in col_map:
+                try:
+                    tt_tn_raw = get_val(row, "thanh_tien_thong_nhat", None)
+                    if tt_tn_raw is not None and str(tt_tn_raw).strip() != "":
+                        tt_tn = float(tt_tn_raw)
+                    else:
+                        tt_tn = round(sl * dg_tn, 0)
+                except:
+                    tt_tn = round(sl * dg_tn, 0)
+            else:
                 tt_tn = round(sl * dg_tn, 0)
-                gia_giam = max(0, tt_trinh - tt_tn)
-                co_so_tn = str(row[12] if len(row) > 12 else "").strip()
-                
-                items.append({
-                    "id": item_id,
-                    "pycvt": "",
-                    "ma_vt": ma_vt,
-                    "part_no": ma_vt,
-                    "ten_vt": ten_vt,
-                    "ten_vt_goc": ten_vt,
-                    "thong_so_kt": "",
-                    "hsx_xx": "",
-                    "dvt": dvt,
-                    "so_luong": sl,
-                    "don_gia_trinh": dg_trinh,
-                    "thanh_tien_trinh": tt_trinh,
-                    "danh_gia_ttd": dg_ttd,
-                    "phan_bien_khvt": pb_khvt,
-                    "don_gia_thong_nhat": dg_tn,
-                    "thanh_tien_thong_nhat": tt_tn,
-                    "gia_tri_giam": gia_giam,
-                    "co_so_thong_nhat": co_so_tn
-                })
+
+            if "gia_tri_giam" in col_map:
+                try:
+                    gg_raw = get_val(row, "gia_tri_giam", None)
+                    if gg_raw is not None and str(gg_raw).strip() != "":
+                        gia_giam = float(gg_raw)
+                    else:
+                        gia_giam = max(0.0, tt_trinh - tt_tn)
+                except:
+                    gia_giam = max(0.0, tt_trinh - tt_tn)
+            else:
+                gia_giam = max(0.0, tt_trinh - tt_tn)
+
+            co_so_tn = str(get_val(row, "co_so_thong_nhat", "")).strip()
+
+            full_name = f"{ten_vt_goc} - {thong_so_kt}" if (ten_vt_goc and thong_so_kt) else (ten_vt_goc or thong_so_kt)
+            part_no = thong_so_kt or ma_vt
+
+            items.append({
+                "id": item_id,
+                "pycvt": pycvt,
+                "ma_vt": ma_vt,
+                "part_no": part_no,
+                "ten_vt": full_name,
+                "ten_vt_goc": ten_vt_goc,
+                "thong_so_kt": thong_so_kt,
+                "hsx_xx": hsx_xx,
+                "dvt": dvt,
+                "so_luong": sl,
+                "don_gia_trinh": dg_trinh,
+                "thanh_tien_trinh": tt_trinh,
+                "danh_gia_ttd": dg_ttd,
+                "phan_bien_khvt": pb_khvt,
+                "don_gia_thong_nhat": dg_tn,
+                "thanh_tien_thong_nhat": tt_tn,
+                "gia_tri_giam": gia_giam,
+                "co_so_thong_nhat": co_so_tn,
+                "ghi_chu": ghi_chu
+            })
             item_id += 1
             
-        data = load_dossier_data()
+        existing_data = load_dossier_data()
+        existing_items = existing_data.get("items", [])
+        
+        # Ánh xạ các mục cũ đã thẩm định để bảo vệ 100% kết quả
+        existing_map_by_id = {it.get("id"): it for it in existing_items}
+        existing_map_by_key = {}
+        for it in existing_items:
+            m_vt = str(it.get("ma_vt") or "").strip()
+            t_vt = str(it.get("ten_vt_goc") or it.get("ten_vt") or "").strip().lower()
+            if m_vt:
+                existing_map_by_key[f"ma:{m_vt}"] = it
+            if t_vt:
+                existing_map_by_key[f"ten:{t_vt}"] = it
+
+        for it in items:
+            cur_id = it.get("id")
+            m_vt = str(it.get("ma_vt") or "").strip()
+            t_vt = str(it.get("ten_vt_goc") or it.get("ten_vt") or "").strip().lower()
+
+            # Tìm xem mục này có trong các mục đã thẩm định trước đó không
+            matched_old = None
+            if cur_id in existing_map_by_id:
+                old_cand = existing_map_by_id[cur_id]
+                old_m = str(old_cand.get("ma_vt") or "").strip()
+                old_t = str(old_cand.get("ten_vt_goc") or old_cand.get("ten_vt") or "").strip().lower()
+                if (m_vt and m_vt == old_m) or (t_vt and (t_vt in old_t or old_t in t_vt or t_vt[:25] == old_t[:25])):
+                    matched_old = old_cand
+            if not matched_old and m_vt and f"ma:{m_vt}" in existing_map_by_key:
+                matched_old = existing_map_by_key[f"ma:{m_vt}"]
+            if not matched_old and t_vt and f"ten:{t_vt}" in existing_map_by_key:
+                matched_old = existing_map_by_key[f"ten:{t_vt}"]
+
+            if matched_old:
+                # Kế thừa hsx_xx, pycvt, ghi_chu nếu file import để trống
+                if not it.get("hsx_xx") and matched_old.get("hsx_xx"):
+                    it["hsx_xx"] = matched_old.get("hsx_xx")
+                if not it.get("pycvt") and matched_old.get("pycvt"):
+                    it["pycvt"] = matched_old.get("pycvt")
+                if not it.get("ghi_chu") and matched_old.get("ghi_chu"):
+                    it["ghi_chu"] = matched_old.get("ghi_chu")
+
+                # Kế thừa kết quả thẩm định đã chốt nếu file import chưa có đơn giá thống nhất khác
+                old_dg_tn = float(matched_old.get("don_gia_thong_nhat") or 0)
+                old_co_so = matched_old.get("co_so_thong_nhat")
+                old_danh_gia = matched_old.get("danh_gia_ttd")
+                
+                if (not it.get("don_gia_thong_nhat") or it.get("don_gia_thong_nhat") == it.get("don_gia_trinh")) and old_dg_tn > 0:
+                    it["don_gia_thong_nhat"] = old_dg_tn
+                    if old_co_so:
+                        it["co_so_thong_nhat"] = old_co_so
+                    if old_danh_gia:
+                        it["danh_gia_ttd"] = old_danh_gia
+                    if matched_old.get("phan_bien_khvt"):
+                        it["phan_bien_khvt"] = matched_old.get("phan_bien_khvt")
+
+            # Luôn tính toán lại thành tiền và giá trị giảm theo đơn giá trình MỚI và số lượng MỚI
+            qty = float(it.get("so_luong") or 1)
+            dg_trinh = float(it.get("don_gia_trinh") or 0)
+            dg_tn = float(it.get("don_gia_thong_nhat") or dg_trinh)
+            it["thanh_tien_trinh"] = round(qty * dg_trinh, 0)
+            it["thanh_tien_thong_nhat"] = round(qty * dg_tn, 0)
+            it["gia_tri_giam"] = max(0.0, it["thanh_tien_trinh"] - it["thanh_tien_thong_nhat"])
+
+        data = existing_data
         data["items"] = items
         data["dossier_name"] = os.path.splitext(file.filename)[0]
         save_dossier_data(data)
+        try:
+            onedrive_sync.push_to_onedrive()
+        except Exception:
+            pass
         return jsonify({"success": True, "dossier": data, "count": len(items)})
     except Exception as e:
         return jsonify({"success": False, "message": f"Lỗi đọc file Excel: {e}"}), 500
@@ -1835,12 +2058,12 @@ def api_export_excel():
     ws.append([])
     
     headers = [
-        "STT", "Mã Vật Tư", "Tên Quy Cách Kỹ Thuật", "ĐVT", "Số Lượng",
+        "STT", "Mã Vật Tư", "Tên Vật Tư", "Thông Số Kỹ Thuật", "HSX/XX (Trình)", "ĐVT", "Số Lượng",
         "Đơn Giá Đề Nghị (Trình)", "Thành Tiền Đề Nghị",
         "ĐÁNH GIÁ CỦA TỔ THẨM ĐỊNH (TTĐ)",
         "Ý KIẾN PHẢN BIỆN CỦA PHÒNG KHVT",
         "Đơn Giá Thống Nhất", "Thành Tiền Thống Nhất", "Giá Trị Giảm",
-        "Cơ Sở Thống Nhất"
+        "Cơ Sở Thống Nhất", "Ghi Chú"
     ]
     ws.append(headers)
     
@@ -1849,11 +2072,9 @@ def api_export_excel():
         cell = ws.cell(row=row_header_idx, column=col_idx)
         cell.font = font_header
         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        if col_idx in (8,):
-            cell.fill = fill_header_ttd
-        elif col_idx in (9,):
+        if col_idx == 11:
             cell.fill = fill_header_khvt
-        elif col_idx in (10, 11, 12, 13):
+        elif col_idx in (12, 13, 14, 15):
             cell.fill = fill_header_res
         else:
             cell.fill = fill_header_ttd
@@ -1867,10 +2088,16 @@ def api_export_excel():
         tt_tn = round(sl * dg_tn, 0)
         giam = max(0, tt_trinh - tt_tn)
         
+        ten_goc = it.get("ten_vt_goc") or it.get("ten_vt", "")
+        ts_kt = it.get("thong_so_kt") or it.get("part_no", "")
+        hsx_xx = it.get("hsx_xx", "")
+        
         row_vals = [
             idx,
             it.get("ma_vt", ""),
-            it.get("ten_vt", ""),
+            ten_goc,
+            ts_kt,
+            hsx_xx,
             it.get("dvt", ""),
             sl,
             dg_trinh,
@@ -1880,7 +2107,8 @@ def api_export_excel():
             dg_tn,
             tt_tn,
             giam,
-            it.get("co_so_thong_nhat", "")
+            it.get("co_so_thong_nhat", ""),
+            it.get("ghi_chu", "")
         ]
         ws.append(row_vals)
         cur_row = row_header_idx + idx
@@ -1888,33 +2116,524 @@ def api_export_excel():
             c = ws.cell(row=cur_row, column=col_idx)
             c.font = font_data
             c.border = border_thin
-            if col_idx in (5, 6, 7, 10, 11, 12):
+            if col_idx in (7, 8, 9, 12, 13, 14):
                 c.number_format = '#,##0'
-            if col_idx in (1, 4):
+            if col_idx in (1, 6):
                 c.alignment = Alignment(horizontal="center", vertical="top")
-            elif col_idx in (8, 9, 13):
+            elif col_idx in (2, 5):
+                c.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
+            elif col_idx in (3, 4, 10, 11, 15, 16):
                 c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
             else:
-                c.alignment = Alignment(vertical="top")
+                c.alignment = Alignment(horizontal="right", vertical="top")
 
     # Tự động chỉnh độ rộng cột
-    ws.column_dimensions['A'].width = 6
-    ws.column_dimensions['B'].width = 22
-    ws.column_dimensions['C'].width = 36
-    ws.column_dimensions['D'].width = 8
-    ws.column_dimensions['E'].width = 8
-    ws.column_dimensions['F'].width = 16
-    ws.column_dimensions['G'].width = 18
-    ws.column_dimensions['H'].width = 38
-    ws.column_dimensions['I'].width = 38
-    ws.column_dimensions['J'].width = 16
-    ws.column_dimensions['K'].width = 18
-    ws.column_dimensions['L'].width = 16
-    ws.column_dimensions['M'].width = 38
+    ws.column_dimensions['A'].width = 6    # STT
+    ws.column_dimensions['B'].width = 20   # Mã Vật Tư
+    ws.column_dimensions['C'].width = 32   # Tên Vật Tư
+    ws.column_dimensions['D'].width = 40   # Thông Số Kỹ Thuật
+    ws.column_dimensions['E'].width = 22   # HSX/XX (Trình)
+    ws.column_dimensions['F'].width = 8    # ĐVT
+    ws.column_dimensions['G'].width = 10   # Số Lượng
+    ws.column_dimensions['H'].width = 18   # Đơn Giá Đề Nghị (Trình)
+    ws.column_dimensions['I'].width = 20   # Thành Tiền Đề Nghị
+    ws.column_dimensions['J'].width = 42   # ĐÁNH GIÁ CỦA TỔ THẨM ĐỊNH (TTĐ)
+    ws.column_dimensions['K'].width = 30   # Ý KIẾN PHẢN BIỆN CỦA PHÒNG KHVT
+    ws.column_dimensions['L'].width = 18   # Đơn Giá Thống Nhất
+    ws.column_dimensions['M'].width = 20   # Thành Tiền Thống Nhất
+    ws.column_dimensions['N'].width = 16   # Giá Trị Giảm
+    ws.column_dimensions['O'].width = 38   # Cơ Sở Thống Nhất
+    ws.column_dimensions['P'].width = 28   # Ghi Chú
     
     export_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data", "Bang_Tham_Dinh_Du_Toan.xlsx")
     wb.save(export_path)
     return send_file(export_path, as_attachment=True, download_name="Bang_Tham_Dinh_Du_Toan.xlsx")
+
+
+def _clean_ai_text(text):
+    """Loại bỏ từ khóa AI, markdown formatting để chuẩn hóa văn bản báo cáo."""
+    if not text:
+        return ''
+    t = str(text)
+    replacements = [
+        ('Ý kiến Chuyên gia AI & Báo giá thấp nhất DTL (Khối 1)', 'Đối chiếu báo giá thấp nhất DTL & phân tích kỹ thuật của Tổ Thẩm định'),
+        ('Ý kiến Chuyên gia AI & Báo giá thấp nhất DTL', 'Đối chiếu báo giá thấp nhất DTL & phân tích kỹ thuật của Tổ Thẩm định'),
+        ('Ý kiến Chuyên gia AI', 'Đánh giá của Tổ Thẩm định'),
+        ('Chuyên gia AI', 'Tổ Thẩm định'),
+        ('AI Thuyết minh & Chốt giá', 'Ý kiến thẩm định & đề xuất chốt giá'),
+        ('AI Thuyết minh', 'Tổ Thẩm định đánh giá'),
+        ('CSDL Kế toán ERP', 'CSDL lịch sử mua sắm ERP'),
+        ('CSDL KẾ TOÁN ERP', 'CSDL LỊCH SỬ MUA SẮM ERP'),
+        ('AI', 'Tổ Thẩm định'),
+        ('trên 5 cơ sở chứng cứ', 'trên các cơ sở chứng cứ thu thập được'),
+        ('Prompt', ''),
+        ('LLM', ''),
+    ]
+    for old, new in replacements:
+        t = t.replace(old, new)
+    t = re.sub(r'[*#_`]', '', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
+def _shorten_eval(text):
+    """Rút gọn đánh giá thẩm định cho sheet báo cáo tổng hợp."""
+    cleaned = _clean_ai_text(text)
+    if not cleaned:
+        return 'Thẩm định phù hợp theo hồ sơ trình và báo giá nộp kèm.'
+    sentences = re.split(r'[.\n]', cleaned)
+    valid_s = [
+        s.strip() for s in sentences
+        if len(s.strip()) > 20 and not s.strip().startswith('TỔ THẨM ĐỊNH') and not s.strip().startswith('BÁO CÁO') and not s.strip().startswith('1. TỔNG HỢP')
+    ]
+    if valid_s:
+        res = '. '.join(valid_s[:2]) + '.'
+        return res[:260]
+    return cleaned[:220]
+
+
+def _get_active_project_files_dir():
+    """Tìm thư mục chứng cứ (item files) dựa trên active project."""
+    if os.path.exists(ACTIVE_PROJECT_FILE):
+        try:
+            with open(ACTIVE_PROJECT_FILE, "r", encoding="utf-8") as fp:
+                act = json.load(fp)
+            act_id = act.get("active_id", "")
+            if act_id:
+                base_name = act_id.replace(".json", "") + "_files"
+                files_dir = os.path.join(PROJECTS_DIR, base_name)
+                if os.path.isdir(files_dir):
+                    return files_dir
+        except Exception:
+            pass
+    # Fallback: tìm thư mục *_files đầu tiên trong PROJECTS_DIR
+    try:
+        for d in sorted(os.listdir(PROJECTS_DIR)):
+            dp = os.path.join(PROJECTS_DIR, d)
+            if os.path.isdir(dp) and d.endswith("_files"):
+                return dp
+    except Exception:
+        pass
+    return None
+
+
+@app.route("/api/export-executive-report", methods=["GET"])
+def api_export_executive_report():
+    """Xuất Bản Lãnh Đạo - Báo cáo Excel 3 sheet trình lãnh đạo Nhà máy."""
+    data = load_dossier_data()
+    items = data.get("items", [])
+    dossier_name = data.get("dossier_name", "Gói 308 - Mua sắm vật tư SCTX đợt 8 năm 2026")
+    creator = data.get("creator", "Nguyễn Anh Hiếu")
+    proj_files_dir = _get_active_project_files_dir()
+
+    wb = openpyxl.Workbook()
+
+    # Style definitions
+    font_title_gov = Font(name='Times New Roman', size=10, bold=True, color='333333')
+    font_title_main = Font(name='Times New Roman', size=14, bold=True, color='003366')
+    font_sub = Font(name='Times New Roman', size=10, italic=True, color='555555')
+    font_hdr = Font(name='Times New Roman', size=10, bold=True, color='FFFFFF')
+    font_bold_navy = Font(name='Times New Roman', size=10, bold=True, color='003366')
+    font_data = Font(name='Times New Roman', size=10)
+    font_data_bold = Font(name='Times New Roman', size=10, bold=True)
+    font_saving = Font(name='Times New Roman', size=10, bold=True, color='15803D')
+    font_link = Font(name='Times New Roman', size=10, color='0055AA', underline='single')
+
+    fill_navy = PatternFill(start_color='003366', end_color='003366', fill_type='solid')
+    fill_navy_light = PatternFill(start_color='EBF3FA', end_color='EBF3FA', fill_type='solid')
+    fill_kpi = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
+    fill_kpi_hl = PatternFill(start_color='ECFDF5', end_color='ECFDF5', fill_type='solid')
+    fill_group_hdr = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
+
+    border_thin = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+
+    # Tính toán KPI
+    appraised_items = [it for it in items if it.get('gia_tri_giam', 0) > 0 or (it.get('co_so_thong_nhat') and it.get('don_gia_thong_nhat') and it.get('id', 999) <= 10)]
+    total_items = len(items)
+    sum_trinh = sum([it.get('thanh_tien_trinh', 0) for it in items])
+    sum_tn = sum([it.get('thanh_tien_thong_nhat', it.get('thanh_tien_trinh', 0)) for it in items])
+    sum_giam = sum([it.get('gia_tri_giam', 0) for it in items])
+    pct_giam = (sum_giam / sum_trinh * 100) if sum_trinh > 0 else 0
+    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    # ========================================================================
+    # SHEET 1: Báo Cáo Tổng Hợp
+    # ========================================================================
+    ws1 = wb.active
+    ws1.title = '1. Báo Cáo Tổng Hợp'
+    ws1.sheet_view.showGridLines = True
+    ws1.freeze_panes = 'A13'
+
+    ws1['A1'] = 'TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM'
+    ws1['A1'].font = font_title_gov
+    ws1['A2'] = 'NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4'
+    ws1['A2'].font = font_title_gov
+    ws1['A3'] = 'TỔ THẨM ĐỊNH DỰ TOÁN'
+    ws1['A3'].font = Font(name='Times New Roman', size=10, bold=True, color='003366', underline='single')
+
+    ws1.merge_cells('H1:K1')
+    ws1['H1'] = 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM'
+    ws1['H1'].font = font_title_gov
+    ws1['H1'].alignment = Alignment(horizontal='center')
+
+    ws1.merge_cells('H2:K2')
+    ws1['H2'] = 'Độc lập - Tự do - Hạnh phúc'
+    ws1['H2'].font = Font(name='Times New Roman', size=10, bold=True, underline='single')
+    ws1['H2'].alignment = Alignment(horizontal='center')
+
+    ws1.merge_cells('H3:K3')
+    now_dt = datetime.now()
+    ws1['H3'] = f'Lâm Đồng, ngày {now_dt.day:02d} tháng {now_dt.month:02d} năm {now_dt.year}'
+    ws1['H3'].font = font_sub
+    ws1['H3'].alignment = Alignment(horizontal='center')
+
+    ws1.merge_cells('A5:L5')
+    ws1['A5'] = 'BÁO CÁO KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ DỰ TOÁN MUA SẮM VẬT TƯ'
+    ws1['A5'].font = font_title_main
+    ws1['A5'].alignment = Alignment(horizontal='center', vertical='center')
+
+    ws1.merge_cells('A6:L6')
+    ws1['A6'] = f'Hồ sơ: {dossier_name} | Người thực hiện: {creator}'
+    ws1['A6'].font = font_sub
+    ws1['A6'].alignment = Alignment(horizontal='center', vertical='center')
+
+    # KPI Table
+    ws1.merge_cells('A8:C8'); ws1['A8'] = 'QUY MÔ DANH MỤC'; ws1['A8'].font = font_hdr; ws1['A8'].fill = fill_navy; ws1['A8'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('D8:G8'); ws1['D8'] = 'TỔNG DỰ TOÁN TRÌNH & THẨM ĐỊNH'; ws1['D8'].font = font_hdr; ws1['D8'].fill = fill_navy; ws1['D8'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H8:L8'); ws1['H8'] = 'HIỆU QUẢ TIẾT GIẢM CHI PHÍ (TIẾT KIỆM)'; ws1['H8'].font = font_hdr; ws1['H8'].fill = fill_navy; ws1['H8'].alignment = Alignment(horizontal='center')
+
+    ws1.merge_cells('A9:C9'); ws1['A9'] = f'Tổng số: {total_items} mục (Đã chốt: {len(appraised_items)} mục)'; ws1['A9'].font = font_data_bold; ws1['A9'].fill = fill_kpi; ws1['A9'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('D9:G9'); ws1['D9'] = f'Trình: {sum_trinh:,.0f} đ  -->  Thẩm định: {sum_tn:,.0f} đ'.replace(',', '.'); ws1['D9'].font = font_data_bold; ws1['D9'].fill = fill_kpi; ws1['D9'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H9:L9'); ws1['H9'] = f'TIẾT KIỆM CHO NHÀ MÁY: -{sum_giam:,.0f} đ  ({pct_giam:.2f}%)'.replace(',', '.'); ws1['H9'].font = Font(name='Times New Roman', size=11, bold=True, color='15803D'); ws1['H9'].fill = fill_kpi_hl; ws1['H9'].alignment = Alignment(horizontal='center')
+
+    for r in range(8, 10):
+        for c in range(1, 13):
+            ws1.cell(row=r, column=c).border = border_thin
+
+    ws1.merge_cells('A11:L11')
+    ws1['A11'] = 'I. DANH MỤC CÁC MẶT HÀNG ĐÃ HOÀN THÀNH THẨM ĐỊNH & CHỐT ĐƠN GIÁ'
+    ws1['A11'].font = Font(name='Times New Roman', size=11, bold=True, color='003366')
+
+    headers_s1 = [
+        'STT', 'Mã Vật Tư', 'Tên Vật Tư', 'Quy Cách Kỹ Thuật', 'Hãng SX/Xuất Xứ', 'ĐVT', 'SL',
+        'Đơn Giá Trình', 'Đơn Giá Thẩm Định', 'Thành Tiền Thẩm Định', 'Giá Trị Giảm',
+        'Ý Kiến Đánh Giá Của Tổ Thẩm Định'
+    ]
+    for c_idx, h_text in enumerate(headers_s1, 1):
+        c = ws1.cell(row=12, column=c_idx, value=h_text)
+        c.font = font_hdr
+        c.fill = fill_navy
+        c.border = border_thin
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ws1.row_dimensions[12].height = 28
+
+    cur_r = 13
+    for idx, it in enumerate(appraised_items, 1):
+        sl = it.get('so_luong', 1)
+        dgt = it.get('don_gia_trinh', 0)
+        dgtn = it.get('don_gia_thong_nhat', dgt)
+        tttn = it.get('thanh_tien_thong_nhat', sl * dgtn)
+        giam = it.get('gia_tri_giam', 0)
+        eval_text = "Chi tiết xin xem sheet Hồ sơ chứng cứ & Hình ảnh"
+
+        vals = [
+            idx,
+            it.get('ma_vt', ''),
+            it.get('ten_vt_goc') or it.get('ten_vt', ''),
+            it.get('thong_so_kt') or it.get('part_no', ''),
+            it.get('hsx_xx', ''),
+            it.get('dvt', 'Cái'),
+            sl, dgt, dgtn, tttn, giam, eval_text
+        ]
+        for c_idx, val in enumerate(vals, 1):
+            c = ws1.cell(row=cur_r, column=c_idx, value=val)
+            c.font = font_data
+            c.border = border_thin
+            if c_idx in (7, 8, 9, 10, 11):
+                c.number_format = '#,##0'
+            if c_idx in (1, 6):
+                c.alignment = Alignment(horizontal='center', vertical='center')
+            elif c_idx in (2, 5):
+                c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            elif c_idx in (3, 4):
+                c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            elif c_idx == 12:
+                c.font = Font(name='Times New Roman', size=10, italic=True, color='0055AA', underline='single')
+                c.alignment = Alignment(horizontal='center', vertical='center')
+                c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{4 + idx}"
+            else:
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            if c_idx == 11 and giam > 0:
+                c.font = font_saving
+        ws1.row_dimensions[cur_r].height = 28
+        cur_r += 1
+
+    # Summary row
+    ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=9)
+    ws1.cell(row=cur_r, column=1, value='TỔNG CỘNG CÁC MỤC ĐÃ CHỐT THẨM ĐỊNH:').font = font_bold_navy
+    ws1.cell(row=cur_r, column=1).alignment = Alignment(horizontal='right', vertical='center')
+    sum_tttn_appraised = sum([it.get('thanh_tien_thong_nhat', 0) for it in appraised_items])
+    sum_giam_appraised = sum([it.get('gia_tri_giam', 0) for it in appraised_items])
+    ws1.cell(row=cur_r, column=10, value=sum_tttn_appraised).font = font_bold_navy
+    ws1.cell(row=cur_r, column=10).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=10).alignment = Alignment(horizontal='right', vertical='center')
+    ws1.cell(row=cur_r, column=11, value=sum_giam_appraised).font = font_saving
+    ws1.cell(row=cur_r, column=11).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=11).alignment = Alignment(horizontal='right', vertical='center')
+    for c_idx in range(1, 13):
+        cell = ws1.cell(row=cur_r, column=c_idx)
+        cell.border = border_thin
+        cell.fill = fill_navy_light
+    ws1.row_dimensions[cur_r].height = 24
+    cur_r += 3
+
+    # Signatures
+    ws1.cell(row=cur_r, column=2, value='NGƯỜI LẬP BÁO CÁO / THƯ KÝ TỔ TTĐ').font = font_bold_navy
+    ws1.cell(row=cur_r, column=10, value='TỔ TRƯỞNG TỔ THẨM ĐỊNH DỰ TOÁN').font = font_bold_navy
+    ws1.cell(row=cur_r+1, column=2, value='(Ký và ghi rõ họ tên)').font = font_sub
+    ws1.cell(row=cur_r+1, column=10, value='(Ký và ghi rõ họ tên)').font = font_sub
+    ws1.cell(row=cur_r+6, column=2, value=creator).font = font_data_bold
+    ws1.cell(row=cur_r+6, column=10, value='...................................................').font = font_data_bold
+
+    for col_letter, w in [('A',6),('B',18),('C',30),('D',36),('E',20),('F',8),('G',8),('H',16),('I',16),('J',18),('K',16),('L',38)]:
+        ws1.column_dimensions[col_letter].width = w
+
+    # ========================================================================
+    # SHEET 2: Danh Mục Chi Tiết
+    # ========================================================================
+    ws2 = wb.create_sheet(title='2. Danh Mục Chi Tiết')
+    ws2.sheet_view.showGridLines = True
+    ws2.freeze_panes = 'A5'
+
+    ws2['A1'] = f'BẢNG THEO DÕI CHI TIẾT TIẾN ĐỘ & KẾT QUẢ THẨM ĐỊNH ({total_items} MỤC)'
+    ws2['A1'].font = font_title_main
+    ws2['A2'] = f'Hồ sơ: {dossier_name} | Cập nhật: {now_str}'
+    ws2['A2'].font = font_sub
+
+    headers_s2 = [
+        'STT', 'Mã ERP', 'Tên Vật Tư', 'Quy Cách Kỹ Thuật', 'Hãng SX / Xuất Xứ', 'ĐVT', 'SL',
+        'Đơn Giá Trình', 'Thành Tiền Trình', 'Đơn Giá Thẩm Định', 'Thành Tiền Thẩm Định',
+        'Chênh Lệch Giảm', 'Trạng Thái', 'Căn Cứ Thẩm Định / Ghi Chú'
+    ]
+    for c_idx, h_text in enumerate(headers_s2, 1):
+        c = ws2.cell(row=4, column=c_idx, value=h_text)
+        c.font = font_hdr
+        c.fill = fill_navy
+        c.border = border_thin
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ws2.row_dimensions[4].height = 26
+
+    r_idx = 5
+    for idx, it in enumerate(items, 1):
+        sl = it.get('so_luong', 1)
+        dgt = it.get('don_gia_trinh', 0)
+        tt_tr = it.get('thanh_tien_trinh', sl * dgt)
+        dgtn = it.get('don_gia_thong_nhat', dgt)
+        tt_tn = it.get('thanh_tien_thong_nhat', sl * dgtn)
+        giam = it.get('gia_tri_giam', 0)
+        is_done = (giam > 0) or (it.get('co_so_thong_nhat') and dgtn > 0 and idx <= 10)
+        status_str = 'ĐÃ CHỐT' if is_done else 'Đang rà soát'
+        cs_note = 'Chi tiết xem sheet Hồ sơ chứng cứ & Hình ảnh' if is_done else it.get('ghi_chu', '')
+
+        vals = [
+            idx, it.get('ma_vt', ''),
+            it.get('ten_vt_goc') or it.get('ten_vt', ''),
+            it.get('thong_so_kt') or it.get('part_no', ''),
+            it.get('hsx_xx', ''),
+            it.get('dvt', 'Cái'), sl, dgt, tt_tr, dgtn, tt_tn, giam, status_str, cs_note
+        ]
+        for c_idx, val in enumerate(vals, 1):
+            c = ws2.cell(row=r_idx, column=c_idx, value=val)
+            c.font = font_data
+            c.border = border_thin
+            if is_done:
+                c.fill = fill_navy_light
+            if c_idx in (7, 8, 9, 10, 11, 12):
+                c.number_format = '#,##0'
+            if c_idx in (1, 6, 13):
+                c.alignment = Alignment(horizontal='center', vertical='center')
+            elif c_idx in (2, 5):
+                c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            elif c_idx in (3, 4):
+                c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            elif c_idx == 14:
+                if is_done:
+                    c.font = Font(name='Times New Roman', size=10, italic=True, color='0055AA', underline='single')
+                    c.alignment = Alignment(horizontal='center', vertical='center')
+                    if it in appraised_items:
+                        s3_row = 4 + (appraised_items.index(it) + 1)
+                        c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{s3_row}"
+                else:
+                    c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            else:
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            if c_idx == 12 and giam > 0:
+                c.font = font_saving
+            if c_idx == 13 and is_done:
+                c.font = Font(name='Times New Roman', size=9, bold=True, color='15803D')
+        ws2.row_dimensions[r_idx].height = 24
+        r_idx += 1
+
+    # Summary Row Sheet 2
+    ws2.merge_cells(start_row=r_idx, start_column=1, end_row=r_idx, end_column=8)
+    ws2.cell(row=r_idx, column=1, value=f'TỔNG CỘNG TOÀN BỘ {total_items} MỤC:').font = font_bold_navy
+    ws2.cell(row=r_idx, column=1).alignment = Alignment(horizontal='right', vertical='center')
+    ws2.cell(row=r_idx, column=9, value=sum_trinh).font = font_bold_navy
+    ws2.cell(row=r_idx, column=9).number_format = '#,##0'
+    ws2.cell(row=r_idx, column=11, value=sum_tn).font = font_bold_navy
+    ws2.cell(row=r_idx, column=11).number_format = '#,##0'
+    ws2.cell(row=r_idx, column=12, value=sum_giam).font = font_saving
+    ws2.cell(row=r_idx, column=12).number_format = '#,##0'
+    for c_idx in range(1, 15):
+        c = ws2.cell(row=r_idx, column=c_idx)
+        c.border = border_thin
+        c.fill = fill_group_hdr
+    ws2.row_dimensions[r_idx].height = 24
+
+    for col_letter, w in [('A',6),('B',18),('C',28),('D',32),('E',18),('F',8),('G',8),('H',16),('I',18),('J',16),('K',18),('L',16),('M',14),('N',34)]:
+        ws2.column_dimensions[col_letter].width = w
+
+    # ========================================================================
+    # SHEET 3: Hồ Sơ Chứng Cứ & Hình Ảnh
+    # ========================================================================
+    ws3 = wb.create_sheet(title='3. Hồ Sơ Chứng Cứ & Hình Ảnh')
+    ws3.sheet_view.showGridLines = True
+    ws3.freeze_panes = 'A5'
+
+    ws3['A1'] = 'HỒ SƠ BẰNG CHỨNG & HÌNH ẢNH TRA CỨU ĐỐI SOÁT CỦA TỔ THẨM ĐỊNH'
+    ws3['A1'].font = font_title_main
+    ws3['A2'] = 'Trích xuất chi tiết hồ sơ chứng cứ, hóa đơn, hợp đồng ERP và hình ảnh đối soát thị trường cho các mục chốt giá'
+    ws3['A2'].font = font_sub
+
+    headers_s3 = [
+        'STT', 'Mã ERP / Thiết Bị', 'Tên Vật Tư & Quy Cách', 'Hình Ảnh Chứng Cứ (Báo Giá / ERP / Web)',
+        'Liên Kết Nguồn Tra Cứu (Hyperlink)', 'Cơ Sở 1: Báo Giá Gốc', 'Cơ Sở 2: ERP Vĩnh Tân 4',
+        'Cơ Sở 3: EVN IMIS', 'Cơ Sở 4: Mua Sắm Công (e-GP)', 'Cơ Sở 5: Thị Trường & Tham Khảo',
+        'Kết Luận Đơn Giá Chốt'
+    ]
+    for c_idx, h_text in enumerate(headers_s3, 1):
+        c = ws3.cell(row=4, column=c_idx, value=h_text)
+        c.font = font_hdr
+        c.fill = fill_navy
+        c.border = border_thin
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    ws3.row_dimensions[4].height = 28
+
+    cur_s3_r = 5
+    for idx, it in enumerate(appraised_items, 1):
+        iid = it.get('id')
+        item_files_dir = os.path.join(proj_files_dir, f'item_{iid}') if proj_files_dir else None
+
+        img_path = None
+        if item_files_dir and os.path.exists(item_files_dir):
+            for fn in sorted(os.listdir(item_files_dir)):
+                if fn.lower().startswith('clip_') and fn.lower().endswith(('.png', '.jpg')):
+                    fp = os.path.join(item_files_dir, fn)
+                    if os.path.getsize(fp) > 500:
+                        img_path = fp
+                        break
+
+        web_url = None
+        if item_files_dir:
+            ecom_json_path = os.path.join(item_files_dir, 'chung_cu_ecom.json')
+            if os.path.exists(ecom_json_path):
+                try:
+                    with open(ecom_json_path, 'r', encoding='utf-8') as ef:
+                        edata = json.load(ef)
+                        web_url = edata.get('selected_record', {}).get('url')
+                except Exception:
+                    pass
+
+        def read_basis_text(fname, ifd=item_files_dir):
+            if not ifd:
+                return '—'
+            fp = os.path.join(ifd, fname)
+            if os.path.exists(fp):
+                try:
+                    with open(fp, 'r', encoding='utf-8') as f:
+                        bdata = json.load(f)
+                        txt = bdata.get('summary_text') or bdata.get('summary') or ''
+                        return _clean_ai_text(txt)[:220]
+                except Exception:
+                    pass
+            return '—'
+
+        cs1_txt = read_basis_text('chung_cu_quotes.json')
+        cs2_txt = read_basis_text('chung_cu_erp.json')
+        cs3_txt = read_basis_text('chung_cu_imis.json')
+        cs4_txt = read_basis_text('chung_cu_muasamcong.json')
+        cs5_txt = read_basis_text('chung_cu_ecom.json')
+
+        if cs1_txt == '—' and it.get('don_gia_trinh'):
+            cs1_txt = f"Báo giá đề nghị nộp kèm: {it.get('don_gia_trinh'):,.0f} đ".replace(',', '.')
+
+        name_str = f"{it.get('ten_vt_goc') or it.get('ten_vt')}\n({it.get('thong_so_kt') or it.get('part_no') or ''})"
+        dgtn = it.get('don_gia_thong_nhat', 0)
+        giam = it.get('gia_tri_giam', 0)
+        ket_luan = f"Đơn giá chốt: {dgtn:,.0f} đ\n(Tiết kiệm: {giam:,.0f} đ)".replace(',', '.')
+
+        vals_s3 = [
+            idx, it.get('ma_vt', ''), name_str,
+            '' if img_path else '[Lưu trong hồ sơ PDF]',
+            'Mở liên kết trực tuyến ↗' if web_url else '—',
+            cs1_txt, cs2_txt, cs3_txt, cs4_txt, cs5_txt, ket_luan
+        ]
+
+        for c_idx, val in enumerate(vals_s3, 1):
+            c = ws3.cell(row=cur_s3_r, column=c_idx, value=val)
+            c.font = font_data
+            c.border = border_thin
+            if c_idx in (1,):
+                c.alignment = Alignment(horizontal='center', vertical='top')
+            elif c_idx in (2,):
+                c.alignment = Alignment(horizontal='center', vertical='top', wrap_text=True)
+            elif c_idx == 4:
+                c.alignment = Alignment(horizontal='center', vertical='center')
+            elif c_idx == 5 and web_url:
+                c.font = font_link
+                c.hyperlink = web_url
+                c.alignment = Alignment(horizontal='center', vertical='center')
+            elif c_idx == 11:
+                c.font = font_bold_navy
+                c.alignment = Alignment(horizontal='center', vertical='top', wrap_text=True)
+            else:
+                c.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+
+        if img_path:
+            try:
+                pil_img = PILImage.open(img_path)
+                orig_w, orig_h = pil_img.size
+                pil_img.close()
+                th = 135
+                tw = int(orig_w * (th / orig_h))
+                if tw > 260:
+                    tw = 260
+                    th = int(orig_h * (tw / orig_w))
+                img = OpenpyxlImage(img_path)
+                img.width = tw
+                img.height = th
+                ws3.add_image(img, f'D{cur_s3_r}')
+                ws3.row_dimensions[cur_s3_r].height = 110
+            except Exception:
+                ws3.cell(row=cur_s3_r, column=4, value=f'[Ảnh {os.path.basename(img_path)}]')
+                ws3.row_dimensions[cur_s3_r].height = 60
+        else:
+            ws3.row_dimensions[cur_s3_r].height = 60
+
+        cur_s3_r += 1
+
+    for col_letter, w in [('A',6),('B',18),('C',30),('D',36),('E',24),('F',32),('G',32),('H',30),('I',30),('J',32),('K',24)]:
+        ws3.column_dimensions[col_letter].width = w
+
+    # Save & Return
+    export_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data", "Bao_Cao_Tham_Dinh_Trinh_Lanh_Dao.xlsx")
+    wb.save(export_path)
+    return send_file(export_path, as_attachment=True, download_name="Bao_Cao_Tham_Dinh_Trinh_Lanh_Dao.xlsx")
 
 
 @app.route("/api/download-template", methods=["GET"])

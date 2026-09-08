@@ -124,6 +124,26 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
     fetchDossier(newPath, true);
   };
 
+  const handleApproveAll = async () => {
+    try {
+      const res = await fetch('/api/quotes/approve-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_path: folderPath })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || 'Đã phê duyệt CSDL Dự Án thành công!');
+        fetchDossier(folderPath, false);
+      } else {
+        toast.error('Lỗi phê duyệt: ' + (data.message || ''));
+      }
+    } catch (e) {
+      console.error('Lỗi phê duyệt CSDL:', e);
+      toast.error('Lỗi kết nối máy chủ!');
+    }
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden h-full">
       {/* Column 1: Left Navigation Sidebar */}
@@ -135,6 +155,7 @@ export default function QuotesWorkspace({ folderPath: initialFolderPath, onSelec
         onSelectQuote={(fn, fp) => selectQuote(fn, fp, folderPath)}
         onRescanPdf={() => fetchDossier(folderPath, true)}
         onChangeFolder={() => setIsFolderModalOpen(true)}
+        onApproveAll={handleApproveAll}
         folderPath={folderPath}
         isLoading={isLoadingDossier}
       />

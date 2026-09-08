@@ -108,7 +108,7 @@ def analyze_technical_essence(ten_vt, ma_vt):
     }
 
 
-def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_price, suggested_price, savings):
+def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_price, suggested_price, savings, winning_pillar="Cơ sở tham chiếu"):
     """
     Tự động sinh Ý kiến Đánh giá Chuyên gia Kỹ thuật Độc lập cục bộ (Local Fallback).
     """
@@ -130,12 +130,12 @@ def generate_local_sme_opinion(item, pillars, is_warning, diff_pct, min_ref_pric
     if is_warning:
         eval_text = (
             f"- Đánh giá Tương quan Giá trị Kỹ thuật & Thương mại: Đơn giá trình {fmt_vnd(dg_trinh)} cao hơn +{diff_pct:.1f}% "
-            f"so với đơn giá tham chiếu thấp nhất hợp lệ ({fmt_vnd(min_ref_price)}). Với đặc tính kỹ thuật vật tư hiện tại, "
+            f"so với đơn giá tham chiếu thấp nhất hợp lệ ({fmt_vnd(min_ref_price)} từ {winning_pillar}). Với đặc tính kỹ thuật vật tư hiện tại, "
             f"mức chênh lệch này vượt quá biên độ an toàn và Tổ Thẩm định đề xuất xem xét điều chỉnh."
         )
         recommendation = (
             f"🔴 CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ: Tổ Thẩm định đề xuất Lãnh đạo/Hội đồng Thẩm định đàm phán điều chỉnh đơn giá phê duyệt "
-            f"về mức {fmt_vnd(suggested_price)} (Dự kiến tiết kiệm {fmt_vnd(savings)} cho Nhà máy)."
+            f"về mức {fmt_vnd(suggested_price)} căn cứ theo {winning_pillar} (Dự kiến tiết kiệm {fmt_vnd(savings)} cho Nhà máy)."
         )
     else:
         eval_text = (
@@ -285,10 +285,24 @@ def generate_ai_synthesis(item, pillars, config=None):
     p2_price = float(pillars.get("p2_price") or 0)
     p3_price = float(pillars.get("p3_price") or 0)
     p4_price = float(pillars.get("p4_price") or 0)
+    p5_price = float(pillars.get("p5_price") or 0)
 
     # Tìm đơn giá tham chiếu thấp nhất hợp lệ (> 0)
-    ref_prices = [p for p in [p1_price, p2_price, p3_price, p4_price] if p > 0]
+    ref_prices = [p for p in [p1_price, p2_price, p3_price, p4_price, p5_price] if p > 0]
     min_ref_price = min(ref_prices) if ref_prices else dg_trinh
+
+    # Xác định cơ sở tham chiếu mốc giá thấp nhất
+    winning_pillar = "Cơ sở 1: Báo Giá Gốc"
+    if min_ref_price == p5_price and p5_price > 0:
+        winning_pillar = "Cơ sở 5: Tham khảo TMĐT / Giá Web"
+    elif min_ref_price == p2_price and p2_price > 0:
+        winning_pillar = "Cơ sở 2: CSDL lịch sử mua sắm ERP Vĩnh Tân 4"
+    elif min_ref_price == p3_price and p3_price > 0:
+        winning_pillar = "Cơ sở 3: EVN IMIS"
+    elif min_ref_price == p4_price and p4_price > 0:
+        winning_pillar = "Cơ sở 4: Mua Sắm Công e-GP"
+    elif min_ref_price == p1_price and p1_price > 0:
+        winning_pillar = "Cơ sở 1: Báo Giá Gốc"
 
     threshold_pct = float(config.get("warning_threshold_percent", 10.0))
     
@@ -302,7 +316,7 @@ def generate_ai_synthesis(item, pillars, config=None):
         savings = (dg_trinh - suggested_price) * qty
         risk_flag = "HIGH_PRICE_WARNING"
         price_score = max(50, int(100 - diff_pct))
-        price_eval = f"🔴 CẢNH BÁO CAO (Đơn giá trình cao hơn +{diff_pct:.1f}% so với giá tham chiếu thấp nhất)"
+        price_eval = f"🔴 CẢNH BÁO CAO (Đơn giá trình cao hơn +{diff_pct:.1f}% so với giá tham chiếu thấp nhất từ {winning_pillar})"
     else:
         suggested_price = dg_trinh
         savings = 0.0
@@ -312,7 +326,7 @@ def generate_ai_synthesis(item, pillars, config=None):
 
     # Sinh bản thảo Ý kiến Chuyên gia Cục bộ
     local_sme_opinion = generate_local_sme_opinion(
-        item, pillars, is_warning, diff_pct, min_ref_price, suggested_price, savings
+        item, pillars, is_warning, diff_pct, min_ref_price, suggested_price, savings, winning_pillar
     )
 
     # Thử gọi AI OpenRouter nếu được bật
@@ -339,7 +353,7 @@ def generate_ai_synthesis(item, pillars, config=None):
             f"- Cơ sở 4 (Mua Sắm Công e-GP): {pillars.get('p4_desc', '')}\n"
             f"- Cơ sở 5 (Thương Mại Điện Tử): {pillars.get('p5_desc', '')}\n\n"
             f"KẾT LUẬN THẨM ĐỊNH: Đề xuất giá thẩm định phê duyệt chốt là {fmt_vnd(suggested_price)} "
-            f"(Giá trị tiết kiệm dự kiến: {fmt_vnd(savings)})."
+            f"(Cơ sở: {winning_pillar} | Giá trị tiết kiệm dự kiến: {fmt_vnd(savings)})."
         )
 
     return {
@@ -350,5 +364,6 @@ def generate_ai_synthesis(item, pillars, config=None):
         "suggested_price": suggested_price,
         "estimated_savings": savings,
         "price_score": price_score,
-        "diff_pct": diff_pct
+        "diff_pct": diff_pct,
+        "winning_pillar": winning_pillar
     }

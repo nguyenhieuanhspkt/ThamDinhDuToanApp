@@ -74,6 +74,23 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
     }
   };
 
+const exportExecutiveReport = async () => {
+  try {
+    const res = await fetch('/api/export-executive-report');
+    if (!res.ok) throw new Error('Failed to export executive report');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'executive_report.xlsx';
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('✅ Xuất Bản Lãnh Đạo thành công');
+  } catch (e) {
+    toast.error('❌ Lỗi xuất Bản Lãnh Đạo: ' + e.message);
+  }
+};
+
   return (
     <header className="bg-[#003366] text-white px-5 py-2.5 shrink-0 shadow-md z-30 flex items-center justify-between">
       {/* Brand & Project Title */}
@@ -264,6 +281,12 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
         >
           <FileSpreadsheet className="w-3.5 h-3.5" /> Xuất Excel
         </a>
+        <button
+          onClick={exportExecutiveReport}
+          className="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-md flex items-center gap-1 transition ml-1"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" /> Xuất Bản Lãnh Đạo
+        </button>
       </div>
     </header>
   );

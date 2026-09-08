@@ -14,11 +14,141 @@ function AuditProgressModalContent({
   activeStep = 1,
   auditData,
   onExportPdf,
-  onOpenInspector
+  onOpenInspector,
+  onItemUpdated
 }) {
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [runningAi, setRunningAi] = useState(false);
   const [customAiData, setCustomAiData] = useState(null);
+
+  const result = auditData?.result || {};
+  const steps = auditData?.steps || [];
+  const dgTrinh = auditData?.don_gia_trinh || result.don_gia_trinh || item?.don_gia_trinh || 0;
+  const dgTn = auditData?.don_gia_thong_nhat || result.don_gia_thong_nhat || item?.don_gia_thong_nhat || dgTrinh;
+
+  const [editableSteps, setEditableSteps] = useState(steps);
+  const [activeApprovedPrice, setActiveApprovedPrice] = useState(dgTn);
+  const [activeWinningPillar, setActiveWinningPillar] = useState(item?.co_so_thong_nhat || '');
+  const [togglingIdx, setTogglingIdx] = useState(null);
+
+  React.useEffect(() => {
+    const initSteps = (steps || []).map(s => ({
+      ...s,
+      _orig_price: s._orig_price !== undefined ? s._orig_price : (s.price || 0),
+      _orig_detail: s._orig_detail || s.detail || ''
+    }));
+    setEditableSteps(initSteps);
+    setActiveApprovedPrice(dgTn);
+    setActiveWinningPillar(item?.co_so_thong_nhat || '');
+  }, [steps, dgTn, item?.co_so_thong_nhat]);
+
+  const handleTogglePillar = async (idx, exclude) => {
+    const itemId = item?.id || auditData?.item_id;
+    if (!itemId) return;
+    setTogglingIdx(idx);
+
+    const stepKeys = ['quotes', 'erp', 'imis', 'muasamcong', 'ecom'];
+    const currentList = editableSteps.length > 0 ? editableSteps : steps;
+    const targetStep = currentList[idx];
+    const stepKey = (targetStep?.key === 'msc' ? 'muasamcong' : targetStep?.key) || stepKeys[idx] || 'erp';
+
+    // 1. Cập nhật mảng steps cục bộ ngay lập tức
+    const newSteps = currentList.map((st, i) => {
+      if (i !== idx) return st;
+      const origP = st._orig_price !== undefined && st._orig_price > 0 ? st._orig_price : (st.price || 0);
+      return {
+        ...st,
+        is_deselected: exclude,
+        _orig_price: origP,
+        price: exclude ? 0 : origP,
+        detail: exclude 
+          ? 'Thẩm định viên loại trừ trực tiếp tại Bảng đối chiếu do không tương thích quy cách.' 
+          : (st._orig_detail || st.detail)
+      };
+    });
+    setEditableSteps(newSteps);
+
+    // 2. Tính toán lại đơn giá chốt từ các cơ sở còn hiệu lực
+    const activePrices = [];
+    newSteps.slice(0, 5).forEach((st) => {
+      if (!st.is_deselected && st.price && st.price > 0) {
+        activePrices.push({ name: st.name, price: st.price });
+      }
+    });
+
+    let newApprovedPrice = dgTrinh;
+    let newWinningPillar = 'Cơ sở 1: Báo Giá Gốc';
+    if (activePrices.length > 0) {
+      activePrices.sort((a, b) => a.price - b.price);
+      newApprovedPrice = activePrices[0].price;
+      newWinningPillar = activePrices[0].name;
+    }
+
+    setActiveApprovedPrice(newApprovedPrice);
+    setActiveWinningPillar(newWinningPillar);
+    if (customAiData) {
+      setCustomAiData(prev => ({
+        ...prev,
+        approved_price: newApprovedPrice,
+        winning_pillar: newWinningPillar,
+        summary_text: `Tổ Thẩm định đã rà soát 5 cơ sở chứng cứ (trong đó đã ${exclude ? 'loại trừ' : 'khôi phục'} ${targetStep?.name} do thẩm định viên đánh giá tính tương thích). Đơn giá thẩm định thống nhất đề xuất là ${Math.round(newApprovedPrice).toLocaleString('vi-VN')} đ theo ${newWinningPillar}.`
+      }));
+    }
+
+    const qty = parseFloat(item?.so_luong || 1);
+    const newThanhTien = newApprovedPrice * qty;
+    const newGiaTriGiam = (dgTrinh - newApprovedPrice) * qty;
+
+    // 3. Gọi API cập nhật file chứng cứ của cơ sở này ngầm
+    try {
+      const stepPayload = {
+        is_deselected: exclude,
+        status: exclude ? `${stepKey.toUpperCase()}_DESELECTED` : 'MATCH',
+        summary: {
+          is_deselected: exclude,
+          status: exclude ? `${stepKey.toUpperCase()}_DESELECTED` : 'MATCH',
+          summary_text: exclude ? 'Thẩm định viên loại trừ trực tiếp tại Bảng đối chiếu do không tương thích kỹ thuật.' : ''
+        },
+        summary_text: exclude ? 'Thẩm định viên loại trừ trực tiếp tại Bảng đối chiếu do không tương thích kỹ thuật.' : ''
+      };
+
+      await fetch(`/api/items/${itemId}/evidence/${stepKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(stepPayload)
+      });
+
+      // 4. Đồng bộ bước synthesis và hồ sơ
+      const synthPayload = {
+        approved_price: newApprovedPrice,
+        co_so_thong_nhat: newWinningPillar,
+        total_savings: newGiaTriGiam,
+        summary_text: `Tổ Thẩm định đã rà soát 5 cơ sở chứng cứ (trong đó đã ${exclude ? 'loại trừ' : 'khôi phục'} ${targetStep?.name} do thẩm định viên đánh giá tính tương thích). Đơn giá thẩm định thống nhất đề xuất là ${Math.round(newApprovedPrice).toLocaleString('vi-VN')} đ theo ${newWinningPillar}.`
+      };
+
+      await fetch(`/api/items/${itemId}/evidence/synthesis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(synthPayload)
+      });
+
+      // 5. Cập nhật ngược lại View 1 nếu có callback
+      if (onItemUpdated) {
+        onItemUpdated({
+          id: itemId,
+          don_gia_thong_nhat: newApprovedPrice,
+          thanh_tien_thong_nhat: newThanhTien,
+          gia_tri_giam: newGiaTriGiam,
+          co_so_thong_nhat: newWinningPillar,
+          danh_gia_ttd: synthPayload.summary_text
+        });
+      }
+    } catch (e) {
+      console.error('Lỗi cập nhật loại trừ cơ sở:', e);
+    } finally {
+      setTogglingIdx(null);
+    }
+  };
 
   const handleTriggerAi = async () => {
     const itemId = item?.id || auditData?.item_id;
@@ -50,14 +180,12 @@ function AuditProgressModalContent({
     { id: 6, key: 'synthesis', name: '6. AI Thuyết Minh & Chốt Giá', icon: Brain, desc: 'Tổng hợp 5 cơ sở & sinh bản thuyết minh (Tùy chọn)', isOptional: true },
   ];
 
-  const result = auditData?.result || {};
-  const steps = auditData?.steps || [];
-  const dgTrinh = auditData?.don_gia_trinh || result.don_gia_trinh || item?.don_gia_trinh || 0;
-  const dgTn = auditData?.don_gia_thong_nhat || result.don_gia_thong_nhat || item?.don_gia_thong_nhat || dgTrinh;
-  const giaTriGiam = auditData?.gia_tri_giam !== undefined ? auditData.gia_tri_giam : (result.gia_tri_giam !== undefined ? result.gia_tri_giam : (item?.gia_tri_giam || ((dgTrinh - dgTn) * (item?.so_luong || 1))));
-  const pctGiam = auditData?.pct_giam !== undefined ? auditData.pct_giam : (result.pct_giam !== undefined ? result.pct_giam : (dgTrinh > 0 ? (dgTrinh - dgTn) / dgTrinh * 100 : 0));
+  const currentPrice = customAiData?.approved_price !== undefined ? customAiData.approved_price : activeApprovedPrice;
+  const currentWinning = customAiData?.winning_pillar || activeWinningPillar;
+  const giaTriGiam = (dgTrinh - currentPrice) * (item?.so_luong || 1);
+  const pctGiam = dgTrinh > 0 ? ((dgTrinh - currentPrice) / dgTrinh) * 100 : 0;
   const danhGiaTtd = auditData?.synthesis?.summary_text || auditData?.danh_gia_ttd || result.danh_gia_ttd || item?.danh_gia_ttd || '';
-  const ttThongNhat = auditData?.thanh_tien_thong_nhat || result.thanh_tien_thong_nhat || (dgTn * (item?.so_luong || 1));
+  const ttThongNhat = currentPrice * (item?.so_luong || 1);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -236,36 +364,137 @@ function AuditProgressModalContent({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold text-[11px]">
                     <tr>
-                      <th className="py-2 px-3 border-r">Nguồn Chứng Cứ</th>
-                      <th className="py-2 px-3 border-r">Thông Tin Thu Thập Được</th>
-                      <th className="py-2 px-3 text-right w-28 font-mono">Đơn Giá</th>
-                      <th className="py-2 px-2 text-center w-20">Trạng Thái</th>
+                      <th className="py-2.5 px-3 border-r w-44">Nguồn Chứng Cứ</th>
+                      <th className="py-2.5 px-3 border-r">Vật Tư & Bản Chất Kỹ Thuật Đối Chiếu</th>
+                      <th className="py-2.5 px-3 text-right w-36 font-mono">Đơn Giá Tham Chiếu</th>
+                      <th className="py-2.5 px-2 text-center w-24">Trạng Thái</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {steps.slice(0, 5).map((st, idx) => {
-                      const hasPrice = st.price && st.price > 0;
+                    {(editableSteps.length > 0 ? editableSteps : steps).slice(0, 5).map((st, idx) => {
+                      const isDeselected = Boolean(st.is_deselected);
+                      const hasPrice = !isDeselected && st.price && st.price > 0;
                       return (
-                        <tr key={idx} className="hover:bg-slate-50/70 transition">
-                          <td className="py-2 px-3 border-r font-bold text-slate-900">
-                            {st.name}
+                        <tr key={idx} className={`transition ${isDeselected ? 'bg-amber-50/20 hover:bg-amber-50/40' : 'hover:bg-slate-50/70'}`}>
+                          <td className="py-2.5 px-3 border-r font-bold text-slate-900 align-top">
+                            <div className="flex items-center gap-1.5">
+                              <span>{st.name}</span>
+                            </div>
+                            {st.score && st.score > 0 ? (
+                              <div className="mt-1">
+                                <span className="inline-block text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 border border-blue-200">
+                                  Tương đồng: {st.score}%
+                                </span>
+                              </div>
+                            ) : null}
                           </td>
-                          <td className="py-2 px-3 border-r text-slate-700 text-[11.5px]">
-                            {st.detail}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-bold border-r text-slate-900">
-                            {hasPrice ? fmt(st.price) : '—'}
-                          </td>
-                          <td className="py-2 px-2 text-center">
-                            {hasPrice ? (
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                                Khớp
+                          <td className={`py-2.5 px-3 border-r text-[11.5px] align-top ${isDeselected ? 'text-slate-500' : 'text-slate-700'}`}>
+                            {/* Khối Minh Bạch: Tên vật tư thực tế trong nguồn */}
+                            {st.item_name ? (
+                              <div className="mb-1.5 pb-1.5 border-b border-slate-200/60">
+                                <div className="flex items-start gap-1.5">
+                                  <span className="text-[10px] font-bold text-teal-800 bg-teal-100 px-1.5 py-0.2 rounded shrink-0">
+                                    VẬT TƯ TRONG NGUỒN
+                                  </span>
+                                  <strong className="text-slate-900 text-xs font-bold leading-snug">
+                                    {st.item_name}
+                                  </strong>
+                                </div>
+
+                                {/* Thông tin chi tiết: Đơn vị, hợp đồng, quy cách */}
+                                <div className="mt-1 text-[11px] text-slate-600 space-y-0.5 pl-0.5">
+                                  {st.supplier && (
+                                    <div>
+                                      <span className="font-semibold text-slate-700">Đơn vị / Nhà thầu:</span> {st.supplier}
+                                      {st.contract_info && <span className="text-slate-500 ml-1.5">({st.contract_info})</span>}
+                                    </div>
+                                  )}
+                                  {st.specs && (
+                                    <div className="text-slate-500 italic line-clamp-2" title={st.specs}>
+                                      <span className="font-semibold text-slate-600 not-italic">Quy cách kỹ thuật:</span> {st.specs}
+                                    </div>
+                                  )}
+                                  {st.url && (
+                                    <div className="flex items-center gap-2 pt-0.5">
+                                      <a
+                                        href={st.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 font-semibold underline inline-flex items-center gap-1"
+                                      >
+                                        🔗 Link sản phẩm niêm yết web ↗
+                                      </a>
+                                      {st.has_landed && (
+                                        <span className="text-[10px] font-bold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
+                                          🚢 Đã tính Landed Cost (+20% DDP)
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            {/* Ý kiến đánh giá đối chiếu của Tổ Thẩm Định */}
+                            <div className={`p-1.5 rounded text-[11px] leading-relaxed border ${
+                              isDeselected
+                                ? 'bg-amber-50/70 border-amber-200 text-amber-900 italic'
+                                : hasPrice
+                                  ? 'bg-slate-50 border-slate-200/80 text-slate-700'
+                                  : 'bg-slate-50/50 border-slate-100 text-slate-500'
+                            }`}>
+                              <span className="font-bold mr-1">
+                                {isDeselected ? '⚠️ Đánh giá loại trừ:' : '📋 Ý kiến thẩm định:'}
                               </span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                Trống
-                              </span>
-                            )}
+                              {st.detail}
+                            </div>
+                          </td>
+                          <td className={`py-2.5 px-3 text-right font-mono font-bold border-r align-top ${hasPrice ? 'text-slate-900 text-[12px]' : 'text-slate-400'}`}>
+                            {hasPrice ? `${fmt(st.price)} đ` : (isDeselected && st._orig_price > 0 ? <span className="text-amber-700/60 line-through text-[11px] font-normal">{fmt(st._orig_price)}</span> : '—')}
+                          </td>
+                          <td className="py-2.5 px-2 text-center align-top">
+                            <div className="flex flex-col items-center gap-1.5">
+                              {isDeselected ? (
+                                <span className="inline-block text-[10px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded shadow-2xs">
+                                  Loại trừ
+                                </span>
+                              ) : hasPrice ? (
+                                <span className="inline-block text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded shadow-2xs">
+                                  Khớp
+                                </span>
+                              ) : (
+                                <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                                  Trống
+                                </span>
+                              )}
+
+                              {/* Nút Loại trừ / Phục hồi trực tiếp tại Bảng đối chiếu */}
+                              {status === 'completed' && (
+                                isDeselected ? (
+                                  (st._orig_price > 0 || st.item_name) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePillar(idx, false)}
+                                      disabled={togglingIdx === idx}
+                                      title="Khôi phục cơ sở này vào căn cứ so sánh đơn giá"
+                                      className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-teal-800 hover:text-teal-950 bg-teal-50 hover:bg-teal-100 border border-teal-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                    >
+                                      {togglingIdx === idx ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : '↩️ Phục hồi'}
+                                    </button>
+                                  ) : null
+                                ) : (hasPrice || st.item_name) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePillar(idx, true)}
+                                    disabled={togglingIdx === idx}
+                                    title="Loại trừ cơ sở này (không áp dụng so sánh đơn giá do không tương thích kỹ thuật)"
+                                    className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-rose-800 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                  >
+                                    {togglingIdx === idx ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : '🚫 Loại trừ'}
+                                  </button>
+                                ) : null
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -282,12 +511,17 @@ function AuditProgressModalContent({
                   </span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-lg font-black font-mono text-emerald-950">
-                      {fmt(customAiData?.approved_price || dgTn)}
+                      {fmt(currentPrice)}
                     </span>
                     <span className="text-xs text-emerald-700 font-semibold">/{item?.dvt || 'Cái'}</span>
+                    {currentWinning && (
+                      <span className="text-[10.5px] font-semibold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full ml-1">
+                        Theo {currentWinning}
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
-                    Thành tiền thẩm định: <strong className="font-mono">{fmt((customAiData?.approved_price || dgTn) * (item?.so_luong || 1))}</strong>
+                    Thành tiền thẩm định: <strong className="font-mono">{fmt(currentPrice * (item?.so_luong || 1))}</strong>
                   </p>
                 </div>
 
