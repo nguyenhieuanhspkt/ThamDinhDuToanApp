@@ -175,8 +175,18 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     if (activePillar === 'msc' && !mscResults) loadMsc();
   }, [activePillar, currentItem?.id, selectedIndex]);
 
+  const updateLocalEvidenceState = useCallback((stepKey, payload) => {
+    if (stepKey === 'quotes') setQuoteEvidence(payload);
+    else if (stepKey === 'erp') setErpResults(payload);
+    else if (stepKey === 'imis') setImisResults(payload);
+    else if (stepKey === 'muasamcong') setMscResults(payload);
+    else if (stepKey === 'ecom') setEcomResults(payload);
+    else if (stepKey === 'synthesis') setSynthesisResults(payload);
+  }, []);
+
   // Save evidence for a step
   const saveStep = async (stepKey, payload, nextPillar = null) => {
+    updateLocalEvidenceState(stepKey, payload);
     const itemId = currentItem.id || selectedIndex + 1;
     setSaving(true);
     try {
@@ -203,6 +213,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
   };
 
   const autoSaveStep = useCallback(async (stepKey, payload) => {
+    updateLocalEvidenceState(stepKey, payload);
     const itemId = currentItem.id || selectedIndex + 1;
     try {
       await fetch(`/api/items/${itemId}/evidence/${stepKey}`, {
@@ -214,7 +225,7 @@ export default function ItemInspectorView({ selectedIndex, onNavigateIndex, onOp
     } catch (e) {
       console.warn(`[AutoSave] Không thể lưu ngầm ${stepKey}:`, e);
     }
-  }, [currentItem.id, selectedIndex, loadAllEvidenceStatus]);
+  }, [currentItem.id, selectedIndex, loadAllEvidenceStatus, updateLocalEvidenceState]);
 
   const switchPillar = (pk) => {
     setActivePillar(pk);

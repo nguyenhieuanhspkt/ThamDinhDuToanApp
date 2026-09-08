@@ -21,7 +21,7 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
 
   const getInitialImisIdx = (d, list) => {
     if (!d) return 0;
-    if (d.is_deselected || d.selected_record === 'NONE') return null;
+    if (d.is_deselected || d.selected_record === 'NONE' || d.summary?.status === 'IMIS_DESELECTED' || d.summary?.is_deselected) return null;
     if (d.use_average || d.selected_record === 'AVERAGE') return 'AVERAGE';
     const recs = list || d.imis || [];
     if (d.selected_record && Array.isArray(recs)) {

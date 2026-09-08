@@ -72,7 +72,8 @@ export const getErpDefaultKw = (item, data) => {
 };
 
 export const getInitialSelectedIdx = (d, list) => {
-  if (d?.is_deselected || d?.selected_record === 'NONE' || d?.summary?.status === 'ERP_DESELECTED') return null;
+  if (!d) return 0;
+  if (d?.is_deselected || d?.selected_record === 'NONE' || d?.summary?.status === 'ERP_DESELECTED' || d?.summary?.is_deselected) return null;
   if (d?.use_average || d?.selected_record === 'AVERAGE') return 'AVERAGE';
   if (d?.selected_record && typeof d.selected_record === 'object' && Array.isArray(list)) {
     const idx = list.findIndex(r => (r.soHopDong && r.soHopDong === d.selected_record.soHopDong) || (r.maVt && r.maVt === d.selected_record.maVt));

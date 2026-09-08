@@ -24,7 +24,7 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
   const [mscResponse, setMscResponse] = useState(data || null);
-  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [selectedIdx, setSelectedIdx] = useState(() => (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'MSC_DESELECTED' || data?.summary?.is_deselected) ? null : 0);
 
   // Pagination states
   const [pageNumber, setPageNumber] = useState(0);
@@ -83,7 +83,7 @@ export default function PillarMsc({ loading, saving, data, dgTrinh, item, onSave
   useEffect(() => {
     const smartKw = getSmartMscKw(item?.ten_vt || '', data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu);
     setSearchKey(smartKw);
-    if (data?.is_deselected || data?.selected_record === 'NONE') {
+    if (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'MSC_DESELECTED' || data?.summary?.is_deselected) {
       setSelectedIdx(null);
     } else {
       setSelectedIdx(0);

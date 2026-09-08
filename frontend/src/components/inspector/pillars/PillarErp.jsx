@@ -32,7 +32,7 @@ export default function PillarErp({ loading, saving, data, dgTrinh, item, onSave
   useEffect(() => {
     const list = erpResults || [];
     const curSummaryText = summaryData?.summary_text || data?.summary_text;
-    if (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'ERP_DESELECTED') return;
+    if (data?.is_deselected || data?.selected_record === 'NONE' || data?.summary?.status === 'ERP_DESELECTED' || data?.summary?.is_deselected || summaryData?.status === 'ERP_DESELECTED' || summaryData?.is_deselected || selectedIdx === null) return;
     if (list.length > 0 && !curSummaryText && !searching && item?.ten_vt) {
       fetch('/api/erp/search', {
         method: 'POST',
