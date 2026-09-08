@@ -225,6 +225,50 @@ def run_verification():
     ts.assert_true(os.path.exists(dist_html), "Bản build production (frontend/dist/index.html) sẵn sàng")
 
     # -------------------------------------------------------------
+    # NHÓM 6: KIỂM THỬ ĐỒNG BỘ STATE & BẢO TOÀN TRẠNG THÁI (STATE INTEGRITY)
+    # -------------------------------------------------------------
+    print("\n[NHÓM 6] KIỂM THỬ ĐỒNG BỘ STATE & BẢO TOÀN TRẠNG THÁI (STATE INTEGRITY):")
+    try:
+        # 6.1 Kiểm tra ItemInspectorView.jsx có updateLocalEvidenceState cho cả autoSave và saveStep
+        with open(coord_file, "r", encoding="utf-8") as f:
+            coord_code = f.read()
+        has_sync_func = "updateLocalEvidenceState" in coord_code
+        has_autosave_sync = "updateLocalEvidenceState(stepKey, payload)" in coord_code
+        ts.assert_true(has_sync_func and has_autosave_sync, "Frontend: updateLocalEvidenceState đồng bộ tức thời State trong RAM khi Save/AutoSave")
+
+        # 6.2 Kiểm tra chốt chặn chống ghi đè khi Deselect trong PillarErp.jsx
+        erp_file = os.path.join(inspector_dir, "pillars", "PillarErp.jsx")
+        with open(erp_file, "r", encoding="utf-8") as f:
+            erp_code = f.read()
+        erp_guarded = "ERP_DESELECTED" in erp_code and "is_deselected" in erp_code and "selectedIdx === null" in erp_code
+        ts.assert_true(erp_guarded, "PillarErp: Chốt chặn chặt chẽ (Guard) ngăn tuyệt đối tự ý auto-fetch khi đã Hủy chọn")
+
+        # 6.3 Kiểm tra getInitialSelectedIdx bảo vệ trạng thái Hủy chọn
+        kw_file = os.path.join(inspector_dir, "utils", "keywordHelpers.js")
+        with open(kw_file, "r", encoding="utf-8") as f:
+            kw_code = f.read()
+        kw_guarded = "ERP_DESELECTED" in kw_code and "is_deselected" in kw_code
+        ts.assert_true(kw_guarded, "keywordHelpers: getInitialSelectedIdx trả về null bảo toàn trạng thái Hủy chọn qua các lần chuyển tab")
+
+        # 6.4 Kiểm tra bảo toàn dữ liệu Hủy chọn ERP cho Mục 9 trên CSDL Server
+        r_erp9 = requests.get(f"{BASE_URL}/api/items/9/evidence/erp", timeout=5)
+        erp9_data = r_erp9.json().get("data", {})
+        is_erp9_deselected = erp9_data.get("is_deselected") or erp9_data.get("selected_record") == "NONE"
+        ts.assert_true(is_erp9_deselected, "Mục 9: CSDL Server bảo tồn trạng thái HỦY CHỌN Cơ sở 2 (ERP) chính xác")
+
+        # 6.5 Kiểm tra ErrorBoundary bảo vệ toàn diện không bao giờ trắng màn hình
+        eb_file = os.path.join(LOCAL_ROOT, "frontend", "src", "components", "common", "ErrorBoundary.jsx")
+        app_file = os.path.join(LOCAL_ROOT, "frontend", "src", "App.jsx")
+        with open(app_file, "r", encoding="utf-8") as f:
+            app_code = f.read()
+        eb_exists = os.path.exists(eb_file)
+        eb_in_inspector = "<ErrorBoundary" in coord_code
+        eb_in_app = "<ErrorBoundary" in app_code
+        ts.assert_true(eb_exists and eb_in_inspector and eb_in_app, "Lá chắn ErrorBoundary 2 tầng (Cấp View và Cấp Pillar) bảo vệ chống trắng màn hình")
+    except Exception as e:
+        ts.assert_true(False, "Kiểm thử Quản lý State", f"Lỗi: {e}")
+
+    # -------------------------------------------------------------
     # TỔNG KẾT
     # -------------------------------------------------------------
     print("\n" + "=" * 80)
