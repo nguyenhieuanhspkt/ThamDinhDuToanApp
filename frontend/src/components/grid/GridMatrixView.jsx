@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText, Clock, Database, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Table2, Search, Download, CheckCircle2, AlertCircle, MinusCircle, Layers, Loader2, Zap, Key, FileDown, FileText, Clock, Database, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
 import AuditProgressModal from '../modals/AuditProgressModal.jsx';
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
@@ -235,6 +235,72 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
   const fmt = (val) => (!val && val !== 0 ? '—' : Math.round(val).toLocaleString('vi-VN'));
 
+  const getAppraisalOpinion = (it, dgTrinh, dgTN, pctGiam) => {
+    const fullText = it.danh_gia_ttd || it.y_kien_tham_dinh || '';
+
+    // 1. Nếu có ý kiến thẩm định ngắn gọn cụ thể đã lưu
+    if (it.y_kien_tham_dinh && it.y_kien_tham_dinh.trim().length > 0) {
+      return {
+        briefText: it.y_kien_tham_dinh.trim(),
+        fullText
+      };
+    }
+
+    // 2. Bóc tách câu kết luận / cảnh báo chính từ bản thuyết minh danh_gia_ttd
+    if (fullText && typeof fullText === 'string') {
+      const matchKl = fullText.match(/(?:KẾT LUẬN THẨM ĐỊNH|KẾT LUẬN)[:\s\-]+([^\n\r]+)/i);
+      if (matchKl && matchKl[1] && matchKl[1].trim().length > 10) {
+        return {
+          briefText: matchKl[1].trim().replace(/^\*+|\*+$/g, ''),
+          fullText
+        };
+      }
+
+      const matchCb = fullText.match(/(?:CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ|CẢNH BÁO)[:\s\-]+([^\n\r]+)/i);
+      if (matchCb && matchCb[1] && matchCb[1].trim().length > 10) {
+        return {
+          briefText: matchCb[1].trim().replace(/^\*+|\*+$/g, ''),
+          fullText
+        };
+      }
+
+      const matchDx = fullText.match(/(?:Đề xuất duyệt|Đề xuất|ĐỀ XUẤT)[:\s\-]+([^\n\r]+)/i);
+      if (matchDx && matchDx[1] && matchDx[1].trim().length > 10) {
+        return {
+          briefText: matchDx[1].trim().replace(/^\*+|\*+$/g, ''),
+          fullText
+        };
+      }
+    }
+
+    // 3. Dự phòng theo mức chênh lệch đơn giá thống nhất và giá trình
+    if (dgTN > 0) {
+      const cs = it.co_so_thong_nhat ? ` (theo ${it.co_so_thong_nhat})` : '';
+      if (dgTrinh > 0 && dgTN < dgTrinh) {
+        const pct = pctGiam !== null ? pctGiam.toFixed(1) : ((dgTrinh - dgTN) / dgTrinh * 100).toFixed(1);
+        return {
+          briefText: `Đề xuất duyệt ${fmt(dgTN)} đ, giảm ${pct}% so với giá trình${cs}.`,
+          fullText: fullText || `Đề xuất duyệt đơn giá thống nhất là ${fmt(dgTN)} đ.`
+        };
+      } else if (dgTN === dgTrinh) {
+        return {
+          briefText: `Phù hợp mặt bằng giá thị trường. Thống nhất giữ giá trình ${fmt(dgTrinh)} đ${cs}.`,
+          fullText: fullText || `Đơn giá trình phù hợp.`
+        };
+      } else {
+        return {
+          briefText: `Đề xuất duyệt ${fmt(dgTN)} đ${cs}.`,
+          fullText
+        };
+      }
+    }
+
+    return {
+      briefText: 'Chưa có ý kiến thẩm định tổng hợp (đang thu thập chứng cứ 5 cơ sở).',
+      fullText: 'Chưa có dữ liệu thẩm định.'
+    };
+  };
+
   const isItemSaved = (it, origIdx) => {
     const itemId = it.id || origIdx + 1;
     const st = evidenceStatus[String(itemId)];
@@ -427,7 +493,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                     ? 'bg-teal-700 text-white shadow-xs'
                     : 'text-slate-700 hover:bg-slate-300/60'
                 }`}
-                title="View 1: Cơ sở đơn giá (12 cột)"
+                title="View 1: Cơ sở đơn giá & Ý kiến thẩm định (13 cột)"
               >
                 <Layers className="w-3 h-3 text-amber-300" /> View 1: Cơ Sở Đơn Giá
               </button>
@@ -638,6 +704,12 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                       </div>
                     </th>
                     <th className="py-3 px-3 w-48 border-r border-slate-200 bg-purple-50 text-purple-950 font-bold">12. Tên Nhà thầu thấp nhất</th>
+                    <th className="py-3 px-3 w-80 min-w-[280px] border-r border-slate-200 bg-teal-50/90 text-teal-950 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-teal-700" />
+                        <span>13. Ý kiến thẩm định (TTĐ)</span>
+                      </div>
+                    </th>
                   </>
                 )}
 
@@ -649,7 +721,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <tbody className="divide-y divide-slate-200/80">
               {sortedFilteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={viewMode === 'standard' ? 15 : 14} className="text-center py-16 text-slate-400 text-xs italic">
+                  <td colSpan={14} className="text-center py-16 text-slate-400 text-xs italic">
                     {searchQuery ? `Không tìm thấy mục nào khớp "${searchQuery}"` : 'Chưa có dòng dự toán. Hãy nạp file Excel.'}
                   </td>
                 </tr>
@@ -767,6 +839,65 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                           {/* View 1: 12. Tên Nhà thầu báo thấp nhất */}
                           <td className="py-2.5 px-3 border-r border-slate-200 bg-purple-50/10 text-purple-900 font-semibold text-[11px]">
                             <div className="truncate max-w-[180px]" title={lowestVendor}>{lowestVendor}</div>
+                          </td>
+
+                          {/* View 1: 13. Ý kiến thẩm định của TTĐ (ngắn gọn, chi tiết xin xem báo cáo) */}
+                          <td className="py-2.5 px-3 border-r border-slate-200 bg-teal-50/15 text-[11px] align-top max-w-[320px]">
+                            <div className="flex flex-col gap-1">
+                              {/* Badge trạng thái đánh giá */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {hasTN ? (
+                                  pctGiam > 0 ? (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      Đề xuất giảm -{pctGiam.toFixed(1)}%
+                                    </span>
+                                  ) : pctGiam === 0 ? (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300 shadow-2xs">
+                                      <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
+                                      Giữ giá trình ({fmt(dgTrinh)} đ)
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs">
+                                      <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                                      Tăng +{Math.abs(pctGiam).toFixed(1)}%
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                    <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                    Đang thu thập chứng cứ
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Ý kiến đánh giá ngắn gọn */}
+                              {(() => {
+                                const opinion = getAppraisalOpinion(it, dgTrinh, dgTN, pctGiam);
+                                return (
+                                  <>
+                                    <p
+                                      className="text-slate-800 leading-snug line-clamp-2 font-medium"
+                                      title={opinion.fullText || opinion.briefText}
+                                    >
+                                      {opinion.briefText}
+                                    </p>
+
+                                    {/* Nút/Link liên kết: Chi tiết xin xem báo cáo */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenExistingAudit(it)}
+                                      className="inline-flex items-center gap-1 text-[10.5px] text-teal-700 hover:text-teal-950 font-bold hover:underline transition self-start cursor-pointer mt-0.5 group/rep"
+                                      title="Nhấp để mở Bản thuyết minh & Báo cáo đối chiếu minh bạch 5 cơ sở"
+                                    >
+                                      <FileText className="w-3 h-3 text-teal-600 group-hover/rep:text-teal-800 shrink-0" />
+                                      <span>Chi tiết xin xem báo cáo</span>
+                                      <ExternalLink className="w-2.5 h-2.5 opacity-70 group-hover/rep:opacity-100 shrink-0" />
+                                    </button>
+                                  </>
+                                );
+                              })()}
+                            </div>
                           </td>
                         </>
                       )}

@@ -330,8 +330,18 @@ def run_verification():
             synth_c = f.read()
         ts.assert_true("landed_price" in synth_c and "Landed Cost" in synth_c,
                        "PillarSynthesis: Đơn giá Cơ sở 5 tự động áp dụng giá sau thuế & vận chuyển (Landed Cost)")
+
+        # 7.8 Kiểm tra GridMatrixView.jsx có Cột 13. Ý kiến thẩm định (TTĐ) trong View 1 & Link Chi tiết xin xem báo cáo
+        grid_file = os.path.join(LOCAL_ROOT, "frontend", "src", "components", "grid", "GridMatrixView.jsx")
+        with open(grid_file, "r", encoding="utf-8") as f:
+            grid_c = f.read()
+        has_col13 = "13. Ý kiến thẩm định (TTĐ)" in grid_c
+        has_detail_link = "Chi tiết xin xem báo cáo" in grid_c
+        has_fn = "getAppraisalOpinion" in grid_c
+        ts.assert_true(has_col13 and has_detail_link and has_fn,
+                       "GridMatrixView: Đã tích hợp Cột 13. Ý kiến thẩm định (TTĐ) ngắn gọn kèm liên kết Chi tiết xin xem báo cáo trong View 1")
     except Exception as e:
-        ts.assert_true(False, "Kiểm thử Nhóm 7 (Thời gian & Landed Cost)", f"Lỗi: {e}")
+        ts.assert_true(False, "Kiểm thử Nhóm 7 (Thời gian, Landed Cost & Cột Ý kiến TTĐ)", f"Lỗi: {e}")
 
     # -------------------------------------------------------------
     # TỔNG KẾT
