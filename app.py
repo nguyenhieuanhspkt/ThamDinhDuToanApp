@@ -740,7 +740,10 @@ def api_match_item_quote():
 
 @app.route("/api/quotes/match-all-dossier-items", methods=["GET", "POST"])
 def api_match_all_dossier_items():
-    """Tự động đối chiếu toàn bộ danh mục vật tư trong dự án với các file Báo giá gốc."""
+    """Đọc dữ liệu đối chiếu báo giá (ưu tiên đọc từ cache/JSON đã lưu để tối ưu tốc độ)."""
+    req = request.get_json(silent=True) or {}
+    force_rescan = bool(req.get("force_rescan", False) or request.args.get("force_rescan", False))
+    
     dossier = load_dossier_data()
     items = dossier.get("items", [])
     
@@ -756,7 +759,9 @@ def api_match_all_dossier_items():
     folder = folder or quote_matcher.DEFAULT_QUOTES_DIR
     
     overrides = get_project_quote_overrides()
-    scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides)
+    
+    # QUAN TRỌNG: Nếu không yêu cầu force_rescan, quote_matcher sẽ tự dùng cache sẵn có bên trong module
+    scanned = quote_matcher.scan_quotation_folder(folder, overrides=overrides, force_rescan=force_rescan)
     
     results = {}
     for idx, item in enumerate(items):
@@ -773,8 +778,6 @@ def api_match_all_dossier_items():
         }
         
     return jsonify({"success": True, "results": results})
-
-
 @app.route("/api/erp/config-status", methods=["GET"])
 def api_erp_config_status():
     """Kiểm tra trạng thái CSDL ERP khi ứng dụng khởi chạy."""
@@ -2799,7 +2802,25 @@ def api_onedrive_open():
     res = onedrive_sync.open_onedrive_folder()
     return jsonify(res)
 
-
+# Thêm vào app.py
+@app.route("/api/sync/onedrive-pull", methods=["POST"])
+def api_onedrive_pull():
+    """Chủ động kéo dữ liệu từ thư mục OneDrive Cache về app."""
+    try:
+        # Giả sử trong onedrive_sync.py bạn có hàm pull_from_onedrive() 
+        # hoặc hàm copy file từ đường dẫn cache về DATA_DIR
+        res = onedrive_sync.pull_from_onedrive() 
+        
+        # Sau khi kéo về, load lại dữ liệu mới để trả về cho giao diện nếu cần
+        dossier_data = load_dossier_data()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Đã đồng bộ và tải dữ liệu từ cache/OneDrive về thành công!",
+            "dossier": dossier_data
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Lỗi kéo dữ liệu: {str(e)}"}), 500
 
 if __name__ == "__main__":
 

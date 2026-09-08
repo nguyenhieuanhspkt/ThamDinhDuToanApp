@@ -1,60 +1,104 @@
 {
   "creator": "Nguyễn Anh Hiếu",
   "department": "Tổ Thẩm định Dự toán - NMNĐ Vĩnh Tân 4",
-  "dossier_name": "Bang_Tham_Dinh_Du_Toan (3) - Bản Mới - Bản Mới",
+  "dossier_name": "ThamDinhDot8_lân2",
   "items": [
     {
       "co_so_thong_nhat": "Ý kiến Chuyên gia AI & Báo giá thấp nhất DTL (Khối 1)",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 13.559.000 đ/Cái (DTL 19.8.2026. xlsx)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 6.015.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ: 115/2023. Ttr 2562/KHVT) theo hóa đơn số 00000041. 42. 43. 44. 45. 46 ngày 30.08.2024 ngày 2024-10-31. SL: 117 Cái); Các đợt nhập khác: 17.670.000 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [908531], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Module đầu vào input IUX 760 MI] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 6.015.000 đ/Cái.",
-      "don_gia_thong_nhat": 6015000,
+      "danh_gia_ttd": "TỔ THẨM ĐỊNH NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4\nTỔ THẨM ĐỊNH DỰ TOÁN\n\nBÁO CÁO THUYẾT MINH THẨM ĐỊNH ĐƠN GIÁ VẬT TƯ\nĐơn vị yêu cầu: NMNĐ Vĩnh Tân 4\nMã ERP: 3.82.63.134.ENG.00.000 | Số lượng: 4 Cái\nTên vật tư: Module đầu vào input IUX 760 MI – Điện áp hoạt động: 17-28VDC\nPartno: 908531 | Hãng sản xuất: Minimax\nĐơn giá trình thẩm định: 13.559.000 đ/Cái\n\n1. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\n\nTổ Thẩm định tiến hành đối chiếu đơn giá trình thẩm định đối với mặt hàng Module đầu vào input IUX 760 MI (Partno: 908531, hãng Minimax) trên 5 cơ sở chứng cứ thu thập được, cụ thể:\n\n(1) Báo giá gốc thương mại; (2) Lịch sử mua sắm trên ERP Vĩnh Tân 4; (3) Cơ sở dữ liệu mua sắm EVN IMIS của các Đơn vị Phát điện trong Tập đoàn; (4) Cơ sở dữ liệu Mua sắm Công (e-GP); (5) Khảo sát giá thương mại điện tử trên các sàn giao dịch và Internet.\n\nKết quả tổng hợp cho thấy đơn giá trình 13.559.000 đ/Cái là mức chào thấp nhất từ nhà thầu trong báo giá thương mại hiện tại; tuy nhiên khi đối chiếu với lịch sử nhập kho tại Nhà máy (HĐ 115/2023), đơn giá này cao hơn tới +125,4% so với đơn giá đã phát sinh giao dịch hợp lệ gần nhất (6.015.000 đ/Cái). Vật tư chưa có dữ liệu đối chiếu trên EVN IMIS và Mua sắm Công, đồng thờu không được niêm yết giá công khai trên các sàn thương mại điện tử.\n\nĐánh giá sơ bộ: Mức chênh lệch +125,4% vượt xa biên độ an toàn thông thường đối với vật tư cùng chủng loại, mã Partno, hãng sản xuất đã từng mua sắm tại Nhà máy. Tổ Thẩm định nhận thấy cần làm rõ tính hợp lý của đơn giá trình trước khi trình phê duyệt.\n\n2. 🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN\n\n2.1. Phân tích bản chất kỹ thuật vật tư\nVật tư thẩm định thuộc nhóm Module đầu vào tín hiệu (Input Module) chuyên dụng cho hệ thống báo cháy/điều khiển công nghiệp của hãng Minimax (Đức) – thương hiệu có xuất xứ G7/Châu Âu với tiêu chuẩn an toàn cháy nổ VdS/EN54 được áp dụng phổ biến trong các nhà máy nhiệt điện. Module IUX 760 MI (Partno: 908531) hoạt động trong dải điện áp 17-28VDC, đóng vai trò thu nhận tín hiệu từ các đầu báo đặt tại khu vực hiểm trường, truyền về tủ trung tâm xử lý.\n\nĐây là linh kiện thuộc hệ thống an toàn chuyên dụng, yêu cầu kỹ thuật đặc thù về độ tin cậy, khả năng chống nhiễu EMC và tương thích tuyệt đối với tủ điều khiển trung tâm Minimax đang lắp đặt tại Nhà máy. Vật tư thuộc danh mục không thể thay thế bằng sản phẩm cùng công năng của hãng khác mà vẫn đảm bảo tính đồng bộ hệ thống, do đó tính độc quyền về nguồn cung là yếu tố cần được xem xét trong quá trình thẩm định.\n\n2.2. Đánh giá tương quan giá trị kỹ thuật và thương mại trên 5 cơ sở chứng cứ\n\nCơ sở 1 – Báo giá gốc thương mại:\nĐơn giá trình thẩm định 13.559.000 đ/Cái là mức chào thấp nhất trong các báo giá thương mại mà đơn vị thu thập được từ nhà thầu. Tuy nhiên, đây là báo giá đơn lẻ phục vụ đợt mua sắm hiện tại, chưa đủ cơ sở để khẳng định tính hợp lý khi chưa đối chiếu với dữ liệu lịch sử và thị trường.\n\nCơ sở 2 – Lịch sử mua sắm trên ERP Vĩnh Tân 4:\nTheo dữ liệu ERP Nhà máy, vật tư cùng mã ERP 3.82.63.134.ENG.00.000 đã từng nhập kho theo HĐ 115/2023 (Ttr 2562/KHVT), hóa đơn số 00000041 đến 00000046 ngày 30/08/2024, do chính NMNĐ Vĩnh Tân 4 cung cấp. Lịch sử 2 đợt mua sắm cho thấy đơn giá dao động từ 6.015.000 đ/Cái đến 17.670.000 đ/Cái (HĐ 132/2023). Đơn giá trình thẩm định 13.559.000 đ/Cái nằm trong khoảng dao động lịch sử của Nhà máy, thấp hơn –23,3% so với đợt mua HĐ 132/2023; tuy nhiên lại cao hơn +125,4% so với đợt mua HĐ 115/2023. Do hợp đồng ERP cũ đã thực hiện cách đây 23 tháng (> 12 tháng), Tổ Thẩm định nhận thấy cần đối chiếu thêm với báo giá mới và dữ liệu IMIS EVN trước khi chốt đơn giá dự toán.\n\nCơ sở 3 – Cơ sở dữ liệu EVN IMIS:\nTra cứu CSDL EVN IMIS trong khoảng thời gian 01/01/2023 – 06/09/2026 theo từ khóa 908531 không ghi nhận dữ liệu mua sắm tương đương tại các Đơn vị Phát điện trong Tập đoàn. Vật tư có tính đặc thù cao, phạm vi sử dụng hẹp trong hệ thống báo cháy Minimax, do đó việc không có dữ liệu đối chiếu chéo từ các đơn vị trong ngành là phù hợp với đặc điểm kỹ thuật.\n\nCơ sở 4 – Mua sắm Công (e-GP):\nKhông có dữ liệu đối chiếu.\n\nCơ sở 5 – Khảo sát Thương mại Điện tử:\nTra cứu trên các cổng Internet và sàn thương mại điện tử (eBay, Misumi, Google Web) với từ khóa đầy đủ của vật tư không ghi nhận đơn giá niêm yết công khai. Các nhà cung cấp yêu cầu gửi thư yêu cầu báo giá riêng (Contact for Quote), khẳng định vật tư thuộc danh mục thiết bị đặc thù công nghiệp, giá trị giao dịch được định hình theo từng dự án/hợp đồng cụ thể.\n\n2.3. Đánh giá tổng hợp\nQua đối chiếu 5 cơ sở chứng cứ, Tổ Thẩm định nhận thấy:\n\n– Về bản chất kỹ thuật: Module IUX 760 MI (Minimax, Đức) là linh kiện chuyên dụng thuộc hệ thống an toàn báo cháy đang vận hành đồng bộ tại Nhà máy, yêu cầu tuyệt đối về tính tương thích và xuất xứ hãng, không thể thay thế bằng sản phẩm cùng công năng của hãng khác.\n\n– Về tương quan giá: Mức chênh lệch +125,4% giữa đơn giá trình hiện tại (13.559.000 đ) so với đơn giá đã phát sinh giao dịch hợp lệ thấp nhất tại Nhà máy (6.015.000 đ/Cái theo HĐ 115/2023) là mức chênh bất thường, vượt xa biên độ dao động cho phép đối với vật tư cùng mã ERP, cùng Partno, cùng hãng sản xuất. Biên độ chênh lệch này không được giải trình bởi yếu tố kỹ thuật (vật tư giữ nguyên thông số và mã Partno) cũng như không có cơ sở tham chiếu thị trường độc lập để biện minh.\n\n– Về tính đầy đủ chứng cứ: Cơ sở dữ liệu EVN IMIS và Mua sắm Công không có dữ liệu đối chiếu; sàn thương mại điện tử không niêm yết giá. Như vậy, cơ sở dữ liệu lịch sử ERP Nhà máy là nguồn tham chiếu khả dụng duy nhất và phù hợp nhất trong bối cảnh thẩm định.\n\nTổ Thẩm định nhận thấy đơn giá trình thẩm định 13.559.000 đ/Cái chưa đủ tính thuyết phục để phê duyệt ngay tại mức này, cần thiết phải đàm phát điều chỉnh về mức sát với đơn giá lịch sử hợp lệ thấp nhất đã được kiểm chứng qua giao dịch thực tế tại Nhà máy.\n\n3. 💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO\n\n🔴 CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ\n\nCăn cứ kết quả đối chiếu tổng hợp tại 5 cơ sở chứng cứ, Tổ Thẩm định đề xuất Lãnh đạo/Hội đồng Thẩm định:\n\n1. Đàm phán điều chỉnh đơn giá phê duyệt về mức 6.015.000 đ/Cái – tương ứng đơn giá đã phát sinh giao dịch hợp lệ tại HĐ 115/2023, Hóa đơn số 00000041–46 ngày 30/08/2024 – với tổng giá trị dự toán phê duyệt đề xuất: 6.015.000 đ x 4 Cái = 24.060.000 đ.\n\n2. Dự kiến tiết kiệm: (13.559.000 đ – 6.015.000 đ) x 4 Cái = 30.176.000 đ cho Nhà máy so với phương án trình thẩm định ban đầu.\n\n3. Điều kiện kèm theo:\n– Đơn vị mua sắm cần yêu cầu nhà thầu giải trình bằng văn bản về sự chênh lệch +125,4% giữa đơn giá chào hiện tại so với đơn giá đã mua tại HĐ 115/2023 cho cùng Partno, cùng hãng sản xuất, cùng năm sản xuất.\n– Trường hợp nhà thầu không chấp nhận điều chỉnh về mức 6.015.000 đ/Cái, đề nghị khảo sát bổ sung tối thiểu 2 nhà cung cấp ủy quyền Minimax tại Việt Nam để làm cơ sở đàm phán.\n– Khi nghiệm thu nhập kho, yêu cầu kiểm tra tính đồng bộ (Partno, firmware, xuất xứ) với hệ thống tủ báo cháy Minimax hiện hữu tại Nhà máy.\n\nKính trình Lãnh đạo/Hội đồng Thẩm định xem xét, quyết định./.\n\nNơi nhận:\n– Lãnh đạo Tổ Thẩm định;\n– Hội đồng Thẩm định;\n– Phòng KHVT (để phối hợp);\n– Lưu Tổ Thẩm định.",
+      "don_gia_thong_nhat": 6015000.0,
       "don_gia_trinh": 13559000,
       "dvt": "Cái",
       "ghi_chu": "3.82.63.134.ENG.00.000 | Khắc phục tồn tại thiết bị | BBKT 23/2026/PXH-VT4. Vật tư không có trong KH SXKD 2026",
-      "gia_tri_giam": 30176000,
+      "gia_tri_giam": 30176000.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 1,
       "ma_vt": "3.82.63.134.ENG.00.000",
       "part_no": "Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax",
       "phan_bien_khvt": "",
       "pycvt": "1723/KTAT",
-      "search_keyword": "908531",
       "so_luong": 4,
       "ten_vt": "Module đầu vào input IUX 760 MI - Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax",
       "ten_vt_goc": "Module đầu vào input IUX 760 MI",
-      "thanh_tien_thong_nhat": 24060000,
+      "thanh_tien_thong_nhat": 24060000.0,
       "thanh_tien_trinh": 54236000,
-      "thong_so_kt": "Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax"
+      "thong_so_kt": "Điện áp hoạt động: 17-28VDC\nPartno: 908531\nHãng sản xuất: Minimax",
+      "thue": "0.08",
+      "tien_thue": 4338880,
+      "attachments": [
+        {
+          "name": "clip_20260903_142645.png",
+          "rel_path": "item_1/clip_20260903_142645.png",
+          "type": "image",
+          "size": 70,
+          "created_at": "2026-09-03 14:26:45"
+        },
+        {
+          "name": "Báo giá  DTL 19.8.2026. xlsx fn.pdf",
+          "rel_path": "item_1/Báo giá  DTL 19.8.2026. xlsx fn.pdf",
+          "type": "pdf",
+          "size": 510768,
+          "created_at": "2026-09-03 14:38:35"
+        },
+        {
+          "name": "clip_20260907_140752.png",
+          "rel_path": "item_1/clip_20260907_140752.png",
+          "type": "image",
+          "size": 70,
+          "created_at": "2026-09-07 14:07:52"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://www.se.com/vn/vi/product/IUX760MI/",
+          "title": "Catalog chính hãng Schneider Foxboro IUX 760 MI",
+          "created_at": "2026-09-03 14:26:45"
+        }
+      ],
+      "ai_analysis_md": "### 🤖 BẢN PHÂN TÍCH THẨM ĐỊNH GIÁ (AI)\n- **Tên thiết bị**: Module input IUX 760 MI Foxboro\n- **Kết luận**: Đơn giá dự toán đề nghị 13.559.000 đ là có thể chấp nhận được do tính chất đặc thù thay thế tủ DCS.\n\n> 👉 **Khuyến nghị thẩm định**: Thống nhất mức giá 13.559.000 đ theo đề xuất.",
+      "search_keyword": "908531"
     },
     {
-      "co_so_thong_nhat": "Cơ sở 2: Lịch sử mua sắm ERP Vĩnh Tân 4 (QĐ 161)",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 14.208.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 7.000.000 đ/Cái (HĐ: Nhập kho vật tư (QĐ:161) theo hóa đơn số 0000221 ngày 26.03.2021 ngày 2021-04-14. SL: 1 Cái)\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [58100-953], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Nút nhấn khẩn cấp - Discovery manual call point, Part no: 58100-953] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 7.000.000 đ/Cái.",
-      "don_gia_thong_nhat": 7000000,
+      "co_so_thong_nhat": "",
+      "danh_gia_ttd": "Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN\n\nCăn cứ tính chất kỹ thuật, thương hiệu sản xuất và chứng cứ thu thập tại 05 cơ sở thẩm định, Tổ Thẩm định dự toán – Nhà máy Nhiệt điện Vĩnh Tân 4 thống nhất nội dung đánh giá đối với vật tư: Nút nhấn khẩn cấp Discovery Manual Call Point, Part no: 58100-953, nguồn cấp 17 – 28VDC, cấp bảo vệ IP67, nhà sản xuất Apollo (Mã ERP: 3.34.40.024.ENG.00.000), số lượng 01 cái, đơn giá trình thẩm định 14.208.000 đồng/cái, cụ thể như sau:\n\n**1. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC**\n\nVật tư thẩm định là nút nhấn khẩn cấp thuộc hệ thống báo cháy Discovery – thương hiệu Apollo (Anh Quốc), hiện là chủng loại đang vận hành đồng bộ tại Nhà máy Nhiệt điện Vĩnh Tân 4. Đây là thiết bị chuyên dụng trong hệ thống phòng cháy chữa cháy (PCCC) công nghiệp, đòi hỏi độ tin cậy và tiêu chuẩn an toàn cao theo các bộ tiêu chuẩn EN 54-11 và quy chuẩn phòng cháy hiện hành. Qua rà soát 05 cơ sở chứng cứ, Tổ Thẩm định nhận thấy đơn giá trình 14.208.000 đồng/cái có biểu hiện bất thường lớn so với dữ liệu lịch sử mua sắm hợp lệ tại chính NMNĐ Vĩnh Tân 4 (mức tăng +103,0%), cần phải chặn trước khi trình phê duyệt.\n\n**2. 🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN**\n\n**2.1. Phân tích bản chất kỹ thuật thiết bị**\nVật tư thuộc phân nhóm thiết bị PCCC chuyên dụng (Manual Call Point), thương hiệu Apollo Fire Detectors Ltd – nhà sản xuất có uy tín hàng đầu trong lĩnh vực thiết bị phát hiện và cảnh báo cháy. Cấu hình kỹ thuật cần đối chiếu gồm: Part no: 58100-953, dải điện áp hoạt động 17 – 28VDC, cấp bảo vệ IP67 (chống bụi xâm nhập hoàn toàn và chịu ngâm nước tạm thời), tuân thủ tiêu chuẩn EN 54-11. Đây là thiết bị có yêu cầu kỹ thuật đặc thù, độ ổn định phải đảm bảo tương thích tuyệt đối với hệ thống đầu vào của tủ trung tâm Discovery đang lắp đặt tại Nhà máy; không thể thay thế bằng chủng loại khác mà không qua đánh giá tương thích (compatibility) theo quy trình kỹ thuật của Hãng.\n\n**2.2. Đánh giá theo 05 cơ sở chứng cứ**\n\n*Cơ sở 1 – Báo giá gốc:* Đơn giá trình thẩm định 14.208.000 đồng/cái được xác định trên cơ sở báo giá thương mại có mức chào thấp nhất của Nhà thầu cung cấp. Tổ Thẩm định ghi nhận đây là báo giá đơn lẻ, chưa đủ sức thuyết phục để chốt đơn giá dự toán khi đối chiếu với lịch sử mua sắm hợp lệ của chính đơn vị.\n\n*Cơ sở 2 – ERP Vĩnh Tân 4:* Vật tư có lịch sử nhập kho tại NMNĐ Vĩnh Tân 4 theo Quyết định 161, hóa đơn số 0000221 ngày 26/03/2021 (ngày ký 14/04/2021), đơn giá lịch sử 7.000.000 đồng/cái. Đơn giá trình đợt này cao hơn +103,0% (tương đương tăng hơn 2 lần) so với hợp đồng cũ. Mặc dù hợp đồng ERP cũ đã thực hiện cách đây 65 tháng (>12 tháng – vượt ngưỡng tham chiếu thông thường), Tổ Thẩm định đánh giá đây vẫn là nguồn dữ liệu mua sắm hợp lệ, đã qua khâu kiểm tra kỹ thuật, nghiệm thu và đưa vào sử dụng thực tế tại Nhà máy nên có giá trị tham chiếu cao. Mức tăng +103,0% vượt xa biên độ dao động giá thông thường đối với thiết bị điện – điện tử công nghiệp trong cùng chu kỳ sản phẩm (thông thường ≤ 15 – 20%/năm theo biến động CPI và tỷ giá), do đó không thể lý giải bằng yếu tố trượt giá thông thường.\n\n*Cơ sở 3 – CSDL EVN IMIS:* Tra cứu từ khóa 58100-953 trong khoảng thời gian 01/01/2023 – 06/09/2026 không phát hiện dữ liệu mua sắm tương đương trên CSDL EVN IMIS của các Đơn vị Phát điện trong Tập đoàn. Cơ sở này chưa cung cấp thêm dữ liệu đối chiếu ngoài NMNĐ Vĩnh Tân 4.\n\n*Cơ sở 4 – Mua sắm công e-GP:* Không có dữ liệu gói thầu tương đương được công bố trên Hệ thống Mua sắm công (Muasamcong.mpi.gov.vn) trong phạm vi tra cứu.\n\n*Cơ sở 5 – Thương mại điện tử:* Tra cứu từ khóa \"apollo manual call point\" trên các cổng Internet và sàn TMĐT quốc tế (eBay, Misumi, Google Web) cho thấy vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các nhà cung cấp không niêm yết giá công khai mà yêu cầu gửi yêu cầu báo giá riêng (Contact for Quote). Cơ sở này không tạo ra dữ liệu định lượng để đối chiếu.\n\n**2.3. Đánh giá tương quan giá trị kỹ thuật – thương mại**\nTổng hợp đối chiếu đa chiều cho thấy: Đơn giá trình thẩm định 14.208.000 đồng/cái cao hơn +103,0% so với đơn giá tham chiếu hợp lệ thấp nhất (7.000.000 đồng/cái theo Cơ sở 2 – ERP Vĩnh Tân 4). Với đặc tính kỹ thuật của vật tư (thiết bị PCCC chuyên dụng, đã có lịch sử vận hành ổn định, cùng Part no, cùng hãng Apollo, không có yếu tố thay đổi công nghệ hoặc nâng cấp chủng loại), mức chênh lệch này vượt xa biên độ an toàn. Tổ Thẩm định nhận định đơn giá trình chưa có cơ sở thuyết phục, có dấu hiệu bất thường cần được làm rõ và điều chỉnh trước khi phê duyệt dự toán.\n\n**3. 💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO**\n\n🔴 **CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ:** Đơn giá trình thẩm định 14.208.000 đồng/cái cao hơn +103,0% so với đơn giá lịch sử mua sắm hợp lệ tại chính NMNĐ Vĩnh Tân 4, không được các cơ sở chứng cứ còn lại (EVN IMIS, Mua sắm công, TMĐT) hỗ trợ xác nhận.\n\n**Đề xuất:** Tổ Thẩm định kiến nghị Lãnh đạo/Hội đồng Thẩm định yêu cầu đơn vị chuẩn bị dự toán làm việc với Nhà thầu cung cấp để đàm phát lại đơn giá, đồng thời bổ sung tối thiểu 02 báo giá thương mại so sánh từ các nhà phân phối ủy quyền của hãng Apollo tại Việt Nam (hoặc khu vực ASEAN) để có cơ sở thuyết minh đầy đủ. Trường hợp không bổ sung được chứng cứ thuyết minh mức tăng +103,0%, đề xuất phê duyệt đơn giá dự toán về mức tham chiếu theo Cơ sở 2 (ERP Vĩnh Tân 4) là **7.000.000 đồng/cái** – dự kiến tiết kiệm **7.208.000 đồng** cho Nhà máy, đảm bảo nguyên tắc tiết kiệm, hiệu quả và phù hợp khả năng cân đối chi phí đầu tư.",
+      "don_gia_thong_nhat": 7000000.0,
       "don_gia_trinh": 14208000,
       "dvt": "Cái",
       "ghi_chu": "3.34.40.024.ENG.00.000 | Khắc phục tồn tại thiết bị | BBKT 23/2026/PXH-VT4. Vật tư không có trong KH SXKD 2026",
-      "gia_tri_giam": 7208000,
+      "gia_tri_giam": 7208000.0,
       "hsx_xx": "Apollo/ Anh",
       "id": 2,
       "ma_vt": "3.34.40.024.ENG.00.000",
       "part_no": "Nút nhấn khẩn cấp, Part no: 58100-953, Nguồn cấp: 17 - 28VDC , IP67. NSX: Apollo",
       "phan_bien_khvt": "",
       "pycvt": "1723/KTAT, 2395/KTAT",
-      "search_keyword": "58100-953",
       "so_luong": 1,
       "ten_vt": "Nút nhấn khẩn cấp - Discovery manual call point, Part no: 58100-953 - Nút nhấn khẩn cấp, Part no: 58100-953, Nguồn cấp: 17 - 28VDC , IP67. NSX: Apollo",
       "ten_vt_goc": "Nút nhấn khẩn cấp - Discovery manual call point, Part no: 58100-953",
-      "thanh_tien_thong_nhat": 7000000,
+      "thanh_tien_thong_nhat": 7000000.0,
       "thanh_tien_trinh": 14208000,
-      "thong_so_kt": "Nút nhấn khẩn cấp, Part no: 58100-953, Nguồn cấp: 17 - 28VDC , IP67. NSX: Apollo"
+      "thong_so_kt": "Nút nhấn khẩn cấp, Part no: 58100-953, Nguồn cấp: 17 - 28VDC , IP67. NSX: Apollo",
+      "thue": "0.08",
+      "tien_thue": 1136640,
+      "search_keyword": "58100-953",
+      "attachments": [
+        {
+          "name": "clip_20260907_144425.png",
+          "rel_path": "item_2/clip_20260907_144425.png",
+          "type": "image",
+          "size": 313125,
+          "created_at": "2026-09-07 14:44:25"
+        }
+      ]
     },
     {
       "co_so_thong_nhat": "Cơ sở 5: Tham khảo TMĐT / Giá Web (Landed Cost DDP VT4)",
-      "danh_gia_ttd": "1. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Actuator khí nén FlowTek Series 92 (Double Acting) - Model: 920830-113A0532.\n• Đơn giá trình thẩm định: 56.000.000 VNĐ/Bộ (Số lượng: 5 Bộ).\n• Đánh giá Chứng cứ Thẩm định: Đạt 80/100 điểm (4/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: Đơn giá trình cao hơn so với mốc giá tham chiếu TMĐT có phụ thu nhập cảnh Landed Cost.\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Báo giá chào hợp lệ là 56.000.000 VNĐ/Bộ từ Nhà thầu chào (khớp 100% với đơn giá trình).\n- Cơ sở 2 (ERP Vĩnh Tân 4): CSDL ERP nội bộ chưa ghi nhận mã vật tư tương đương.\n- Cơ sở 3 (EVN IMIS): Chưa có dữ liệu mua sắm tương đương trên CSDL EVN IMIS toà",
-      "don_gia_thong_nhat": 16491600,
+      "danh_gia_ttd": "1. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Actuator khí nén FlowTek Series 92 (Double Acting) - Model: 920830-113A0532.\n• Đơn giá trình thẩm định: 56.000.000 VNĐ/Bộ (Số lượng: 5 Bộ).\n• Đánh giá Chứng cứ Thẩm định: Đạt 80/100 điểm (4/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: Đơn giá trình cao hơn so với mốc giá tham chiếu TMĐT có phụ thu nhập cảnh Landed Cost.\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Báo giá chào hợp lệ là 56.000.000 VNĐ/Bộ từ Nhà thầu chào (khớp 100% với đơn giá trình).\n- Cơ sở 2 (ERP Vĩnh Tân 4): CSDL ERP nội bộ chưa ghi nhận mã vật tư tương đương.\n- Cơ sở 3 (EVN IMIS): Chưa có dữ liệu mua sắm tương đương trên CSDL EVN IMIS toàn ngành.\n- Cơ sở 4 (Mua Sắm Công e-GP): Vật tư đặc thù, chưa ghi nhận kết quả trúng thầu tương đương trên e-GP.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu từ khóa [920830-113A0532] trên website nhà cung cấp Industrial Stores; ghi nhận đơn giá niêm yết web là 13.743.000 VNĐ/Bộ ($540 USD). Sau khi tính chi phí vận chuyển quốc tế, thuế nhập khẩu và thông quan hải quan (Landed Cost DDP Vĩnh Tân 4 phụ thu +20%), đơn giá tham chiếu hoàn chỉnh là 16.491.600 VNĐ/Bộ.\n\nKẾT LUẬN THẨM ĐỊNH: Đề xuất phê duyệt đơn giá thẩm định thống nhất theo Cơ sở 5 (TMĐT Landed Cost) là 16.491.600 VNĐ/Bộ. Tổng dự toán phê duyệt: 82.458.000 VNĐ cho 5 Bộ. Tiết kiệm dự toán: 197.542.000 VNĐ (-70.5% so với giá trình).",
+      "don_gia_thong_nhat": 16491600.0,
       "don_gia_trinh": 56000000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Khắc phục tồn tại thiết bị | BBKT 547/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 197542000,
+      "gia_tri_giam": 197542000.0,
       "hsx_xx": "Bray/ Trung Quốc",
       "id": 3,
       "ma_vt": "Chưa có mã vật tư",
@@ -64,18 +108,30 @@
       "so_luong": 5,
       "ten_vt": "Actuator khí nén FlowTek Series 92 - Actuator khí nén:\nModel:\n FlowTek Series 92 (920830-113A0532)\nType: DOUBLE ACTING\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nTorque rating: 283-908 Nm\nÁp suất hoạt động: 2 đến 10 bar\nNhà sản xuất: Bray International",
       "ten_vt_goc": "Actuator khí nén FlowTek Series 92",
-      "thanh_tien_thong_nhat": 82458000,
+      "thanh_tien_thong_nhat": 82458000.0,
       "thanh_tien_trinh": 280000000,
-      "thong_so_kt": "Actuator khí nén:\nModel:\n FlowTek Series 92 (920830-113A0532)\nType: DOUBLE ACTING\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nTorque rating: 283-908 Nm\nÁp suất hoạt động: 2 đến 10 bar\nNhà sản xuất: Bray International"
+      "thong_so_kt": "Actuator khí nén:\nModel:\n FlowTek Series 92 (920830-113A0532)\nType: DOUBLE ACTING\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nTorque rating: 283-908 Nm\nÁp suất hoạt động: 2 đến 10 bar\nNhà sản xuất: Bray International",
+      "thue": "0.08",
+      "tien_thue": 22400000,
+      "search_keyword": "920830-113A0532",
+      "attachments": [
+        {
+          "name": "clip_20260907_152505.png",
+          "rel_path": "item_3/clip_20260907_152505.png",
+          "type": "image",
+          "size": 334598,
+          "created_at": "2026-09-07 15:25:05"
+        }
+      ]
     },
     {
       "co_so_thong_nhat": "Cơ sở 5: Tham khảo TMĐT / Giá Web",
-      "danh_gia_ttd": "# THUYẾT MINH THẨM ĐỊNH MỤC STT 4\n\n## TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\nTổ Thẩm định thực hiện thẩm định đánh giá sau cùng đối với vật tư Solenoid van 600250-70900533 (Hãng SX: Bray International, số lượng 5 Bộ). Đơn giá dự toán trình là 64.000.000 đ/Bộ, cao hơn +610.4% so với đơn giá tham chiếu thấp nhất hợp lệ (9.009.300 đ từ Cơ sở 5). Tổ Thẩm định đề xuất điều chỉnh đơn giá theo giá thị trường quốc tế đã tính đủ chi phí nhập cảnh & vận chuyển DDP Vĩ",
-      "don_gia_thong_nhat": 9009300,
+      "danh_gia_ttd": "# THUYẾT MINH THẨM ĐỊNH MỤC STT 4\n\n## TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\nTổ Thẩm định thực hiện thẩm định đánh giá sau cùng đối với vật tư Solenoid van 600250-70900533 (Hãng SX: Bray International, số lượng 5 Bộ). Đơn giá dự toán trình là 64.000.000 đ/Bộ, cao hơn +610.4% so với đơn giá tham chiếu thấp nhất hợp lệ (9.009.300 đ từ Cơ sở 5). Tổ Thẩm định đề xuất điều chỉnh đơn giá theo giá thị trường quốc tế đã tính đủ chi phí nhập cảnh & vận chuyển DDP Vĩnh Tân 4.\n\n## Ý KIẾN ĐÁNH GIÁ 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá trong hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 64.000.000 đ/Bộ từ CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU (Trang 2 Báo giá). Đơn giá chào khớp 100% với đơn giá dự toán trình nhưng cao bất thường so với thị trường.\n- Cơ sở 2 (ERP Vĩnh Tân 4): CSDL ERP nội bộ chỉ có hợp đồng tạm nhập bàn giao từ năm 2020 (cách đây 78 tháng), không có quy cách tương đồng phù hợp. Thẩm định viên không duyệt áp dụng CSDL ERP làm căn cứ so sánh cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu ngày 08/09/2026 theo từ khóa [600250-70900533] trên CSDL Hợp đồng mua sắm EVN IMIS (phiên kết nối xác thực tài khoản VINHTAN4TPP\\hieuna còn hiệu lực); kết quả ghi nhận không có dữ liệu hợp đồng mua sắm vật tư tương tự từ các Đơn vị Phát điện toàn Tập đoàn EVN.\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu từ khóa [600250-70900533] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận vật tư thuộc nhóm hàng đặc thù, không có kết quả trúng thầu công khai tương tự trên Hệ thống e-GP.\n- Cơ sở 5 (Thương Mại Điện Tử): Đã tra cứu từ khóa [600250-70900533] trên website nhà cung cấp Industrial Stores (Mỹ) tại link [https://www.industrialstores.com/product_detail/bray-valves-630250-21440536-solenoid-valve]; ghi nhận đơn giá niêm yết công khai tham chiếu là 9.009.300 đ (tương đương  USD, tỷ giá 25.450 đ/USD) [Giá niêm yết web: 7.507.750 đ; sau khi cộng chi phí vận chuyển quốc tế, thuế NK & hải quan (+20%), giá Landed Cost DDP Vĩnh Tân 4 là 9.009.300 đ].\n\n## KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH:\nTổ Thẩm định kính trình Lãnh đạo phê duyệt chốt đơn giá thẩm định thống nhất là 9.009.300 đ/Bộ căn cứ theo Cơ sở 5: Tham khảo TMĐT / Giá Web (kèm Landed Cost 20%). Tổng giá trị tiết kiệm dự toán cho Nhà máy là 274.953.500 đ (-85.9%).",
+      "don_gia_thong_nhat": 9009300.0,
       "don_gia_trinh": 64000000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Khắc phục tồn tại thiết bị | BBKT 547/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 274953500,
+      "gia_tri_giam": 274953500.0,
       "hsx_xx": "Bray/ Trung Quốc",
       "id": 4,
       "ma_vt": "Chưa có mã vật tư",
@@ -85,18 +141,30 @@
       "so_luong": 5,
       "ten_vt": "Solenoid van 600250-70900533 - Solenoid van:\nMã thiết bị: 600250-70900533\nLoại van: Van điều khiển ống dẫn (spool control valve) được vận hành bằng khí nén (pilot-operated).\nĐiện áp: 24 VAC.\nCổng kết nối: 1/4\" NPT.\nÁp suất hoạt động: 35 đến 150 psig (2.4 đến 10.3 bar) với không khí đã lọc.\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nGắn kết: Gắn trực tiếp giao diện NAMUR.\nNhà sản xuất: Bray International.",
       "ten_vt_goc": "Solenoid van 600250-70900533",
-      "thanh_tien_thong_nhat": 45046500,
+      "thanh_tien_thong_nhat": 45046500.0,
       "thanh_tien_trinh": 320000000,
-      "thong_so_kt": "Solenoid van:\nMã thiết bị: 600250-70900533\nLoại van: Van điều khiển ống dẫn (spool control valve) được vận hành bằng khí nén (pilot-operated).\nĐiện áp: 24 VAC.\nCổng kết nối: 1/4\" NPT.\nÁp suất hoạt động: 35 đến 150 psig (2.4 đến 10.3 bar) với không khí đã lọc.\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nGắn kết: Gắn trực tiếp giao diện NAMUR.\nNhà sản xuất: Bray International."
+      "thong_so_kt": "Solenoid van:\nMã thiết bị: 600250-70900533\nLoại van: Van điều khiển ống dẫn (spool control valve) được vận hành bằng khí nén (pilot-operated).\nĐiện áp: 24 VAC.\nCổng kết nối: 1/4\" NPT.\nÁp suất hoạt động: 35 đến 150 psig (2.4 đến 10.3 bar) với không khí đã lọc.\nNhiệt độ hoạt động: 0°F đến 123°F (-18°C đến 50°C).\nGắn kết: Gắn trực tiếp giao diện NAMUR.\nNhà sản xuất: Bray International.",
+      "thue": "0.08",
+      "tien_thue": 25600000,
+      "search_keyword": "600250-70900533",
+      "attachments": [
+        {
+          "name": "clip_20260907_155011.png",
+          "rel_path": "item_4/clip_20260907_155011.png",
+          "type": "image",
+          "size": 183731,
+          "created_at": "2026-09-07 15:50:11"
+        }
+      ]
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
-      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Spiral Wound Gasket DN200 PN40 (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 1.500.000 VNĐ (Số lượng: 2 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 80/100 điểm (Hạng A - 4/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 1.500.000 VNĐ/Cái từ CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG (Trang 1 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Spiral Wound Gasket DN200 PN40], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [Spiral Wound Gasket DN200 PN40] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [Spiral Wound Gasket] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [Spiral Wound Gasket DN200 PN40] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 1.500.000 VNĐ/Cái.",
-      "don_gia_thong_nhat": 1500000,
+      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Spiral Wound Gasket DN200 PN40 (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 1.500.000 VNĐ (Số lượng: 2 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 80/100 điểm (Hạng A - 4/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 1.500.000 VNĐ/Cái từ CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG (Trang 1 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Spiral Wound Gasket DN200 PN40], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [Spiral Wound Gasket DN200 PN40] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [Spiral Wound Gasket] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [Spiral Wound Gasket DN200 PN40] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 1.500.000 VNĐ/Cái.",
+      "don_gia_thong_nhat": 1500000.0,
       "don_gia_trinh": 1500000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới van tổng cấp bồn CO2 bị rò qua van và ty van | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "QT/ Việt Nam",
       "id": 5,
       "ma_vt": "Chưa có mã vật tư",
@@ -106,18 +174,21 @@
       "so_luong": 2,
       "ten_vt": "Spiral Wound Gasket DN200 PN40 - Spiral Wound Gasket DN200 PN40 RF – EN 1514-2 – Type CGI – SS316L/PTFE/SS316L/CS",
       "ten_vt_goc": "Spiral Wound Gasket DN200 PN40",
-      "thanh_tien_thong_nhat": 3000000,
+      "thanh_tien_thong_nhat": 3000000.0,
       "thanh_tien_trinh": 3000000,
-      "thong_so_kt": "Spiral Wound Gasket DN200 PN40 RF – EN 1514-2 – Type CGI – SS316L/PTFE/SS316L/CS"
+      "thong_so_kt": "Spiral Wound Gasket DN200 PN40 RF – EN 1514-2 – Type CGI – SS316L/PTFE/SS316L/CS",
+      "thue": "0.08",
+      "tien_thue": 240000,
+      "search_keyword": "Spiral Wound Gasket DN200"
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
       "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 61.250.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 21.100.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ:182) theo hóa đơn số 0000198 ngày 08.07.2020 ngày 2020-10-29. SL: 3 Cái); Các đợt nhập khác: 51.118.100 đ, 58.245.912 đ\n• Cơ sở 3 (EVN IMIS): IMIS EVN: 8.910.000 đ/Cái (Công ty Nhiệt điện Duyên Hải)\n• Cơ sở 4 (Mua Sắm Công e-GP): Chưa có dữ liệu Mua sắm công e-GP\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 8.910.000 đ/Cái.",
-      "don_gia_thong_nhat": 8910000,
+      "don_gia_thong_nhat": 8910000.0,
       "don_gia_trinh": 61250000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới van bypass đầu ra bồn CO2 DN50 bị rò qua ty van và đoạn ống kết nối bị rò rỉ tại vị trí ren | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 52340000,
+      "gia_tri_giam": 52340000.0,
       "hsx_xx": "Gefa-xx/ Đức",
       "id": 6,
       "ma_vt": "Chưa có mã vật tư",
@@ -127,18 +198,21 @@
       "so_luong": 1,
       "ten_vt": "GEFA DG1 Ball Valve - GEFA DG1 Ball Valve, DN50/65, PN125, Body SS316 (1.4408), High Pressure Ball Valve, Rohrgewinde DIN 2999-Rp, ISO 228/1-G",
       "ten_vt_goc": "GEFA DG1 Ball Valve",
-      "thanh_tien_thong_nhat": 8910000,
+      "thanh_tien_thong_nhat": 8910000.0,
       "thanh_tien_trinh": 61250000,
-      "thong_so_kt": "GEFA DG1 Ball Valve, DN50/65, PN125, Body SS316 (1.4408), High Pressure Ball Valve, Rohrgewinde DIN 2999-Rp, ISO 228/1-G"
+      "thong_so_kt": "GEFA DG1 Ball Valve, DN50/65, PN125, Body SS316 (1.4408), High Pressure Ball Valve, Rohrgewinde DIN 2999-Rp, ISO 228/1-G",
+      "thue": "0.1",
+      "tien_thue": 6125000,
+      "search_keyword": "Ball Valve DN50"
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
       "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 135.000.000 đ/Cái (CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 4.925.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ:136/2021) theo hóa đơn số 57 ngày 26.01.2022 ngày 2022-01-26. SL: 1 Cái); Các đợt nhập khác: 3.910.000 đ\n• Cơ sở 3 (EVN IMIS): Chưa có dữ liệu EVN IMIS\n• Cơ sở 4 (Mua Sắm Công e-GP): Chưa có dữ liệu Mua sắm công e-GP\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 4.925.000 đ/Cái.",
-      "don_gia_thong_nhat": 452147000,
+      "don_gia_thong_nhat": 452147000.0,
       "don_gia_trinh": 452147000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới van chính đầu ra bồn CO2 DN50 bị rò qua van và ty van | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 7,
       "ma_vt": "Chưa có mã vật tư",
@@ -148,18 +222,21 @@
       "so_luong": 1,
       "ten_vt": "Selector valve KMX CO2 - Selector valve KMX CO₂ LP piston controlled, complete\n- Size: DN50\n­\tEnd Connection: Flange DIN 2501 PN40\n­\tWorking pressure: 25 bar\n­\tTemperature: ~ –20°C (Liquid CO₂)\n­\tHousing: Cast steel, Piston: GJL-250, Piston Rod: AISI 303",
       "ten_vt_goc": "Selector valve KMX CO2",
-      "thanh_tien_thong_nhat": 452147000,
+      "thanh_tien_thong_nhat": 452147000.0,
       "thanh_tien_trinh": 452147000,
-      "thong_so_kt": "Selector valve KMX CO₂ LP piston controlled, complete\n- Size: DN50\n­\tEnd Connection: Flange DIN 2501 PN40\n­\tWorking pressure: 25 bar\n­\tTemperature: ~ –20°C (Liquid CO₂)\n­\tHousing: Cast steel, Piston: GJL-250, Piston Rod: AISI 303"
+      "thong_so_kt": "Selector valve KMX CO₂ LP piston controlled, complete\n- Size: DN50\n­\tEnd Connection: Flange DIN 2501 PN40\n­\tWorking pressure: 25 bar\n­\tTemperature: ~ –20°C (Liquid CO₂)\n­\tHousing: Cast steel, Piston: GJL-250, Piston Rod: AISI 303",
+      "thue": "0.08",
+      "tien_thue": 36171760,
+      "search_keyword": "Selector valve KMX"
     },
     {
-      "co_so_thong_nhat": "Cơ sở 2: Lịch sử mua sắm ERP Vĩnh Tân 4 (HĐ 03/2022)",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 1.004.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 620.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ:03/2022) theo hóa đơn số 00000024 ngày 01.04.2022 ngày Đầu. SL: 6 Cái); Các đợt nhập khác: 18.374.000 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [125943], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắ",
-      "don_gia_thong_nhat": 620000,
+      "co_so_thong_nhat": "",
+      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 1.004.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 620.000 đ/Cái (HĐ: Nhập kho vật tư (HĐ:03/2022) theo hóa đơn số 00000024 ngày 01.04.2022 ngày Đầu. SL: 6 Cái); Các đợt nhập khác: 18.374.000 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [125943], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Union G 10-PL A3C] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 620.000 đ/Cái.",
+      "don_gia_thong_nhat": 620000.0,
       "don_gia_trinh": 1004000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 3840000,
+      "gia_tri_giam": 3840000.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 8,
       "ma_vt": "Chưa có mã vật tư",
@@ -169,18 +246,21 @@
       "so_luong": 10,
       "ten_vt": "Union G 10-PL A3C - Union \n- Type: G - Union \n- Model: G 10-PL A3C \n- Part no.: 125943 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressgive ring (at both ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "ten_vt_goc": "Union G 10-PL A3C",
-      "thanh_tien_thong_nhat": 6200000,
+      "thanh_tien_thong_nhat": 6200000.0,
       "thanh_tien_trinh": 10040000,
-      "thong_so_kt": "Union \n- Type: G - Union \n- Model: G 10-PL A3C \n- Part no.: 125943 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressgive ring (at both ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany"
+      "thong_so_kt": "Union \n- Type: G - Union \n- Model: G 10-PL A3C \n- Part no.: 125943 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressgive ring (at both ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
+      "thue": "0.08",
+      "tien_thue": 803200,
+      "search_keyword": "125943"
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
-      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Elbow union (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 1.315.000 VNĐ (Số lượng: 5 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 100/100 điểm (Hạng A - 5/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 1.315.000 VNĐ/Cái từ CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG (Trang 2 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Elbow union], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [10-PL A3C] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [W 10-PL A3C] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [10-PL A3C] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 1.315.000 VNĐ/Cái.",
-      "don_gia_thong_nhat": 1315000,
+      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Elbow union (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 1.315.000 VNĐ (Số lượng: 5 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 100/100 điểm (Hạng A - 5/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 1.315.000 VNĐ/Cái từ CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG (Trang 2 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Elbow union], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [10-PL A3C] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [W 10-PL A3C] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [10-PL A3C] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 1.315.000 VNĐ/Cái.",
+      "don_gia_thong_nhat": 1315000.0,
       "don_gia_trinh": 1315000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "Minimax/ Đức",
       "id": 9,
       "ma_vt": "Chưa có mã vật tư",
@@ -190,18 +270,21 @@
       "so_luong": 5,
       "ten_vt": "Elbow union - Elbow union \n- Type: W - Elbow union \n- Model: W 10-PL A3C\n- Part no.: 174678 \n- Pipe OD: 10 (mm) \n- Include: DPR - Progressive ring (at both ends) \n  + Model: DPR 10-L/S A3D \n  + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "ten_vt_goc": "Elbow union",
-      "thanh_tien_thong_nhat": 6575000,
+      "thanh_tien_thong_nhat": 6575000.0,
       "thanh_tien_trinh": 6575000,
-      "thong_so_kt": "Elbow union \n- Type: W - Elbow union \n- Model: W 10-PL A3C\n- Part no.: 174678 \n- Pipe OD: 10 (mm) \n- Include: DPR - Progressive ring (at both ends) \n  + Model: DPR 10-L/S A3D \n  + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany"
+      "thong_so_kt": "Elbow union \n- Type: W - Elbow union \n- Model: W 10-PL A3C\n- Part no.: 174678 \n- Pipe OD: 10 (mm) \n- Include: DPR - Progressive ring (at both ends) \n  + Model: DPR 10-L/S A3D \n  + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
+      "thue": "0.08",
+      "tien_thue": 526000,
+      "search_keyword": "10-PL A3C"
     },
     {
       "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
-      "danh_gia_ttd": "I. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\n\n| Hạng mục | Nội dung |\n|---|---|\n| Tên vật tư | Union tee (Type: T - Union tee, Model: T - PL A3C, Part no.: 125645) kèm Progressive ring DPR 10-L/S A3D (Part no.: 126091) lắp đặt tại ba đầu, Pipe OD 10 mm |\n| Hãng sản xuất / Xuất xứ | Minimax GmbH – Germany (tiêu chuẩn kỹ thuật an toàn Châu Âu, nhóm G7) |\n| Mã ERP nội bộ | Chưa có mã vật tư |\n| Số lượng | 05 Cái |\n| Đơn giá trình thẩm định | 1.508.000 đ/Cái |\n| Thành tiền trình | 7.540.000 đ |\n| Đơn giá tham chiếu thấp nhất hợp lệ | 836.800 đ/Cái |\n| Mức chênh lệch | +80,2% so với đơn giá trình |\n| Tiết kiệm dự kiến (nếu điều chỉnh) | 3.356.000 đ |\n\nII. 🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN\n\n**1. Phân tích bản chất kỹ thuật vật tư**\nVật tư thẩm định là cụm chi tiết kết nối thuộc hệ thống đường ống thủy lực/khí nén công nghiệp, gồm Union tee Model T - PL A3C (Part no. 125645) kích thước Pipe OD 10 mm kèm bộ ba Progressive ring DPR 10-L/S A3D (Part no. 126091) lắp đặt tại cả ba đầu nối. Đây là vật tư chuyên dụng của hãng Minimax GmbH (Đức) – thương hiệu thuộc nhóm tiêu chuẩn kỹ thuật an toàn cao Châu Âu/G7, có yêu cầu nghiêm ngặt về độ kín khít, áp suất làm việc, khả năng chịu rung và độ bền mỏi trong điều kiện vận hành liên tục tại Nhà máy Nhiệt điện Vĩnh Tân 4. Tính đặc thù của vật tư thể hiện ở chỗ: cụm Union tee và Progressive ring phải đồng bộ chủng loại, kích thước, vật liệu và xuất xứ để đảm bảo độ tương thích ren – vòng đệt tiến tiến (progressive ring), qua đó duy trì áp suất danh định và độ tin cậy của hệ thống. Tổ Thẩm định xếp vật tư vào phân nhóm **Thiết bị công nghiệp chuyên dụng – linh kiện kết nối có yêu cầu kỹ thuật đặc thù**.\n\n**2. Đánh giá tương quan giá trị kỹ thuật và thương mại**\nĐơn giá trình thẩm định 1.508.000 đ/Cái cao hơn **+80,2%** so với đơn giá tham chiếu thấp nhất hợp lệ là 836.800 đ/Cái (mức chênh tuyệt đối 671.200 đ/Cái). Với đặc tính kỹ thuật của cụm vật tư chuyên dụng G7, biên độ chênh lệch này vượt khá xa ngưỡng biến động hợp lý thường gặp (thông thường dưới 15–20%) giữa các báo giá cùng chủng loại, cùng xuất xứ. Tổ Thẩm định nhận thấy mức giá trình chưa có cơ sở thuyết phục để chứng minh tính hợp lý và cần được đàm phán điều chỉnh về mặt bằng giá thị trường.\n\n**3. Đối chiếu 05 cơ sở chứng cứ thẩm định**\n\n- **Cơ sở 1 – Báo giá gốc (thương mại):** Tổ Thẩm định đã đối chiếu các báo giá thương mại thu thập được; mức chào thấp nhất hợp lệ là **836.800 đ/Cái** từ Nhà thầu chào giá cạnh tranh. Đơn giá trình 1.508.000 đ/Cái không phải mức thấp nhất trên thị trường, chênh lệch +80,2% cho thấy dấu hiệu bất thường cần đàm phán.\n\n- **Cơ sở 2 – Cơ sở dữ liệu ERP Nhà máy Nhiệt điện Vĩnh Tân 4:** Qua rà soát CSDL lịch sử mua sắm ERP, không có kết quả tra cứu nào có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Tổ Thẩm định **không áp dụng** CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n\n- **Cơ sở 3 – Cơ sở dữ liệu EVN IMIS:** Tra cứu theo từ khóa **[DPR 10-L/S]** cho thấy các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán. Tổ Thẩm định **không áp dụng** làm căn cứ thẩm định.\n\n- **Cơ sở 4 – Hệ thống Mua sắm Công (e-GP) – muasamcong.mpi.gov.vn:** Tra cứu từ khóa **[126091]** tại thời điểm 18:31 ngày 07/09/2026 **chưa ghi nhận** kết quả trúng thầu tương tự. Tổ Thẩm định ghi nhận sự hạn chế dữ liệu tham chiếu từ kênh này.\n\n- **Cơ sở 5 – Thương mại điện tử:** Dữ liệu không khả dụng/không có kết quả phù hợp để đối chiếu; Tổ Thẩm định **không áp dụng** làm căn cứ so sánh đơn giá.\n\n**4. Nhận định chung**\nTrong 05 cơ sở chứng cứ, chỉ có Cơ sở 1 (Báo giá gốc thương mại) cung cấp được mức giá hợp lệ để đối chiếu; các cơ sở còn lại đều không có dữ liệu tương đồng phù hợp hoặc không khả dụng. Tổ Thẩm định lấy mức chào thấp nhất hợp lệ 836.800 đ/Cái làm đơn giá tham chiếu phê duyệt, đồng thời cảnh báo bất thường đơn giá trình thẩm định.\n\nIII. 💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO\n\n🔴 **CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ:** Đơn giá trình 1.508.000 đ/Cái chênh lệch **+80,2%** so với đơn giá tham chiếu thấp nhất hợp lệ, vượt ngưỡng biên độ an toàn kỹ thuật – thương mại cho vật tư chuyên dụng G7. Tổ Thẩm định đề xuất Lãnh đạo/Hội đồng Thẩm định **đàm phán điều chỉnh đơn giá phê duyệt về mức 836.800 đ/Cái**, tương ứng thành tiền **4.184.000 đ** cho 05 Cái, **dự kiến tiết kiệm 3.356.000 đ** cho Nhà máy Nhiệt điện Vĩnh Tân 4.\n\nTrường hợp Nhà thầu không chấp thuận điều chỉnh về mức 836.800 đ/Cái, Tổ Thẩm định đề xuất:\n- Yêu cầu Nhà thầu cung cấp **hóa đơn/chứng từ mua hàng trước đó** hoặc **báo giá từ hãng Minimax GmbH** để chứng minh tính hợp lý của mức giá 1.508.000 đ/Cái;\n- Xem xét mời thêm tối thiểu 02 Nhà thầu có năng lực cung cấp vật tư tương đương để tổ chức đàm phán cạnh tranh trước khi trình phê duyệt;\n- Báo cáo Lãnh đạo quyết định phương án tối ưu trên nguyên tắc đảm bảo yêu cầu kỹ thuật, tiến độ và hiệu quả chi phí.\n\nTổ Thẩm định kính trình Lãnh đạo/Hội đồng Thẩm định xem xét, quyết định.",
-      "don_gia_thong_nhat": 1508000,
+      "danh_gia_ttd": "I. TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC\n\n| Hạng mục | Nội dung |\n|---|---|\n| Tên vật tư | Union tee (Type: T - Union tee, Model: T - PL A3C, Part no.: 125645) kèm Progressive ring DPR 10-L/S A3D (Part no.: 126091) lắp đặt tại ba đầu, Pipe OD 10 mm |\n| Hãng sản xuất / Xuất xứ | Minimax GmbH – Germany (tiêu chuẩn kỹ thuật an toàn Châu Âu, nhóm G7) |\n| Mã ERP nội bộ | Chưa có mã vật tư |\n| Số lượng | 05 Cái |\n| Đơn giá trình thẩm định | 1.508.000 đ/Cái |\n| Thành tiền trình | 7.540.000 đ |\n| Đơn giá tham chiếu thấp nhất hợp lệ | 836.800 đ/Cái |\n| Mức chênh lệch | +80,2% so với đơn giá trình |\n| Tiết kiệm dự kiến (nếu điều chỉnh) | 3.356.000 đ |\n\nII. 🔍 Ý KIẾN ĐÁNH GIÁ & BẢN THUYẾT MINH THẨM ĐỊNH CỦA TỔ THẨM ĐỊNH DỰ TOÁN\n\n**1. Phân tích bản chất kỹ thuật vật tư**\nVật tư thẩm định là cụm chi tiết kết nối thuộc hệ thống đường ống thủy lực/khí nén công nghiệp, gồm Union tee Model T - PL A3C (Part no. 125645) kích thước Pipe OD 10 mm kèm bộ ba Progressive ring DPR 10-L/S A3D (Part no. 126091) lắp đặt tại cả ba đầu nối. Đây là vật tư chuyên dụng của hãng Minimax GmbH (Đức) – thương hiệu thuộc nhóm tiêu chuẩn kỹ thuật an toàn cao Châu Âu/G7, có yêu cầu nghiêm ngặt về độ kín khít, áp suất làm việc, khả năng chịu rung và độ bền mỏi trong điều kiện vận hành liên tục tại Nhà máy Nhiệt điện Vĩnh Tân 4. Tính đặc thù của vật tư thể hiện ở chỗ: cụm Union tee và Progressive ring phải đồng bộ chủng loại, kích thước, vật liệu và xuất xứ để đảm bảo độ tương thích ren – vòng đệt tiến tiến (progressive ring), qua đó duy trì áp suất danh định và độ tin cậy của hệ thống. Tổ Thẩm định xếp vật tư vào phân nhóm **Thiết bị công nghiệp chuyên dụng – linh kiện kết nối có yêu cầu kỹ thuật đặc thù**.\n\n**2. Đánh giá tương quan giá trị kỹ thuật và thương mại**\nĐơn giá trình thẩm định 1.508.000 đ/Cái cao hơn **+80,2%** so với đơn giá tham chiếu thấp nhất hợp lệ là 836.800 đ/Cái (mức chênh tuyệt đối 671.200 đ/Cái). Với đặc tính kỹ thuật của cụm vật tư chuyên dụng G7, biên độ chênh lệch này vượt khá xa ngưỡng biến động hợp lý thường gặp (thông thường dưới 15–20%) giữa các báo giá cùng chủng loại, cùng xuất xứ. Tổ Thẩm định nhận thấy mức giá trình chưa có cơ sở thuyết phục để chứng minh tính hợp lý và cần được đàm phán điều chỉnh về mặt bằng giá thị trường.\n\n**3. Đối chiếu 05 cơ sở chứng cứ thẩm định**\n\n- **Cơ sở 1 – Báo giá gốc (thương mại):** Tổ Thẩm định đã đối chiếu các báo giá thương mại thu thập được; mức chào thấp nhất hợp lệ là **836.800 đ/Cái** từ Nhà thầu chào giá cạnh tranh. Đơn giá trình 1.508.000 đ/Cái không phải mức thấp nhất trên thị trường, chênh lệch +80,2% cho thấy dấu hiệu bất thường cần đàm phán.\n\n- **Cơ sở 2 – Cơ sở dữ liệu ERP Nhà máy Nhiệt điện Vĩnh Tân 4:** Qua rà soát CSDL Kế toán ERP, không có kết quả tra cứu nào có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Tổ Thẩm định **không áp dụng** CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n\n- **Cơ sở 3 – Cơ sở dữ liệu EVN IMIS:** Tra cứu theo từ khóa **[DPR 10-L/S]** cho thấy các kết quả tìm thấy không tương đồng về quy cách/chủng loại với vật tư dự toán. Tổ Thẩm định **không áp dụng** làm căn cứ thẩm định.\n\n- **Cơ sở 4 – Hệ thống Mua sắm Công (e-GP) – muasamcong.mpi.gov.vn:** Tra cứu từ khóa **[126091]** tại thời điểm 18:31 ngày 07/09/2026 **chưa ghi nhận** kết quả trúng thầu tương tự. Tổ Thẩm định ghi nhận sự hạn chế dữ liệu tham chiếu từ kênh này.\n\n- **Cơ sở 5 – Thương mại điện tử:** Dữ liệu không khả dụng/không có kết quả phù hợp để đối chiếu; Tổ Thẩm định **không áp dụng** làm căn cứ so sánh đơn giá.\n\n**4. Nhận định chung**\nTrong 05 cơ sở chứng cứ, chỉ có Cơ sở 1 (Báo giá gốc thương mại) cung cấp được mức giá hợp lệ để đối chiếu; các cơ sở còn lại đều không có dữ liệu tương đồng phù hợp hoặc không khả dụng. Tổ Thẩm định lấy mức chào thấp nhất hợp lệ 836.800 đ/Cái làm đơn giá tham chiếu phê duyệt, đồng thời cảnh báo bất thường đơn giá trình thẩm định.\n\nIII. 💡 KẾT LUẬN & ĐỀ XUẤT PHÊ DUYỆT CỦA TỔ THẨM ĐỊNH TRÌNH LÃNH ĐẠO\n\n🔴 **CẢNH BÁO BẤT THƯỜNG ĐƠN GIÁ:** Đơn giá trình 1.508.000 đ/Cái chênh lệch **+80,2%** so với đơn giá tham chiếu thấp nhất hợp lệ, vượt ngưỡng biên độ an toàn kỹ thuật – thương mại cho vật tư chuyên dụng G7. Tổ Thẩm định đề xuất Lãnh đạo/Hội đồng Thẩm định **đàm phán điều chỉnh đơn giá phê duyệt về mức 836.800 đ/Cái**, tương ứng thành tiền **4.184.000 đ** cho 05 Cái, **dự kiến tiết kiệm 3.356.000 đ** cho Nhà máy Nhiệt điện Vĩnh Tân 4.\n\nTrường hợp Nhà thầu không chấp thuận điều chỉnh về mức 836.800 đ/Cái, Tổ Thẩm định đề xuất:\n- Yêu cầu Nhà thầu cung cấp **hóa đơn/chứng từ mua hàng trước đó** hoặc **báo giá từ hãng Minimax GmbH** để chứng minh tính hợp lý của mức giá 1.508.000 đ/Cái;\n- Xem xét mời thêm tối thiểu 02 Nhà thầu có năng lực cung cấp vật tư tương đương để tổ chức đàm phán cạnh tranh trước khi trình phê duyệt;\n- Báo cáo Lãnh đạo quyết định phương án tối ưu trên nguyên tắc đảm bảo yêu cầu kỹ thuật, tiến độ và hiệu quả chi phí.\n\nTổ Thẩm định kính trình Lãnh đạo/Hội đồng Thẩm định xem xét, quyết định.",
+      "don_gia_thong_nhat": 1508000.0,
       "don_gia_trinh": 1508000,
       "dvt": "Cái",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 0,
+      "gia_tri_giam": 0.0,
       "hsx_xx": "Minimax/ Trung Quốc",
       "id": 10,
       "ma_vt": "Chưa có mã vật tư",
@@ -211,40 +294,44 @@
       "so_luong": 5,
       "ten_vt": "Union tee - Union tee \n- Type: T - Union tee \n- Model: T - PL A3C \n- Part no.: 125645 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressive ring (at three ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
       "ten_vt_goc": "Union tee",
-      "thanh_tien_thong_nhat": 7540000,
+      "thanh_tien_thong_nhat": 7540000.0,
       "thanh_tien_trinh": 7540000,
-      "thong_so_kt": "Union tee \n- Type: T - Union tee \n- Model: T - PL A3C \n- Part no.: 125645 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressive ring (at three ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany"
+      "thong_so_kt": "Union tee \n- Type: T - Union tee \n- Model: T - PL A3C \n- Part no.: 125645 \n- Pipe OD.: 10 (mm) \n- Include: DPR - Progressive ring (at three ends) \n   + Model: DPR 10-L/S A3D \n   + Part no.: 126091 \n- Manufacturer: Minimax Gmb, Germany",
+      "thue": "0.08",
+      "tien_thue": 603200,
+      "search_keyword": "DPR 10-L/S"
     },
     {
       "co_so_thong_nhat": "",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Chưa nạp dữ liệu Báo giá gốc\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 64.001.100 đ/Mét (HĐ: Nhập kho vật tư (HĐ: 40/2025) theo hóa đơn số 1956 ngày 30.10.2025 ngày 2025-12-12. SL: 3 Mét); Các đợt nhập khác: 16.649.700 đ, 11.181.019 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [B-210-2394], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Ống B-210-2394/1] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 64.001.100 đ/Mét.",
-      "don_gia_thong_nhat": 64001100,
+      "danh_gia_ttd": "",
+      "don_gia_thong_nhat": 1205000,
       "don_gia_trinh": 1205000,
       "dvt": "Mét",
       "ghi_chu": "Chưa có mã vật tư | Thay mới các đầu nối, đường ống điều khiển khí nén các van actuator phun CO2 bị rò rỉ và gỉ sét | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": -1255922000,
+      "gia_tri_giam": 0,
       "hsx_xx": "Minimax/ Đức",
       "id": 11,
       "ma_vt": "Chưa có mã vật tư",
       "part_no": "Tube \n- Model: B-210-2394/1 \n- OD: 10mm (DN8) \n- Part no.: 823575\n- Test pressure: 210 (bar)",
       "phan_bien_khvt": "",
       "pycvt": "1723/KTAT",
-      "search_keyword": "B-210-2394",
       "so_luong": 20,
       "ten_vt": "Ống B-210-2394/1 - Tube \n- Model: B-210-2394/1 \n- OD: 10mm (DN8) \n- Part no.: 823575\n- Test pressure: 210 (bar)",
       "ten_vt_goc": "Ống B-210-2394/1",
-      "thanh_tien_thong_nhat": 1280022000,
+      "thanh_tien_thong_nhat": 24100000,
       "thanh_tien_trinh": 24100000,
-      "thong_so_kt": "Tube \n- Model: B-210-2394/1 \n- OD: 10mm (DN8) \n- Part no.: 823575\n- Test pressure: 210 (bar)"
+      "thong_so_kt": "Tube \n- Model: B-210-2394/1 \n- OD: 10mm (DN8) \n- Part no.: 823575\n- Test pressure: 210 (bar)",
+      "thue": "0.08",
+      "tien_thue": 1928000
     },
     {
-      "co_so_thong_nhat": "Cơ sở 2: ERP Vĩnh Tân 4",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 117.600.000 đ/Cái (CÔNG TY CỔ PHẦN XÂY DỰNG VÀ KỸ THUẬT THĂNG LONG)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 57.465.833 đ/Cái (HĐ: Nhập kho vật tư (HĐ: 65/2024) theo hóa đơn số 00000008 ngày 05.06.2025 ngày 2025-07-03. SL: 2 Cái); Các đợt nhập khác: 169.000.000 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [RTNC3], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Cảm biến đo khối lượng (Loadcell), model: RTNC3/10T] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 57.465.833 đ/Cái.",
-      "don_gia_thong_nhat": 113232916.5,
+      "co_so_thong_nhat": "",
+      "danh_gia_ttd": "",
+      "don_gia_thong_nhat": 117600000,
       "don_gia_trinh": 117600000,
       "dvt": "Cái",
       "ghi_chu": "3.96.13.021.GER.00.000 | Thay thế 01 cảm biến đo khối lượng (Loadcell) bồn chứa khí CO2 – Tổ máy S3 bị hư hỏng | BBKT 510/2026/VH-VT4. Vật tư không có trong KH SXKD 2026.",
-      "gia_tri_giam": 4367083.5,
+      "gia_tri_giam": 0,
       "hsx_xx": "HBK/ Đức",
       "id": 12,
       "ma_vt": "3.96.13.021.GER.00.000",
@@ -254,10 +341,11 @@
       "so_luong": 1,
       "ten_vt": "Cảm biến đo khối lượng (Loadcell), model: RTNC3/10T - Cảm biến đo khối lượng (Loadcell):\n- Model: RTNC3/10T\n- Odering number: K-RTN-8-C3-10-N-12-N-N-8\n- Maximum capacity (Emax): 10000kg\n- Minimum capacity (Emin): 0kg\n- Minimum interval (Vmin): 500g\n- Rated output (Cn): 2.85mV/V ± 0.00285\n- Input resistance: 4450 ± 100Ω\n- Output resistance: 4010 ± 2Ω\n- Rated range of the excitation voltage: 5 ~ 30V\n- Insulation resistance: >20GΩ\n- Operating temperature: -10 ~ 40oC\n- Breaking load: 40000kg\n- Number of wires: 5 (included Shield wire)\n- Cable length: 5m\n- Protection class: IP68\n- Manufacturer: Hottinger Baldwin Messtechnik GmbH (HBM), Germany",
       "ten_vt_goc": "Cảm biến đo khối lượng (Loadcell), model: RTNC3/10T",
-      "thanh_tien_thong_nhat": 113232916.5,
+      "thanh_tien_thong_nhat": 117600000,
       "thanh_tien_trinh": 117600000,
       "thong_so_kt": "Cảm biến đo khối lượng (Loadcell):\n- Model: RTNC3/10T\n- Odering number: K-RTN-8-C3-10-N-12-N-N-8\n- Maximum capacity (Emax): 10000kg\n- Minimum capacity (Emin): 0kg\n- Minimum interval (Vmin): 500g\n- Rated output (Cn): 2.85mV/V ± 0.00285\n- Input resistance: 4450 ± 100Ω\n- Output resistance: 4010 ± 2Ω\n- Rated range of the excitation voltage: 5 ~ 30V\n- Insulation resistance: >20GΩ\n- Operating temperature: -10 ~ 40oC\n- Breaking load: 40000kg\n- Number of wires: 5 (included Shield wire)\n- Cable length: 5m\n- Protection class: IP68\n- Manufacturer: Hottinger Baldwin Messtechnik GmbH (HBM), Germany",
-      "search_keyword": "RTNC3"
+      "thue": "0.08",
+      "tien_thue": 9408000
     },
     {
       "co_so_thong_nhat": "",
@@ -278,7 +366,9 @@
       "ten_vt_goc": "Tủ MCC bucket - MCC unit order code: P0BHC01GH004R-AH400. Type G1, 65kW, TS250H",
       "thanh_tien_thong_nhat": 284390000,
       "thanh_tien_trinh": 284390000,
-      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-A H400\n- Type: G1\n- Load description: Spare\n- Capacity: 65kW\n- Details:\n• MCCB: TS250H ETS 160 4 – AL (Handle mechanism switch ON/OFF/TRIP attached)\n• Cable: Wire (Sq) – XHHW/SIS 70, included cosse 70-10 (Qty: 06), length total 1000mm x 3-wires\n• Soft power cable: 2mm (height) x 20mm (width) x 500mm (length), 3-wires\n• Power side terminal plug: 1’ry clip 4P 250A, included Male & Female plug\n• Load side power terminal plug: 2’ry clip 4P 250A, included Male & Female plug\n• Control terminal plug: 3’ry 24P, included Male & Female plug\n• Unit size/ Door type: 400/ G1\n• Cable trough: 60mm (height) x 35mm (width) x 400mm (length) \n- Manufacturer: LS Electric, Korea"
+      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-A H400\n- Type: G1\n- Load description: Spare\n- Capacity: 65kW\n- Details:\n• MCCB: TS250H ETS 160 4 – AL (Handle mechanism switch ON/OFF/TRIP attached)\n• Cable: Wire (Sq) – XHHW/SIS 70, included cosse 70-10 (Qty: 06), length total 1000mm x 3-wires\n• Soft power cable: 2mm (height) x 20mm (width) x 500mm (length), 3-wires\n• Power side terminal plug: 1’ry clip 4P 250A, included Male & Female plug\n• Load side power terminal plug: 2’ry clip 4P 250A, included Male & Female plug\n• Control terminal plug: 3’ry 24P, included Male & Female plug\n• Unit size/ Door type: 400/ G1\n• Cable trough: 60mm (height) x 35mm (width) x 400mm (length) \n- Manufacturer: LS Electric, Korea",
+      "thue": "0.1",
+      "tien_thue": 28439000
     },
     {
       "co_so_thong_nhat": "",
@@ -299,7 +389,9 @@
       "ten_vt_goc": "Tủ MCC bucket - MCC unit order code: P0BHC01GH004R-BH200. Type S",
       "thanh_tien_thong_nhat": 183501000,
       "thanh_tien_trinh": 183501000,
-      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-B H200\n- Load description: Space\n- Type: S\n- Unit size/ Door type: 200/ S\n- Manufacturer: LS Electric, Korea"
+      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-B H200\n- Load description: Space\n- Type: S\n- Unit size/ Door type: 200/ S\n- Manufacturer: LS Electric, Korea",
+      "thue": "0.1",
+      "tien_thue": 18350100
     },
     {
       "co_so_thong_nhat": "",
@@ -320,7 +412,9 @@
       "ten_vt_goc": "Tủ MCC bucket - MCC unit order code: P0BHC01GH004R-CH200. Type G1, 8.1kW, TS100H",
       "thanh_tien_thong_nhat": 233654000,
       "thanh_tien_trinh": 233654000,
-      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-C H200\n- Load description: Spare\n- Capacity: 8.1kW\n- Type: G1\n- Details:\n• MCCB: TS100H ETS 40 4 – AL (Handle mechanism switch ON/OFF/TRIP attached)\n• Cable: Wire (Sq) – XHHW/SIS 6, included cosse 6-8 (Qty: 06), length total 1000mm x 6-wires\n• Power side terminal plug: Clip 4P 150A, included Male & Female plug\n• Load power terminal plug: Clip 4P 150A, included Male & Female plug\n• Control terminal plug: 24P, included Male & Female plug\n• Unit size/ Door type: 200/ G1\n• Cable trough: 60mm (height) x 35mm (width) x 400mm (length) \n- Manufacturer: LS Electric, Korea"
+      "thong_so_kt": "MCC bucket \n- MCC unit order code: P0BHC01GH004R-C H200\n- Load description: Spare\n- Capacity: 8.1kW\n- Type: G1\n- Details:\n• MCCB: TS100H ETS 40 4 – AL (Handle mechanism switch ON/OFF/TRIP attached)\n• Cable: Wire (Sq) – XHHW/SIS 6, included cosse 6-8 (Qty: 06), length total 1000mm x 6-wires\n• Power side terminal plug: Clip 4P 150A, included Male & Female plug\n• Load power terminal plug: Clip 4P 150A, included Male & Female plug\n• Control terminal plug: 24P, included Male & Female plug\n• Unit size/ Door type: 200/ G1\n• Cable trough: 60mm (height) x 35mm (width) x 400mm (length) \n- Manufacturer: LS Electric, Korea",
+      "thue": "0.1",
+      "tien_thue": 23365400
     },
     {
       "co_so_thong_nhat": "",
@@ -341,7 +435,9 @@
       "ten_vt_goc": "Thanh cái đồng mạ bạc Busbar 400V",
       "thanh_tien_thong_nhat": 48000000,
       "thanh_tien_trinh": 48000000,
-      "thong_so_kt": "Thanh cái đồng mạ bạc\nKích thước: Dài x rộng x dày (850x125x10mm)\nChiều dài: 850mm"
+      "thong_so_kt": "Thanh cái đồng mạ bạc\nKích thước: Dài x rộng x dày (850x125x10mm)\nChiều dài: 850mm",
+      "thue": "0.1",
+      "tien_thue": 4800000
     },
     {
       "co_so_thong_nhat": "",
@@ -362,7 +458,9 @@
       "ten_vt_goc": "Thanh cái đồng V phân phối mạ bạc",
       "thanh_tien_thong_nhat": 192000000,
       "thanh_tien_trinh": 192000000,
-      "thong_so_kt": "Thanh cái đồng V phân phối mạ bạc\nKích thước: 28x40x6mm\nChiều dài: 920mm"
+      "thong_so_kt": "Thanh cái đồng V phân phối mạ bạc\nKích thước: 28x40x6mm\nChiều dài: 920mm",
+      "thue": "0.1",
+      "tien_thue": 19200000
     },
     {
       "co_so_thong_nhat": "",
@@ -383,16 +481,18 @@
       "ten_vt_goc": "Van điện từ 221S25F-S2TBC2",
       "thanh_tien_thong_nhat": 22000000,
       "thanh_tien_trinh": 22000000,
-      "thong_so_kt": "Van điện từ 221S25F-S2TBC2,\nVan 2 chiều, kích thước đường ống 1 inch,\nĐiện áp cuộn điện từ (coil) 24 VDC,\nNhà sản xuất: Parker"
+      "thong_so_kt": "Van điện từ 221S25F-S2TBC2,\nVan 2 chiều, kích thước đường ống 1 inch,\nĐiện áp cuộn điện từ (coil) 24 VDC,\nNhà sản xuất: Parker",
+      "thue": "0.08",
+      "tien_thue": 1760000
     },
     {
-      "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
-      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m (Mã ERP: 2.46.35.037.CHN.00.000).\n• Đơn giá trình thẩm định: 19.300.000 VNĐ (Số lượng: 35 Cái).\n• Đánh giá Chứng cứ Thẩm định: Đạt 60/100 điểm (Hạng B - 3/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 85/100 điểm (🟡 Hợp Lý (Nằm trong biên độ giá trung bình thị trường)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 18.522.000 VNĐ/Cái từ CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU (Trang 3 Báo giá); đơn giá chào đối chiếu thấp hơn 778.000 VNĐ/Cái so với đơn giá trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Tra cứu theo từ khóa [2.46.35.037.CHN.00.000] trong CSDL lịch sử mua sắm ERP nội bộ nhà máy Vĩnh Tân 4; ghi nhận đơn giá nhập kho gần nhất là 21.200.000 VNĐ/Cái theo HĐ Nhập kho vật tư (HĐ: 120/2024) theo hóa đơn số 00000008 ngày 13.01.2025 (ký ngày 2025-01-16 00:00:00, cách đây 20 tháng ~ 1.7 năm - quá 12 tháng, tốc độ tăng giá bình quân -5.4%/năm so với CPI ~5.0%/năm).\n- Cơ sở 3 (EVN IMIS): Chưa đối chiếu CSDL Hợp đồng mua sắm toàn ngành EVN IMIS.\n- Cơ sở 4 (Mua Sắm Công e-GP): Tra cứu theo từ khóa [SS-T6-S-065-20] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là 27.390.000 VNĐ/Cái (Nhà thầu Swagelok).\n- Cơ sở 5 (Thương Mại Điện Tử): Tra cứu theo từ khóa [Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đề xuất duyệt đơn giá thẩm định thống nhất là 18.522.000 VNĐ/Cái. Tiết kiệm dự toán 27.230.000 VNĐ (-4.0%).",
-      "don_gia_thong_nhat": 18522000.0,
-      "don_gia_trinh": 19300000,
+      "co_so_thong_nhat": "",
+      "danh_gia_ttd": "",
+      "don_gia_thong_nhat": 18522000,
+      "don_gia_trinh": 18522000,
       "dvt": "Cái",
       "ghi_chu": "2.46.35.037.CHN.00.000 | Khu vực hoàn nguyên xử lý nước230/2026/PXH-VT4 | Không có trong KHSXKD 2026",
-      "gia_tri_giam": 27230000.0,
+      "gia_tri_giam": 0,
       "hsx_xx": "Swagelok/ Đức",
       "id": 19,
       "ma_vt": "2.46.35.037.CHN.00.000",
@@ -402,9 +502,11 @@
       "so_luong": 35,
       "ten_vt": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m - Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m",
       "ten_vt_goc": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m",
-      "thanh_tien_thong_nhat": 648270000.0,
-      "thanh_tien_trinh": 675500000,
-      "thong_so_kt": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m"
+      "thanh_tien_thong_nhat": 648270000,
+      "thanh_tien_trinh": 648270000,
+      "thong_so_kt": "Ống khí nén/ tube, Model: SS-T6-S-065-20, OD: 3/8 inch, Length: 6m",
+      "thue": "0.1",
+      "tien_thue": 64827000
     },
     {
       "co_so_thong_nhat": "",
@@ -425,7 +527,9 @@
       "ten_vt_goc": "Ống khí nén/ tube, Model: SS-T8-S-065-20, OD: 1/2 inch, Length: 6m",
       "thanh_tien_thong_nhat": 38000000,
       "thanh_tien_trinh": 38000000,
-      "thong_so_kt": "Ống khí nén/ tube, Model: SS-T8-S-065-20, OD: 1/2 inch, Length: 6m"
+      "thong_so_kt": "Ống khí nén/ tube, Model: SS-T8-S-065-20, OD: 1/2 inch, Length: 6m",
+      "thue": "0.1",
+      "tien_thue": 3800000
     },
     {
       "co_so_thong_nhat": "",
@@ -446,7 +550,9 @@
       "ten_vt_goc": "Stainless Steel Swagelok Tube Fitting, Union, 1/ 2 in. Tube OD; Order code: SS-810-6",
       "thanh_tien_thong_nhat": 3400000,
       "thanh_tien_trinh": 3400000,
-      "thong_so_kt": "Stainless Steel Swagelok Tube Fitting, Union, 1/ 2 in. Tube OD; Order code: SS-810-6"
+      "thong_so_kt": "Stainless Steel Swagelok Tube Fitting, Union, 1/ 2 in. Tube OD; Order code: SS-810-6",
+      "thue": "0.1",
+      "tien_thue": 340000
     },
     {
       "co_so_thong_nhat": "",
@@ -467,7 +573,9 @@
       "ten_vt_goc": "Đầu nối - Union Swagelok Model: SS-600-6",
       "thanh_tien_thong_nhat": 260000000,
       "thanh_tien_trinh": 260000000,
-      "thong_so_kt": "Đầu nối - Union Swagelok Model: SS-600-6"
+      "thong_so_kt": "Đầu nối - Union Swagelok Model: SS-600-6",
+      "thue": "0.1",
+      "tien_thue": 26000000
     },
     {
       "co_so_thong_nhat": "",
@@ -488,7 +596,9 @@
       "ten_vt_goc": "Cùm cố định ống/ Tube Support Strip, model: MS-TSS-6, 10 Channels, 3/8 inch, 10 mm Tube Size",
       "thanh_tien_thong_nhat": 3000000,
       "thanh_tien_trinh": 3000000,
-      "thong_so_kt": "Cùm cố định ống/ Tube Support Strip, model: MS-TSS-6, 10 Channels, 3/8 inch, 10 mm Tube Size"
+      "thong_so_kt": "Cùm cố định ống/ Tube Support Strip, model: MS-TSS-6, 10 Channels, 3/8 inch, 10 mm Tube Size",
+      "thue": "0.1",
+      "tien_thue": 300000
     },
     {
       "co_so_thong_nhat": "",
@@ -504,12 +614,14 @@
       "part_no": "Bộ điều khiển định vị Positioner:\n- Model: TZIDC-V18345- 2020521001\n-Type: Double acting \n-Sofw.Rev: 3 \n-Supply press: 1,4 ~ 6 bar \n-Input: Analog 4 ~ 20 mA\n -Loss of electric: Fail freeze\n- Option: Analog feedback, FSK, Position indicator \n-NSX: ABB",
       "phan_bien_khvt": "",
       "pycvt": "2690/KTAT",
-      "so_luong": 5,
+      "so_luong": 2,
       "ten_vt": "Bộ điều khiển định vị Positioner, Model: TZIDC-V18345- 2020521001 - Bộ điều khiển định vị Positioner:\n- Model: TZIDC-V18345- 2020521001\n-Type: Double acting \n-Sofw.Rev: 3 \n-Supply press: 1,4 ~ 6 bar \n-Input: Analog 4 ~ 20 mA\n -Loss of electric: Fail freeze\n- Option: Analog feedback, FSK, Position indicator \n-NSX: ABB",
       "ten_vt_goc": "Bộ điều khiển định vị Positioner, Model: TZIDC-V18345- 2020521001",
-      "thanh_tien_thong_nhat": 425000000,
-      "thanh_tien_trinh": 425000000,
-      "thong_so_kt": "Bộ điều khiển định vị Positioner:\n- Model: TZIDC-V18345- 2020521001\n-Type: Double acting \n-Sofw.Rev: 3 \n-Supply press: 1,4 ~ 6 bar \n-Input: Analog 4 ~ 20 mA\n -Loss of electric: Fail freeze\n- Option: Analog feedback, FSK, Position indicator \n-NSX: ABB"
+      "thanh_tien_thong_nhat": 170000000,
+      "thanh_tien_trinh": 170000000,
+      "thong_so_kt": "Bộ điều khiển định vị Positioner:\n- Model: TZIDC-V18345- 2020521001\n-Type: Double acting \n-Sofw.Rev: 3 \n-Supply press: 1,4 ~ 6 bar \n-Input: Analog 4 ~ 20 mA\n -Loss of electric: Fail freeze\n- Option: Analog feedback, FSK, Position indicator \n-NSX: ABB",
+      "thue": "0.08",
+      "tien_thue": 13600000
     },
     {
       "co_so_thong_nhat": "",
@@ -530,16 +642,18 @@
       "ten_vt_goc": "Cảm biến nhiệt độ Model: S14405PD3S350B0, Type: RTD PT100 3 Wire",
       "thanh_tien_thong_nhat": 30000000,
       "thanh_tien_trinh": 30000000,
-      "thong_so_kt": "Cảm biến nhiệt độ - Model: S14405PD3S350B0\n- NSX: MINCO \n- Element: Platinum \n- Element length: 6.4 mm \n- Cable dimension \"C\": 1778 mm \n- Cable dimension \"L\": 8890 mm \n- Single duplex: Duplex \n- Sheath: 2.9 mm OD \n- Type: RTD PT100, 3 Wire \n- Range: 0 - 260 °C"
+      "thong_so_kt": "Cảm biến nhiệt độ - Model: S14405PD3S350B0\n- NSX: MINCO \n- Element: Platinum \n- Element length: 6.4 mm \n- Cable dimension \"C\": 1778 mm \n- Cable dimension \"L\": 8890 mm \n- Single duplex: Duplex \n- Sheath: 2.9 mm OD \n- Type: RTD PT100, 3 Wire \n- Range: 0 - 260 °C",
+      "thue": "0.08",
+      "tien_thue": 2400000
     },
     {
       "co_so_thong_nhat": "",
       "danh_gia_ttd": "",
       "don_gia_thong_nhat": 23000000,
-      "don_gia_trinh": 56105000,
+      "don_gia_trinh": 23000000,
       "dvt": "Cái",
       "ghi_chu": "3.96.13.320.USA.00.000 | BBKT- 1033/2026/VH-VT4_ Kiểm tra, khắc phục cảm biến khối lượng than – máy cấp A tổ máy S3 báo sai giá trị.Vật tư không có trong KH SXKD 2026. | Mua sắm dự phòng hết tồn kho thiết bị giám sát quan trọng.",
-      "gia_tri_giam": 66210000,
+      "gia_tri_giam": 0,
       "hsx_xx": "Merrick/ Mỹ",
       "id": 26,
       "ma_vt": "3.96.13.320.USA.00.000",
@@ -550,8 +664,10 @@
       "ten_vt": "Cảm biến đo khối lượng Load cell Part no: N39188-187; Capacity: 100Lb. - Cảm biến đo khối lượng Load cell Part no: N39188-187; Capacity: 100Lb.\nNSX: MERRICK",
       "ten_vt_goc": "Cảm biến đo khối lượng Load cell Part no: N39188-187; Capacity: 100Lb.",
       "thanh_tien_thong_nhat": 46000000,
-      "thanh_tien_trinh": 112210000,
-      "thong_so_kt": "Cảm biến đo khối lượng Load cell Part no: N39188-187; Capacity: 100Lb.\nNSX: MERRICK"
+      "thanh_tien_trinh": 46000000,
+      "thong_so_kt": "Cảm biến đo khối lượng Load cell Part no: N39188-187; Capacity: 100Lb.\nNSX: MERRICK",
+      "thue": "0.08",
+      "tien_thue": 3680000
     },
     {
       "co_so_thong_nhat": "",
@@ -572,7 +688,9 @@
       "ten_vt_goc": "Bộ đo mức LEVEL TRANSMITTER; Loại: Ultrasonic LT (sóng siêu âm)",
       "thanh_tien_thong_nhat": 189000000,
       "thanh_tien_trinh": 189000000,
-      "thong_so_kt": "LEVEL TRANSMITTER Loại: Ultrasonic LT (sóng siêu âm) \nModel: LST400 Y0/S15/N1/P6/A1/H1/SC6/B2/CR/M5\nRange: 0.5m to 15m Signal: 4 - 20 mA \nSupply power: 115 to 230 V AC or 24 V DC.\nNSX: ABB"
+      "thong_so_kt": "LEVEL TRANSMITTER Loại: Ultrasonic LT (sóng siêu âm) \nModel: LST400 Y0/S15/N1/P6/A1/H1/SC6/B2/CR/M5\nRange: 0.5m to 15m Signal: 4 - 20 mA \nSupply power: 115 to 230 V AC or 24 V DC.\nNSX: ABB",
+      "thue": "0.08",
+      "tien_thue": 15120000
     },
     {
       "co_so_thong_nhat": "",
@@ -593,7 +711,9 @@
       "ten_vt_goc": "Cảm biến áp suất (Pressure transmitter) Model: 2051CG1A02A1AS5M5D4T1Q4",
       "thanh_tien_thong_nhat": 145000000,
       "thanh_tien_trinh": 145000000,
-      "thong_so_kt": "Cảm biến áp suất (Pressure transmitter) \nModel: 2051CG1A02A1AS5M5D4T1Q4 \nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 30 mbarg (Có bao gồm Integral Manifold Model: 0305RC22B11B4L4)\nNSX: Rosemount"
+      "thong_so_kt": "Cảm biến áp suất (Pressure transmitter) \nModel: 2051CG1A02A1AS5M5D4T1Q4 \nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 30 mbarg (Có bao gồm Integral Manifold Model: 0305RC22B11B4L4)\nNSX: Rosemount",
+      "thue": "0.08",
+      "tien_thue": 11600000
     },
     {
       "co_so_thong_nhat": "",
@@ -614,7 +734,9 @@
       "ten_vt_goc": "Bộ đo áp suất - Differential pressure transmitter with Intergral Manifold, Transmitter model: 2051CD1A02A1AS5 M5D4T1Q4",
       "thanh_tien_thong_nhat": 247000000,
       "thanh_tien_trinh": 247000000,
-      "thong_so_kt": "Bộ đo áp suất - Differential pressure transmitter with Intergral Manifold, Transmitter model: 2051CD1A02A1AS5 M5D4T1Q4\nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 600 mmH20) \n(Có bao gồm Integral Manifold Model: 0305RC52B11B4L4)\nNSX: Rosemount"
+      "thong_so_kt": "Bộ đo áp suất - Differential pressure transmitter with Intergral Manifold, Transmitter model: 2051CD1A02A1AS5 M5D4T1Q4\nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 600 mmH20) \n(Có bao gồm Integral Manifold Model: 0305RC52B11B4L4)\nNSX: Rosemount",
+      "thue": "0.08",
+      "tien_thue": 19760000
     },
     {
       "co_so_thong_nhat": "",
@@ -635,7 +757,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN50",
       "thanh_tien_thong_nhat": 5001000,
       "thanh_tien_trinh": 5001000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN50, 4 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN50, 4 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 400080
     },
     {
       "co_so_thong_nhat": "",
@@ -656,7 +780,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN15, ren ngoài 2 đầu",
       "thanh_tien_thong_nhat": 375000,
       "thanh_tien_trinh": 375000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN15, ren ngoài 2 đầu;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN15, ren ngoài 2 đầu;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 30000
     },
     {
       "co_so_thong_nhat": "",
@@ -677,7 +803,9 @@
       "ten_vt_goc": "Đầu chuyển hàn – ren ngoài DN15, vật liệu inox 304",
       "thanh_tien_thong_nhat": 56000,
       "thanh_tien_trinh": 56000,
-      "thong_so_kt": "Đầu chuyển hàn – ren ngoài DN15, vật liệu inox 304"
+      "thong_so_kt": "Đầu chuyển hàn – ren ngoài DN15, vật liệu inox 304",
+      "thue": "0.08",
+      "tien_thue": 4480
     },
     {
       "co_so_thong_nhat": "",
@@ -698,7 +826,9 @@
       "ten_vt_goc": "Rắc co ren trong DN15, vật liệu inox 304",
       "thanh_tien_thong_nhat": 208000,
       "thanh_tien_trinh": 208000,
-      "thong_so_kt": "Rắc co ren trong DN15, vật liệu inox 304"
+      "thong_so_kt": "Rắc co ren trong DN15, vật liệu inox 304",
+      "thue": "0.08",
+      "tien_thue": 16640
     },
     {
       "co_so_thong_nhat": "",
@@ -719,7 +849,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN125",
       "thanh_tien_thong_nhat": 19320000,
       "thanh_tien_trinh": 19320000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN125, 8 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN125, 8 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 1545600
     },
     {
       "co_so_thong_nhat": "",
@@ -740,7 +872,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN150",
       "thanh_tien_thong_nhat": 82800000,
       "thanh_tien_trinh": 82800000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN150, 8 lỗ bulong Ø20 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN150, 8 lỗ bulong Ø20 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 6624000
     },
     {
       "co_so_thong_nhat": "",
@@ -761,7 +895,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN200 PN16",
       "thanh_tien_thong_nhat": 28000000,
       "thanh_tien_trinh": 28000000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN200 PN16, 12 lỗ bulong Ø20 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN200 PN16, 12 lỗ bulong Ø20 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước khử khoáng);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 2240000
     },
     {
       "co_so_thong_nhat": "",
@@ -782,7 +918,9 @@
       "ten_vt_goc": "Công tơ nước dạng cơ, kích thước DN100",
       "thanh_tien_thong_nhat": 6726000,
       "thanh_tien_trinh": 6726000,
-      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN100, 8 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước dịch vụ);\nCông tơ có giấy chứng nhận hiệu chuẩn."
+      "thong_so_kt": "Công tơ nước dạng cơ, kích thước DN100, 8 lỗ bulong Ø16 ở mỗi đầu bích;\nVật liệu: Cast iron;\nMôi chất làm việc: nước sạch (nước dịch vụ);\nCông tơ có giấy chứng nhận hiệu chuẩn.",
+      "thue": "0.08",
+      "tien_thue": 538080
     },
     {
       "co_so_thong_nhat": "",
@@ -803,7 +941,9 @@
       "ten_vt_goc": "Cảm biến đo lưu lượng siêu âm\n(Ultrasonic Flowmeter Transducer)",
       "thanh_tien_thong_nhat": 324000000,
       "thanh_tien_trinh": 324000000,
-      "thong_so_kt": "Cảm biến đo lưu lượng siêu âm (Ultrasonic Flowmeter Transducer)\nModel: LTE1-B\nNSX: Jain Technology"
+      "thong_so_kt": "Cảm biến đo lưu lượng siêu âm (Ultrasonic Flowmeter Transducer)\nModel: LTE1-B\nNSX: Jain Technology",
+      "thue": "0.08",
+      "tien_thue": 25920000
     },
     {
       "co_so_thong_nhat": "",
@@ -824,7 +964,9 @@
       "ten_vt_goc": "Hợp chất Silicone tiếp âm và bôi trơn(Silicone Compound)",
       "thanh_tien_thong_nhat": 5200000,
       "thanh_tien_trinh": 5200000,
-      "thong_so_kt": "Hợp chất Silicone tiếp âm và bôi trơn(Silicone Compound)\nApplicatinon: Sealant and Lubricant\nCautinon: Mix thoroughly before use\nNSX: Jain Technology"
+      "thong_so_kt": "Hợp chất Silicone tiếp âm và bôi trơn(Silicone Compound)\nApplicatinon: Sealant and Lubricant\nCautinon: Mix thoroughly before use\nNSX: Jain Technology",
+      "thue": "0.08",
+      "tien_thue": 416000
     },
     {
       "co_so_thong_nhat": "",
@@ -845,7 +987,9 @@
       "ten_vt_goc": "Đầu dò Oxy thừa Zirconia/ Zirconia Detector, Model: NS-3000, Style: S2",
       "thanh_tien_thong_nhat": 669500000,
       "thanh_tien_trinh": 669500000,
-      "thong_so_kt": "Đầu dò Oxy thừa Zirconia/ Zirconia Detector, Model: NS-3000, Style: S2\n- Suffix: -4-1-X3-2-2-2-1-1\n- AMB.Temp: -20 ~ 150 ºC\nNSX: Horiba"
+      "thong_so_kt": "Đầu dò Oxy thừa Zirconia/ Zirconia Detector, Model: NS-3000, Style: S2\n- Suffix: -4-1-X3-2-2-2-1-1\n- AMB.Temp: -20 ~ 150 ºC\nNSX: Horiba",
+      "thue": "0.08",
+      "tien_thue": 53560000
     },
     {
       "co_so_thong_nhat": "",
@@ -866,7 +1010,9 @@
       "ten_vt_goc": "Thiết bị chống sét lan truyền / Chống nhiễu cấp nguồn (Surge Protective Device - SPD)",
       "thanh_tien_thong_nhat": 105000000,
       "thanh_tien_trinh": 105000000,
-      "thong_so_kt": "Thiết bị chống sét lan truyền / Chống nhiễu cấp nguồn (Surge Protective Device - SPD)\nModel: MA3145-230-2-R\n- Điện áp hoạt động tối đa (Max working voltage): ≥ 270 VAC.\n- Điện áp định mức (Voltage rating): 230 VAC.\n- Dòng cắt sét / Khả năng chịu dòng ngắn mạch (Circuit breaker / Surge capacity): ≥ 40 kA.\nNSX: Cooper Crouse-Hinds MTL / Eaton"
+      "thong_so_kt": "Thiết bị chống sét lan truyền / Chống nhiễu cấp nguồn (Surge Protective Device - SPD)\nModel: MA3145-230-2-R\n- Điện áp hoạt động tối đa (Max working voltage): ≥ 270 VAC.\n- Điện áp định mức (Voltage rating): 230 VAC.\n- Dòng cắt sét / Khả năng chịu dòng ngắn mạch (Circuit breaker / Surge capacity): ≥ 40 kA.\nNSX: Cooper Crouse-Hinds MTL / Eaton",
+      "thue": "0.08",
+      "tien_thue": 8400000
     },
     {
       "co_so_thong_nhat": "",
@@ -887,7 +1033,9 @@
       "ten_vt_goc": "Dây tín hiệu quang cho cảm biến phát hiện ngọn lửa",
       "thanh_tien_thong_nhat": 270000000,
       "thanh_tien_trinh": 270000000,
-      "thong_so_kt": "Dây tín hiệu quang cho cảm biến phát hiện ngọn lửa, Model cảm biến: NBFS-FC2000, Length: 2825 mm, Sensor MTG Size: PT1\"M, Material: Stainless Steel\nDây tín hiệu quang cho cảm biến phát hiện ngọn lửa (Model cảm biến phát hiện ngọn lửa: NBFS-FC2000). - Overall dimension: 20Ø*2825mm with 80Ø*8t Flange - Length: 2825 mm - Sensor MTG Size: PT1\"M - Material: Stainless Steel - Fiber Optic Conductor: + Material: Glass Optical Multi Component + Clad Diameter: 0.025mm ent + Bundle Diameter: 3mm + Operating Temperature: Max. 400°C(750°F) - OD tube: Flexible tube 3/8’’ - Detail “C” - Lens: + Material : Quartz + Operating Temperature: Max. 1680°C \nNSX: Nambukeng"
+      "thong_so_kt": "Dây tín hiệu quang cho cảm biến phát hiện ngọn lửa, Model cảm biến: NBFS-FC2000, Length: 2825 mm, Sensor MTG Size: PT1\"M, Material: Stainless Steel\nDây tín hiệu quang cho cảm biến phát hiện ngọn lửa (Model cảm biến phát hiện ngọn lửa: NBFS-FC2000). - Overall dimension: 20Ø*2825mm with 80Ø*8t Flange - Length: 2825 mm - Sensor MTG Size: PT1\"M - Material: Stainless Steel - Fiber Optic Conductor: + Material: Glass Optical Multi Component + Clad Diameter: 0.025mm ent + Bundle Diameter: 3mm + Operating Temperature: Max. 400°C(750°F) - OD tube: Flexible tube 3/8’’ - Detail “C” - Lens: + Material : Quartz + Operating Temperature: Max. 1680°C \nNSX: Nambukeng",
+      "thue": "0.08",
+      "tien_thue": 21600000
     },
     {
       "co_so_thong_nhat": "",
@@ -908,7 +1056,9 @@
       "ten_vt_goc": "Công tắc lưu lượng (Flow Switch)",
       "thanh_tien_thong_nhat": 38000000,
       "thanh_tien_trinh": 38000000,
-      "thong_so_kt": "Công tắc lưu lượng (Flow Switch)\nModel: WP/FS-25VFL\nSwitch : SPDT Snap Acting Micro\nRating : 5A 250VAC \nNSX: Dag Process Instruments Pvt. Ltd"
+      "thong_so_kt": "Công tắc lưu lượng (Flow Switch)\nModel: WP/FS-25VFL\nSwitch : SPDT Snap Acting Micro\nRating : 5A 250VAC \nNSX: Dag Process Instruments Pvt. Ltd",
+      "thue": "0.08",
+      "tien_thue": 3040000
     },
     {
       "co_so_thong_nhat": "",
@@ -929,7 +1079,9 @@
       "ten_vt_goc": "Thiết bị đo lưu lượng (Flow Transmitter): - Model: 2051CD2A02A1AS5M5D4T1C1Q4",
       "thanh_tien_thong_nhat": 230000000,
       "thanh_tien_trinh": 230000000,
-      "thong_so_kt": "Thiết bị đo lưu lượng (Flow Transmitter): - Model: 2051CD2A02A1AS5M5D4T1C1Q4\nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 1470,24 mmH20) \n(Có bao gồm Integral Manifold Model: 0305RC52B11B4L4)\nNSX: Rosemount"
+      "thong_so_kt": "Thiết bị đo lưu lượng (Flow Transmitter): - Model: 2051CD2A02A1AS5M5D4T1C1Q4\nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 1470,24 mmH20) \n(Có bao gồm Integral Manifold Model: 0305RC52B11B4L4)\nNSX: Rosemount",
+      "thue": "0.08",
+      "tien_thue": 18400000
     },
     {
       "co_so_thong_nhat": "",
@@ -950,7 +1102,9 @@
       "ten_vt_goc": "Cảm biến tiệm cận/proximity sensor",
       "thanh_tien_thong_nhat": 2438000,
       "thanh_tien_trinh": 2438000,
-      "thong_so_kt": "Cảm biến tiệm cận/proximity sensor\n- Model: PR30-10AC\nĐường kính cạnh phát hiện: 30mm\n- Điện áp hoạt động: 100-240 Vac\n- Ngõ ra điều khiển: NC\n- Protection: IP67"
+      "thong_so_kt": "Cảm biến tiệm cận/proximity sensor\n- Model: PR30-10AC\nĐường kính cạnh phát hiện: 30mm\n- Điện áp hoạt động: 100-240 Vac\n- Ngõ ra điều khiển: NC\n- Protection: IP67",
+      "thue": "0.08",
+      "tien_thue": 195040
     },
     {
       "co_so_thong_nhat": "",
@@ -971,13 +1125,15 @@
       "ten_vt_goc": "Cảm biến tiệm cận/proximity sensor",
       "thanh_tien_thong_nhat": 1150000,
       "thanh_tien_trinh": 1150000,
-      "thong_so_kt": "Cảm biến tiệm cận/proximity sensor\n- Model: PR18-8AO\n- Đường kính đầu dò: 18mm\n- Điện áp hoạt động: 100-240 Vac\n- Ngõ ra điều khiển: NO\n- Protection: IP67"
+      "thong_so_kt": "Cảm biến tiệm cận/proximity sensor\n- Model: PR18-8AO\n- Đường kính đầu dò: 18mm\n- Điện áp hoạt động: 100-240 Vac\n- Ngõ ra điều khiển: NO\n- Protection: IP67",
+      "thue": "0.08",
+      "tien_thue": 92000
     },
     {
       "co_so_thong_nhat": "",
       "danh_gia_ttd": "",
       "don_gia_thong_nhat": 535000,
-      "don_gia_trinh": 465000,
+      "don_gia_trinh": 535000,
       "dvt": "Cái",
       "ghi_chu": "2.05.80.082.KOR.00.000 | Sửa chữa tời điện các vị trí S3 theo BBKT 675/2026/VH-VT4; 435/2026/VH-VT4; 475/2026/VH-VT4; 558/2026/VH-VT4; 468/2026/VH-VT4 | Chưa đề xuất trong KHSXKD, không tồn kho vật tư thay thế tương đương",
       "gia_tri_giam": 0,
@@ -991,8 +1147,10 @@
       "ten_vt": "Hanger clamps (out doors) (kẹp giữ đường ray cáp điện) - Hanger clamps (out doors) (kẹp giữ đường ray cáp điện): Model: EH-2-001\n - Material: Galvanized Steel \n+Epoxy Insulator Dome\n - Maker: Eunchang T&C",
       "ten_vt_goc": "Hanger clamps (out doors) (kẹp giữ đường ray cáp điện)",
       "thanh_tien_thong_nhat": 686940000,
-      "thanh_tien_trinh": 597060000,
-      "thong_so_kt": "Hanger clamps (out doors) (kẹp giữ đường ray cáp điện): Model: EH-2-001\n - Material: Galvanized Steel \n+Epoxy Insulator Dome\n - Maker: Eunchang T&C"
+      "thanh_tien_trinh": 686940000,
+      "thong_so_kt": "Hanger clamps (out doors) (kẹp giữ đường ray cáp điện): Model: EH-2-001\n - Material: Galvanized Steel \n+Epoxy Insulator Dome\n - Maker: Eunchang T&C",
+      "thue": "0.08",
+      "tien_thue": 54955200
     },
     {
       "co_so_thong_nhat": "",
@@ -1013,7 +1171,9 @@
       "ten_vt_goc": "Pendant control station:\nType: XAC-A12713",
       "thanh_tien_thong_nhat": 5784000,
       "thanh_tien_trinh": 5784000,
-      "thong_so_kt": "Pendant control station:\nType: XAC-A12713"
+      "thong_so_kt": "Pendant control station:\nType: XAC-A12713",
+      "thue": "0.08",
+      "tien_thue": 462720
     },
     {
       "co_so_thong_nhat": "",
@@ -1034,7 +1194,9 @@
       "ten_vt_goc": "Collector (chổi tiếp điện từ thanh ray)",
       "thanh_tien_thong_nhat": 81540000,
       "thanh_tien_trinh": 81540000,
-      "thong_so_kt": "Collector (chổi tiếp điện từ thanh ray):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Material: Copper\n- Maker: Eunchang T&C"
+      "thong_so_kt": "Collector (chổi tiếp điện từ thanh ray):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Material: Copper\n- Maker: Eunchang T&C",
+      "thue": "0.08",
+      "tien_thue": 6523200
     },
     {
       "co_so_thong_nhat": "",
@@ -1055,7 +1217,9 @@
       "ten_vt_goc": "Bao che giữa các khớp nối đường ray cáp điện (Joint cover)",
       "thanh_tien_thong_nhat": 15510000,
       "thanh_tien_trinh": 15510000,
-      "thong_so_kt": "Joint cover (bao che giữa các khớp nối đường ray cáp điện):\n- Material: PVC\n- Maker: Eunchang T&C"
+      "thong_so_kt": "Joint cover (bao che giữa các khớp nối đường ray cáp điện):\n- Material: PVC\n- Maker: Eunchang T&C",
+      "thue": "0.08",
+      "tien_thue": 1240800
     },
     {
       "co_so_thong_nhat": "",
@@ -1076,7 +1240,9 @@
       "ten_vt_goc": "Nắp che phía cuối đường ray cáp điện (End cap)",
       "thanh_tien_thong_nhat": 2176000,
       "thanh_tien_trinh": 2176000,
-      "thong_so_kt": "Nắp che phía cuối đường ray cáp điện (End cap)- Material: PVC\n- Maker: Eunchang T&C"
+      "thong_so_kt": "Nắp che phía cuối đường ray cáp điện (End cap)- Material: PVC\n- Maker: Eunchang T&C",
+      "thue": "0.08",
+      "tien_thue": 174080
     },
     {
       "co_so_thong_nhat": "",
@@ -1097,7 +1263,9 @@
       "ten_vt_goc": "Trolley-bar (thanh ray cấp nguồn)",
       "thanh_tien_thong_nhat": 25452000,
       "thanh_tien_trinh": 25452000,
-      "thong_so_kt": "Trolley-bar (thanh ray cấp nguồn):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Length: 3m / cây\n- Material: Copper\n- Maker: EunchangT&C"
+      "thong_so_kt": "Trolley-bar (thanh ray cấp nguồn):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Length: 3m / cây\n- Material: Copper\n- Maker: EunchangT&C",
+      "thue": "0.08",
+      "tien_thue": 2036160
     },
     {
       "co_so_thong_nhat": "",
@@ -1118,7 +1286,9 @@
       "ten_vt_goc": "Joint keeper (khớp nối các thanh ray)",
       "thanh_tien_thong_nhat": 1128000,
       "thanh_tien_trinh": 1128000,
-      "thong_so_kt": "Joint keeper (khớp nối các thanh ray):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Material: Copper\n- Maker: Eunchang T&C"
+      "thong_so_kt": "Joint keeper (khớp nối các thanh ray):\n- Iđm: 60A;\n- Uđm: 400VAC;\n- Material: Copper\n- Maker: Eunchang T&C",
+      "thue": "0.08",
+      "tien_thue": 90240
     },
     {
       "co_so_thong_nhat": "",
@@ -1139,7 +1309,9 @@
       "ten_vt_goc": "Pendant control station, Type: XAC-A8713",
       "thanh_tien_thong_nhat": 6900000,
       "thanh_tien_trinh": 6900000,
-      "thong_so_kt": "Pendant control station, Type: XAC-A8713"
+      "thong_so_kt": "Pendant control station, Type: XAC-A8713",
+      "thue": "0.08",
+      "tien_thue": 552000
     },
     {
       "co_so_thong_nhat": "",
@@ -1160,7 +1332,9 @@
       "ten_vt_goc": "Pendant control station:\nType: XAC-A6913",
       "thanh_tien_thong_nhat": 13319000,
       "thanh_tien_trinh": 13319000,
-      "thong_so_kt": "Pendant control station:\nType: XAC-A6913\nControl station composition: 06 push buttons + 01 emergency stop\nProduct compatibility: \nZB2BE102 for emergency stop, XEN-G1191 for each direction\nColor: Yellow"
+      "thong_so_kt": "Pendant control station:\nType: XAC-A6913\nControl station composition: 06 push buttons + 01 emergency stop\nProduct compatibility: \nZB2BE102 for emergency stop, XEN-G1191 for each direction\nColor: Yellow",
+      "thue": "0.08",
+      "tien_thue": 1065520
     },
     {
       "co_so_thong_nhat": "",
@@ -1181,7 +1355,9 @@
       "ten_vt_goc": "Lưỡi gà móc cẩu 3 tấn",
       "thanh_tien_thong_nhat": 610000,
       "thanh_tien_trinh": 610000,
-      "thong_so_kt": "Lưỡi gà móc cẩu 3 tấn\nKích thước: rộng 25mm x dài 60mm"
+      "thong_so_kt": "Lưỡi gà móc cẩu 3 tấn\nKích thước: rộng 25mm x dài 60mm",
+      "thue": "0.1",
+      "tien_thue": 61000
     },
     {
       "co_so_thong_nhat": "",
@@ -1202,7 +1378,9 @@
       "ten_vt_goc": "Cáp tròn điều khiển cẩu trục có cáp chịu lực",
       "thanh_tien_thong_nhat": 18180000,
       "thanh_tien_trinh": 18180000,
-      "thong_so_kt": "Cáp tròn điều khiển cẩu trục có cáp chịu lực: Mã sản phẩm: 1.5SQx20C \nĐường kính: 1.5mm2 /lõi (bao gồm 20 sợi lõi). Vật liệu lõi: Đồng"
+      "thong_so_kt": "Cáp tròn điều khiển cẩu trục có cáp chịu lực: Mã sản phẩm: 1.5SQx20C \nĐường kính: 1.5mm2 /lõi (bao gồm 20 sợi lõi). Vật liệu lõi: Đồng",
+      "thue": "0.08",
+      "tien_thue": 1454400
     },
     {
       "co_so_thong_nhat": "",
@@ -1223,7 +1401,9 @@
       "ten_vt_goc": "Cáp thép 6x36 IWRC, đường kính cáp 12mm, loại 3 tấn: 80 mét",
       "thanh_tien_thong_nhat": 16160000,
       "thanh_tien_trinh": 16160000,
-      "thong_so_kt": "Cáp thép 6x36 IWRC, đường kính cáp 12mm, loại 3 tấn: 80 mét"
+      "thong_so_kt": "Cáp thép 6x36 IWRC, đường kính cáp 12mm, loại 3 tấn: 80 mét",
+      "thue": "0.1",
+      "tien_thue": 1616000
     },
     {
       "co_so_thong_nhat": "",
@@ -1244,7 +1424,9 @@
       "ten_vt_goc": "Cáp inox 304 \nKích thước: Ø 3 mm",
       "thanh_tien_thong_nhat": 2220000,
       "thanh_tien_trinh": 2220000,
-      "thong_so_kt": "Cáp inox 304 \nKích thước: Ø 3 mm"
+      "thong_so_kt": "Cáp inox 304 \nKích thước: Ø 3 mm",
+      "thue": "0.1",
+      "tien_thue": 222000
     },
     {
       "co_so_thong_nhat": "",
@@ -1265,7 +1447,9 @@
       "ten_vt_goc": "Phe cài trục ngoài cho đường kính 28mm",
       "thanh_tien_thong_nhat": 56000,
       "thanh_tien_trinh": 56000,
-      "thong_so_kt": "Phe cài trục ngoài cho đường kính 28mm.\nVật liệu: Inox 304"
+      "thong_so_kt": "Phe cài trục ngoài cho đường kính 28mm.\nVật liệu: Inox 304",
+      "thue": "0.1",
+      "tien_thue": 5600
     },
     {
       "co_so_thong_nhat": "",
@@ -1286,7 +1470,9 @@
       "ten_vt_goc": "Thanh ray C\nLoại: CH2201\nSize: 32x30x1.5mm dài 3m",
       "thanh_tien_thong_nhat": 63280000,
       "thanh_tien_trinh": 63280000,
-      "thong_so_kt": "Thanh ray C\nLoại: CH2201\nSize: 32x30x1.5mm dài 3m\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Thanh ray C\nLoại: CH2201\nSize: 32x30x1.5mm dài 3m\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 5062400
     },
     {
       "co_so_thong_nhat": "",
@@ -1307,7 +1493,9 @@
       "ten_vt_goc": "Nối ray C\nLoại: CH2230\nSize: 40x38x3mm, dài 100mm",
       "thanh_tien_thong_nhat": 13440000,
       "thanh_tien_trinh": 13440000,
-      "thong_so_kt": "Nối ray C\nLoại: CH2230\nSize: 40x38x3mm, dài 100mm\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Nối ray C\nLoại: CH2230\nSize: 40x38x3mm, dài 100mm\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 1075200
     },
     {
       "co_so_thong_nhat": "",
@@ -1328,7 +1516,9 @@
       "ten_vt_goc": "Giữ ray\nLoại: CH2240\nSize: 80x25x3mm",
       "thanh_tien_thong_nhat": 46155000,
       "thanh_tien_trinh": 46155000,
-      "thong_so_kt": "Giữ ray\nLoại: CH2240\nSize: 80x25x3mm\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Giữ ray\nLoại: CH2240\nSize: 80x25x3mm\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 3692400
     },
     {
       "co_so_thong_nhat": "",
@@ -1349,7 +1539,9 @@
       "ten_vt_goc": "Con lăn dẫn cáp\nLoại: CH2220-1 78x85mm",
       "thanh_tien_thong_nhat": 86720000,
       "thanh_tien_trinh": 86720000,
-      "thong_so_kt": "Con lăn dẫn cáp\nLoại: CH2220-1 78x85mm\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Con lăn dẫn cáp\nLoại: CH2220-1 78x85mm\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 6937600
     },
     {
       "co_so_thong_nhat": "",
@@ -1370,7 +1562,9 @@
       "ten_vt_goc": "Con lăn dẫn đầu\nLoại: CH2250 78x80 mm",
       "thanh_tien_thong_nhat": 1960000,
       "thanh_tien_trinh": 1960000,
-      "thong_so_kt": "Con lăn dẫn đầu\nLoại: CH2250 78x80 mm\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Con lăn dẫn đầu\nLoại: CH2250 78x80 mm\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 156800
     },
     {
       "co_so_thong_nhat": "",
@@ -1391,7 +1585,9 @@
       "ten_vt_goc": "Kẹp cố định đầu ray\nLoại: CH2260\nSize: 80x51x3mm",
       "thanh_tien_thong_nhat": 4508000,
       "thanh_tien_trinh": 4508000,
-      "thong_so_kt": "Kẹp cố định đầu ray\nLoại: CH2260\nSize: 80x51x3mm\nVật liệu: Inox 304\nHãng: ITS Đài loan"
+      "thong_so_kt": "Kẹp cố định đầu ray\nLoại: CH2260\nSize: 80x51x3mm\nVật liệu: Inox 304\nHãng: ITS Đài loan",
+      "thue": "0.08",
+      "tien_thue": 360640
     },
     {
       "co_so_thong_nhat": "",
@@ -1412,7 +1608,9 @@
       "ten_vt_goc": "Ống nối cáp điện:\nModel: SL16",
       "thanh_tien_thong_nhat": 192000,
       "thanh_tien_trinh": 192000,
-      "thong_so_kt": "Ống nối cáp điện:\nModel: SL16\nChất liệu Đồng thau\nTiết diện cáp sử dụng 16 mm2"
+      "thong_so_kt": "Ống nối cáp điện:\nModel: SL16\nChất liệu Đồng thau\nTiết diện cáp sử dụng 16 mm2",
+      "thue": "0.1",
+      "tien_thue": 19200
     },
     {
       "co_so_thong_nhat": "",
@@ -1433,7 +1631,9 @@
       "ten_vt_goc": "Cáp điện dẹt cho cầu trục\nQuy cách: 16mm2 x 4C\nRuột mềm",
       "thanh_tien_thong_nhat": 35550000,
       "thanh_tien_trinh": 35550000,
-      "thong_so_kt": "Cáp điện dẹt cho cầu trục\nQuy cách: 16mm2 x 4C\nRuột mềm\nĐiện áp: 450/750V\nCách điện: PVC, dẻo\nNSX: Imatek"
+      "thong_so_kt": "Cáp điện dẹt cho cầu trục\nQuy cách: 16mm2 x 4C\nRuột mềm\nĐiện áp: 450/750V\nCách điện: PVC, dẻo\nNSX: Imatek",
+      "thue": "0.08",
+      "tien_thue": 2844000
     },
     {
       "co_so_thong_nhat": "",
@@ -1454,7 +1654,9 @@
       "ten_vt_goc": "Khóa cáp \nDùng cho cáp: 3mm",
       "thanh_tien_thong_nhat": 1100000,
       "thanh_tien_trinh": 1100000,
-      "thong_so_kt": "Khóa cáp \nDùng cho cáp: 3mm"
+      "thong_so_kt": "Khóa cáp \nDùng cho cáp: 3mm",
+      "thue": "0.1",
+      "tien_thue": 110000
     },
     {
       "co_so_thong_nhat": "",
@@ -1475,7 +1677,9 @@
       "ten_vt_goc": "Pendant control station (Tay bấm điều khiển tời điện): \n- Type: XAC-A6713",
       "thanh_tien_thong_nhat": 7406000,
       "thanh_tien_trinh": 7406000,
-      "thong_so_kt": "Pendant control station (Tay bấm điều khiển tời điện): \n- Type: XAC-A6713\nControl station composition: 06, push buttons + 01 emergency stop"
+      "thong_so_kt": "Pendant control station (Tay bấm điều khiển tời điện): \n- Type: XAC-A6713\nControl station composition: 06, push buttons + 01 emergency stop",
+      "thue": "0.08",
+      "tien_thue": 592480
     },
     {
       "co_so_thong_nhat": "",
@@ -1496,7 +1700,9 @@
       "ten_vt_goc": "Lưỡi gà móc cẩu 7 tấn",
       "thanh_tien_thong_nhat": 656000,
       "thanh_tien_trinh": 656000,
-      "thong_so_kt": "Lưỡi gà móc cẩu 7 tấn:\n + Kích thước: 60 x 175x 3mm\n + Vật liệu: thép"
+      "thong_so_kt": "Lưỡi gà móc cẩu 7 tấn:\n + Kích thước: 60 x 175x 3mm\n + Vật liệu: thép",
+      "thue": "0.1",
+      "tien_thue": 65600
     },
     {
       "co_so_thong_nhat": "",
@@ -1517,7 +1723,9 @@
       "ten_vt_goc": "Sơn dầu Jotun chống sét Green 437",
       "thanh_tien_thong_nhat": 12500000,
       "thanh_tien_trinh": 12500000,
-      "thong_so_kt": "Sơn dầu Jotun chống sét Green 437"
+      "thong_so_kt": "Sơn dầu Jotun chống sét Green 437",
+      "thue": "0.08",
+      "tien_thue": 1000000
     },
     {
       "co_so_thong_nhat": "",
@@ -1530,15 +1738,17 @@
       "hsx_xx": "ABB/ Lithuania",
       "id": 73,
       "ma_vt": "3.82.63.103.LTU.00.000",
-      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): M",
+      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): J hoặc mới hơn",
       "phan_bien_khvt": "",
       "pycvt": "2936/KTAT",
       "so_luong": 30,
-      "ten_vt": "Đế gắn module IO HBS 01 - FPN - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): M",
+      "ten_vt": "Đế gắn module IO HBS 01 - FPN - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): J hoặc mới hơn",
       "ten_vt_goc": "Đế gắn module IO HBS 01 - FPN",
       "thanh_tien_thong_nhat": 633600000,
       "thanh_tien_trinh": 633600000,
-      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): M"
+      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPN\n- PR (Product Revision): J hoặc mới hơn",
+      "thue": "0.08",
+      "tien_thue": 50688000
     },
     {
       "co_so_thong_nhat": "",
@@ -1551,36 +1761,40 @@
       "hsx_xx": "ABB/ Lithuania",
       "id": 74,
       "ma_vt": "3.94.00.808.MLT.00.000",
-      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): M",
+      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): J hoặc mới hơn",
       "phan_bien_khvt": "",
       "pycvt": "2936/KTAT",
       "so_luong": 26,
-      "ten_vt": "Đế gắn module IO HBS01-FPH - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): M",
+      "ten_vt": "Đế gắn module IO HBS01-FPH - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): J hoặc mới hơn",
       "ten_vt_goc": "Đế gắn module IO HBS01-FPH",
       "thanh_tien_thong_nhat": 549120000,
       "thanh_tien_trinh": 549120000,
-      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): M"
+      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - FPH\n- PR (Product Revision): J hoặc mới hơn",
+      "thue": "0.08",
+      "tien_thue": 43929600
     },
     {
       "co_so_thong_nhat": "",
       "danh_gia_ttd": "",
       "don_gia_thong_nhat": 21120000,
-      "don_gia_trinh": 18350000,
+      "don_gia_trinh": 21120000,
       "dvt": "Cái",
       "ghi_chu": "3.82.63.102.LTU.00.000 | Dự phòng thay thế cho các đế module IO hệ thống DCS ABB tổ máy S1, S2, S3 và COM suy giảm điện dung | Vật tư không có trong KHSXKD 2026",
       "gia_tri_giam": 0,
       "hsx_xx": "ABB/ Lithuania",
       "id": 75,
       "ma_vt": "3.82.63.102.LTU.00.000",
-      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): M",
+      "part_no": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): J hoặc mới hơn",
       "phan_bien_khvt": "",
       "pycvt": "2936/KTAT",
       "so_luong": 10,
-      "ten_vt": "Đế gắn module IO HBS01-EPD - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): M",
+      "ten_vt": "Đế gắn module IO HBS01-EPD - Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): J hoặc mới hơn",
       "ten_vt_goc": "Đế gắn module IO HBS01-EPD",
       "thanh_tien_thong_nhat": 211200000,
-      "thanh_tien_trinh": 183500000,
-      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): M"
+      "thanh_tien_trinh": 211200000,
+      "thong_so_kt": "Đế gắn module IO:\n- Hãng: ABB\n- Mã: HBS 01 - EPD\n- PR (Product Revision): J hoặc mới hơn",
+      "thue": "0.08",
+      "tien_thue": 16896000
     },
     {
       "co_so_thong_nhat": "",
@@ -1601,7 +1815,9 @@
       "ten_vt_goc": "Bạc đạn RN206E",
       "thanh_tien_thong_nhat": 1261000,
       "thanh_tien_trinh": 1261000,
-      "thong_so_kt": "Bạc đạn RN206E"
+      "thong_so_kt": "Bạc đạn RN206E",
+      "thue": "0.08",
+      "tien_thue": 100880
     },
     {
       "co_so_thong_nhat": "",
@@ -1622,7 +1838,9 @@
       "ten_vt_goc": "Bạc đạn 6302",
       "thanh_tien_thong_nhat": 316000,
       "thanh_tien_trinh": 316000,
-      "thong_so_kt": "Bạc đạn 6302"
+      "thong_so_kt": "Bạc đạn 6302",
+      "thue": "0.08",
+      "tien_thue": 25280
     },
     {
       "co_so_thong_nhat": "",
@@ -1643,7 +1861,9 @@
       "ten_vt_goc": "Bạc đạn 6208",
       "thanh_tien_thong_nhat": 1776000,
       "thanh_tien_trinh": 1776000,
-      "thong_so_kt": "Bạc đạn 6208"
+      "thong_so_kt": "Bạc đạn 6208",
+      "thue": "0.08",
+      "tien_thue": 142080
     },
     {
       "co_so_thong_nhat": "",
@@ -1664,7 +1884,9 @@
       "ten_vt_goc": "Đĩa dao động - Cycloidal disc (1 bộ gồm 2 cái)\n+ Cycloidal Gear Reducer Type: \nXLD3-59-1.1KW",
       "thanh_tien_thong_nhat": 58240000,
       "thanh_tien_trinh": 58240000,
-      "thong_so_kt": "Đĩa dao động - Cycloidal disc (1 bộ gồm 2 cái)\n+ Cycloidal Gear Reducer Type: \nXLD3-59-1.1KW\n+ Input Power: 1.1 KW\n+ Transmission Ratio: 59\n+ Nhà sản xuất: JIANGSU TAILONG DECELERATOR MACHINERY CO.,LTD"
+      "thong_so_kt": "Đĩa dao động - Cycloidal disc (1 bộ gồm 2 cái)\n+ Cycloidal Gear Reducer Type: \nXLD3-59-1.1KW\n+ Input Power: 1.1 KW\n+ Transmission Ratio: 59\n+ Nhà sản xuất: JIANGSU TAILONG DECELERATOR MACHINERY CO.,LTD",
+      "thue": "0.08",
+      "tien_thue": 4659200
     },
     {
       "co_so_thong_nhat": "",
@@ -1685,7 +1907,9 @@
       "ten_vt_goc": "Túi lọc bụi tay áo, KT: D160x3000(mm), chất liệu: vải Polyester",
       "thanh_tien_thong_nhat": 336000000,
       "thanh_tien_trinh": 336000000,
-      "thong_so_kt": "Túi lọc bụi (thu bụi cho tháp 09 loại JJWM-300A), \n- KT: ɸ160x3000(mm);\n- Chất liệu: Vải polyester."
+      "thong_so_kt": "Túi lọc bụi (thu bụi cho tháp 09 loại JJWM-300A), \n- KT: ɸ160x3000(mm);\n- Chất liệu: Vải polyester.",
+      "thue": "0.08",
+      "tien_thue": 26880000
     },
     {
       "co_so_thong_nhat": "",
@@ -1706,29 +1930,32 @@
       "ten_vt_goc": "Armor ring Vành hướng gió máy nghiền than",
       "thanh_tien_thong_nhat": 1476992000,
       "thanh_tien_trinh": 1476992000,
-      "thong_so_kt": "Armor ring \nVành hướng gió\nBao gồm 16 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m"
+      "thong_so_kt": "Armor ring \nVành hướng gió\nBao gồm 16 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m",
+      "thue": "0.1",
+      "tien_thue": 147699200
     },
     {
       "co_so_thong_nhat": "",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 1.300.000 đ/Bộ (CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Lịch sử nhập kho ERP Vĩnh Tân 4: 1.845.000.000 đ/Bộ (HĐ: Nhập kho vật tư (HĐ: 32/2025) theo hóa đơn số 00000181 ngày 26.11.2025 ngày 2025-12-04. SL: 3 Bộ); Các đợt nhập khác: 1.293.213.000 đ\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [Lining Plate (Compound Armour], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Lining Plate (Compound Armour Plate) Tấm lót thân máy nghiền than] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 1.300.000 đ/Bộ.",
-      "don_gia_thong_nhat": 1300000,
+      "danh_gia_ttd": "",
+      "don_gia_thong_nhat": 2618304000,
       "don_gia_trinh": 2618304000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Thay thế mới tấm lining ở vách thùng nghiền, phía sau con lăn, cửa manhole các máy nghiền bị mài mòn nặng | Vật tư đã chuẩn hóa ERP, không tồn kho. Vật tư chưa đề xuất mua sắm trong KHSXKD 2026.",
-      "gia_tri_giam": 5234008000,
+      "gia_tri_giam": 0,
       "hsx_xx": "ML/ Ba Lan",
       "id": 82,
       "ma_vt": "Chưa có mã vật tư",
       "part_no": "Lining Plate (Compound Armour Plate)\nTấm lót thân máy nghiền\nBao gồm 106 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Độ dày: 10mm ( 6+4 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m",
       "phan_bien_khvt": "",
       "pycvt": "2975/KTAT",
-      "search_keyword": "Lining Plate (Compound Armour",
       "so_luong": 2,
       "ten_vt": "Lining Plate (Compound Armour Plate) Tấm lót thân máy nghiền than - Lining Plate (Compound Armour Plate)\nTấm lót thân máy nghiền\nBao gồm 106 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Độ dày: 10mm ( 6+4 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m",
       "ten_vt_goc": "Lining Plate (Compound Armour Plate) Tấm lót thân máy nghiền than",
-      "thanh_tien_thong_nhat": 2600000,
+      "thanh_tien_thong_nhat": 5236608000,
       "thanh_tien_trinh": 5236608000,
-      "thong_so_kt": "Lining Plate (Compound Armour Plate)\nTấm lót thân máy nghiền\nBao gồm 106 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Độ dày: 10mm ( 6+4 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m"
+      "thong_so_kt": "Lining Plate (Compound Armour Plate)\nTấm lót thân máy nghiền\nBao gồm 106 chi tiết (tấm)\nChế tạo bằng thép Kalmetall W100/Kalenborn\n- Vật liệu: Thép 2 thành phần Kalmetall W100 - Kalenborn\n- Độ dày: 16mm ( 8+8 )\n- Độ dày: 10mm ( 6+4 )\n- Thép nền S235JRG2\n- Lớp phủ hợp kim Chromium Carbides: %C~5; %Cr~30; %Fe + others Balance \n- Độ cứng ~ 700HV trên toàn bộ lớp phủ\n- Chống mài mòn theo ASTM G65: 0,0060 mm3/m",
+      "thue": "0.1",
+      "tien_thue": 523660800
     },
     {
       "co_so_thong_nhat": "",
@@ -1749,7 +1976,9 @@
       "ten_vt_goc": "Keo phủ chống mài mòn Kalpoxy-150",
       "thanh_tien_thong_nhat": 326400000,
       "thanh_tien_trinh": 326400000,
-      "thong_so_kt": "Wear Resistant Mortar (Keo chống mài mòn)\nKeo phủ chống mài mòn Kalpoxy-150/Kalenborn \n(01 cặp bao gồm hardener + Resin)"
+      "thong_so_kt": "Wear Resistant Mortar (Keo chống mài mòn)\nKeo phủ chống mài mòn Kalpoxy-150/Kalenborn \n(01 cặp bao gồm hardener + Resin)",
+      "thue": "0.1",
+      "tien_thue": 32640000
     },
     {
       "co_so_thong_nhat": "",
@@ -1770,7 +1999,9 @@
       "ten_vt_goc": "Nút van/main plug pos 04-01; sử dụng cho van tái tuần hoàn BFPT A/B; serial No: 19-245-02-01/02,19-245-01-01/02/03/04",
       "thanh_tien_thong_nhat": 3969000000,
       "thanh_tien_trinh": 3969000000,
-      "thong_so_kt": "Nút van/main plug pos 04-01; material: 440C SS+HT; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương"
+      "thong_so_kt": "Nút van/main plug pos 04-01; material: 440C SS+HT; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương",
+      "thue": "0.08",
+      "tien_thue": 317520000
     },
     {
       "co_so_thong_nhat": "",
@@ -1791,7 +2022,9 @@
       "ten_vt_goc": "Lò xo đĩa van/Disc Spring pos 04-02; sử dụng cho van tái tuần hoàn BFPT A/B; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04",
       "thanh_tien_thong_nhat": 1587600000,
       "thanh_tien_trinh": 1587600000,
-      "thong_so_kt": "Lò xo đĩa van /Disc Spring pos 04-02; material: Inconel 718;  sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương"
+      "thong_so_kt": "Lò xo đĩa van /Disc Spring pos 04-02; material: Inconel 718;  sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương",
+      "thue": "0.08",
+      "tien_thue": 127008000
     },
     {
       "co_so_thong_nhat": "",
@@ -1812,7 +2045,9 @@
       "ten_vt_goc": "Nắp lò xo đĩa van/ Spring cap pos 04-03; sử dụng cho van tái tuần hoàn BFPT A/B; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04",
       "thanh_tien_thong_nhat": 1323000000,
       "thanh_tien_trinh": 1323000000,
-      "thong_so_kt": "Nắp lò xo đĩa van / Spring cap pos 04-03; material: 410 SS; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương"
+      "thong_so_kt": "Nắp lò xo đĩa van / Spring cap pos 04-03; material: 410 SS; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương",
+      "thue": "0.08",
+      "tien_thue": 105840000
     },
     {
       "co_so_thong_nhat": "",
@@ -1833,7 +2068,9 @@
       "ten_vt_goc": "Lồng đế van/seat basket pos 03; sử dụng cho van tái tuần hoàn BFPT A/B; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04",
       "thanh_tien_thong_nhat": 3307500000,
       "thanh_tien_trinh": 3307500000,
-      "thong_so_kt": "Lồng đế van/ seat basket pos 03; material: 316SS; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương"
+      "thong_so_kt": "Lồng đế van/ seat basket pos 03; material: 316SS; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương",
+      "thue": "0.08",
+      "tien_thue": 264600000
     },
     {
       "co_so_thong_nhat": "",
@@ -1854,7 +2091,9 @@
       "ten_vt_goc": "Trục ty van/ Stem pos 08; sử dụng cho van tái tuần hoàn BFPT A/B; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04",
       "thanh_tien_thong_nhat": 2110650000,
       "thanh_tien_trinh": 2110650000,
-      "thong_so_kt": "Trục ty van / Stem pos 08; material: Inconel 718; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương"
+      "thong_so_kt": "Trục ty van / Stem pos 08; material: Inconel 718; sử dụng cho van tái tuần hoàn BFPT A/B; model valve V200SER; class 2500#; serial No: 19-245-02-01/02, 19-245-01-01/02/03/04; Dw no: VT4/VT4E-YR05-P0/P3ZEN-150005; NSX: Unicon/tương đương",
+      "thue": "0.08",
+      "tien_thue": 168852000
     },
     {
       "co_so_thong_nhat": "",
@@ -1875,7 +2114,9 @@
       "ten_vt_goc": "Công tắc báo tốc độ băng tải SDCC Speed switch Model: SSM-613",
       "thanh_tien_thong_nhat": 90000000,
       "thanh_tien_trinh": 90000000,
-      "thong_so_kt": "Công tắc báo tốc độ băng tải SDCC Speed switch Model: SSM-613\nNSX: Shinsung"
+      "thong_so_kt": "Công tắc báo tốc độ băng tải SDCC Speed switch Model: SSM-613\nNSX: Shinsung",
+      "thue": "0.08",
+      "tien_thue": 7200000
     },
     {
       "co_so_thong_nhat": "",
@@ -1896,7 +2137,9 @@
       "ten_vt_goc": "Cảm biến áp suất (Pressure transmitter) Model: 2051CG2A02A1AS5M5D4T1Q4",
       "thanh_tien_thong_nhat": 195000000,
       "thanh_tien_trinh": 195000000,
-      "thong_so_kt": "Cảm biến áp suất (Pressure transmitter) Model: 2051CG2A02A1AS5M5D4T1Q4 \nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 150 mbarg \nCó bao gồm Integral Manifold Model: 0305RC22B11B4L4\nNSX: Rosemount"
+      "thong_so_kt": "Cảm biến áp suất (Pressure transmitter) Model: 2051CG2A02A1AS5M5D4T1Q4 \nOutput Hart: 4-20mA \nSupply: 10.5 – 42.4 VDC \nCAL: 0 to 150 mbarg \nCó bao gồm Integral Manifold Model: 0305RC22B11B4L4\nNSX: Rosemount",
+      "thue": "0.08",
+      "tien_thue": 15600000
     },
     {
       "co_so_thong_nhat": "",
@@ -1917,7 +2160,9 @@
       "ten_vt_goc": "Conveyor belts ST800 B1800X3.5 (5+5) / Băng tải cho hệ thống nhiên liệu ST800 B1800X3.5 (5+5)",
       "thanh_tien_thong_nhat": 2717000000,
       "thanh_tien_trinh": 2717000000,
-      "thong_so_kt": "Conveyor belts ST800 B1800X3.5 (5+5) / Băng tải cho hệ thống nhiên liệu ST800 B1800X3.5 (5+5)"
+      "thong_so_kt": "Conveyor belts ST800 B1800X3.5 (5+5) / Băng tải cho hệ thống nhiên liệu ST800 B1800X3.5 (5+5)",
+      "thue": "0.08",
+      "tien_thue": 217360000
     },
     {
       "co_so_thong_nhat": "",
@@ -1938,7 +2183,9 @@
       "ten_vt_goc": "Cao su non áp cáp, Mã: 5380611; KT: 500x16400x1mm (10kg/cuộn)",
       "thanh_tien_thong_nhat": 32800000,
       "thanh_tien_trinh": 32800000,
-      "thong_so_kt": "Cao su non áp cáp, Mã: 5380611; KT: 500x16400x1mm (10kg/cuộn)"
+      "thong_so_kt": "Cao su non áp cáp, Mã: 5380611; KT: 500x16400x1mm (10kg/cuộn)",
+      "thue": "0.08",
+      "tien_thue": 2624000
     },
     {
       "co_so_thong_nhat": "",
@@ -1959,7 +2206,9 @@
       "ten_vt_goc": "Cao su non chèn cáp, Mã: 5440063; KT: 2.5x8x6800mm, hộp 2kg/12 cuộn",
       "thanh_tien_thong_nhat": 48000000,
       "thanh_tien_trinh": 48000000,
-      "thong_so_kt": "Cao su non chèn cáp, Mã: 5440063; KT: 2.5x8x6800mm, hộp 2kg/12 cuộn"
+      "thong_so_kt": "Cao su non chèn cáp, Mã: 5440063; KT: 2.5x8x6800mm, hộp 2kg/12 cuộn",
+      "thue": "0.08",
+      "tien_thue": 3840000
     },
     {
       "co_so_thong_nhat": "",
@@ -1980,7 +2229,9 @@
       "ten_vt_goc": "Cao su non, KT: B500x6x2800mm",
       "thanh_tien_thong_nhat": 124000000,
       "thanh_tien_trinh": 124000000,
-      "thong_so_kt": "Cao su non, KT: B500x6x2800mm"
+      "thong_so_kt": "Cao su non, KT: B500x6x2800mm",
+      "thue": "0.08",
+      "tien_thue": 9920000
     },
     {
       "co_so_thong_nhat": "",
@@ -2001,13 +2252,15 @@
       "ten_vt_goc": "Giấy chống dính, B1200 x 5m",
       "thanh_tien_thong_nhat": 9600000,
       "thanh_tien_trinh": 9600000,
-      "thong_so_kt": "Giấy chống dính, B1200 x 5m"
+      "thong_so_kt": "Giấy chống dính, B1200 x 5m",
+      "thue": "0.08",
+      "tien_thue": 768000
     },
     {
       "co_so_thong_nhat": "",
       "danh_gia_ttd": "",
       "don_gia_thong_nhat": 368000000,
-      "don_gia_trinh": 338000000,
+      "don_gia_trinh": 368000000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Thay thế cụm máy nén khí của hệ thống chữa cháy Tuabine S2 và S3 bị hư hỏng (bao gồm cả động cơ) theo BBKT 1722/2025, 1333/2026-VH-VT4 | Vật tư mua mới, không có trong KHSXKD năm 2026. Thông số kỹ thuật thay đổi so với BBKT do hãng ngừng sản xuất model cũ. Thông số kỹ thuật mới do hãng đề xuất theo Văn bản 3281/KHVT.",
       "gia_tri_giam": 0,
@@ -2021,8 +2274,10 @@
       "ten_vt": "Cụm máy nén khí cho hệ thống chữa cháy Tuabine (Bao gồm cả động cơ)- Oil Less Air Compressor For Sprinkler System - Cụm máy nén khí cho hệ thống chữa cháy (Bao gồm cả động cơ)- Oil Less Air Compressor For Sprinkler System\nModel: H1\nPart Number: 25835\nCông suất: 1/3 HP\nĐiện áp: 230V, 1 pha, 50Hz\nDòng điện định mức (SFA): 2.6 A\nLoại máy: Máy nén khí không dầu, làm mát bằng không khí, một cấp nén\nLưu lượng khí nén: 2.5 SCFM (15-75 psi ở 50Hz)\nÁp suất làm việc: 15–75 PSI (1.0–5.2 bar)\nNhà SX: Viking",
       "ten_vt_goc": "Cụm máy nén khí cho hệ thống chữa cháy Tuabine (Bao gồm cả động cơ)- Oil Less Air Compressor For Sprinkler System",
       "thanh_tien_thong_nhat": 736000000,
-      "thanh_tien_trinh": 676000000,
-      "thong_so_kt": "Cụm máy nén khí cho hệ thống chữa cháy (Bao gồm cả động cơ)- Oil Less Air Compressor For Sprinkler System\nModel: H1\nPart Number: 25835\nCông suất: 1/3 HP\nĐiện áp: 230V, 1 pha, 50Hz\nDòng điện định mức (SFA): 2.6 A\nLoại máy: Máy nén khí không dầu, làm mát bằng không khí, một cấp nén\nLưu lượng khí nén: 2.5 SCFM (15-75 psi ở 50Hz)\nÁp suất làm việc: 15–75 PSI (1.0–5.2 bar)\nNhà SX: Viking"
+      "thanh_tien_trinh": 736000000,
+      "thong_so_kt": "Cụm máy nén khí cho hệ thống chữa cháy (Bao gồm cả động cơ)- Oil Less Air Compressor For Sprinkler System\nModel: H1\nPart Number: 25835\nCông suất: 1/3 HP\nĐiện áp: 230V, 1 pha, 50Hz\nDòng điện định mức (SFA): 2.6 A\nLoại máy: Máy nén khí không dầu, làm mát bằng không khí, một cấp nén\nLưu lượng khí nén: 2.5 SCFM (15-75 psi ở 50Hz)\nÁp suất làm việc: 15–75 PSI (1.0–5.2 bar)\nNhà SX: Viking",
+      "thue": "0.08",
+      "tien_thue": 58880000
     },
     {
       "co_so_thong_nhat": "",
@@ -2043,323 +2298,33 @@
       "ten_vt_goc": "Bản quyền Windows 11 Pro",
       "thanh_tien_thong_nhat": 651900000,
       "thanh_tien_trinh": 651900000,
-      "thong_so_kt": "Windows GGWA - Windows 11 Pro - Legalization Get Genuine"
+      "thong_so_kt": "Windows GGWA - Windows 11 Pro - Legalization Get Genuine",
+      "thue": "0",
+      "tien_thue": 0
     },
     {
-      "co_so_thong_nhat": "Cơ sở 1: Đàm phán giảm giá / Báo giá chào",
-      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 750.000.000 đ/Cái (08-27-26. BV-VT 4. . 1.620.000.000 vnd. 3 trang. R1.)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4.\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [TP400 PP], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 750.000.000 đ/Bộ.",
-      "don_gia_thong_nhat": 750000000,
+      "co_so_thong_nhat": "",
+      "danh_gia_ttd": "TỔNG HỢP 5 CƠ SỞ CHỨNG CỨ (Đã rà soát nhanh):\n• Cơ sở 1 (Báo Giá Gốc): Báo giá chào thấp nhất: 750.000.000 đ/Cái (08-27-26. BV-VT 4. . 1.620.000.000 vnd. 3 trang. R1.)\n• Cơ sở 2 (ERP Vĩnh Tân 4): Vật tư chưa có lịch sử mua sắm/nhập kho trong CSDL Kế toán ERP của NMNĐ Vĩnh Tân 4.\n• Cơ sở 3 (EVN IMIS): Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [TP400 PP], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS.\n• Cơ sở 4 (Mua Sắm Công e-GP): Đã tra cứu từ khóa [Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự.\n• Cơ sở 5 (TMĐT & Tham Khảo Web): Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)\nKẾT LUẬN: Đơn giá tham chiếu mốc thấp nhất đề xuất là 750.000.000 đ/Bộ.",
+      "don_gia_thong_nhat": 750000000.0,
       "don_gia_trinh": 770000000,
       "dvt": "Bộ",
       "ghi_chu": "Chưa có mã vật tư | Khắc phục hư hỏng  theo BBKT491/2025, 859/2024, 819/2026/VH-VT4  | Thay thế cho vật tư có mã kế hoạch TXBS.26.1866 trong TTr 27/KTAT",
-      "gia_tri_giam": 40000000,
+      "gia_tri_giam": 40000000.0,
       "hsx_xx": "Grundfos/ Eu",
       "id": 98,
       "ma_vt": "Chưa có mã vật tư",
-      "part_no": "Bơm (SP-Circulation pump):\nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1",
+      "part_no": "Bơm (SP-Circulation pump): \nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1",
       "phan_bien_khvt": "",
       "pycvt": "3071/KTAT",
       "so_luong": 2,
-      "ten_vt": "Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW - Bơm (SP-Circulation pump):\nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1",
+      "ten_vt": "Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW - Bơm (SP-Circulation pump): \nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1",
       "ten_vt_goc": "Động cơ và bơm NAOH, Type: TP400 PP, FCA 112 MC-2/HE, Công suất: 5,5kW",
-      "thanh_tien_thong_nhat": 1500000000,
+      "thanh_tien_thong_nhat": 1500000000.0,
       "thanh_tien_trinh": 1540000000,
-      "thong_so_kt": "Bơm (SP-Circulation pump):\nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 28700000,
-      "don_gia_trinh": 28700000,
-      "dvt": "Cái",
-      "ghi_chu": "2.05.01.029.VIE.00.000 | Vật tư dùng để gia công thanh gia cường tầng cánh IP 18 theo Văn bản khuyến cáo số LTR-GMI-XVV4-0027 Rev.1 của Toshiba | Vật tư đặt tên theo nguyên tắc chuẩn hóa, không tồn khoVật tư không có trong KHSXKD năm 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Baosteel/ Trung Quốc",
-      "id": 99,
-      "ma_vt": "2.05.01.029.VIE.00.000",
-      "part_no": "Phôi thép rèn; kích thước 40x65x150mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 22,
-      "ten_vt": "Phôi thép rèn, kích thước 40x65x150mm, vật liệu: ASTM A182 F91 - Phôi thép rèn; kích thước 40x65x150mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91",
-      "ten_vt_goc": "Phôi thép rèn, kích thước 40x65x150mm, vật liệu: ASTM A182 F91",
-      "thanh_tien_thong_nhat": 631400000,
-      "thanh_tien_trinh": 631400000,
-      "thong_so_kt": "Phôi thép rèn; kích thước 40x65x150mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 28700000,
-      "don_gia_trinh": 28700000,
-      "dvt": "Cái",
-      "ghi_chu": "2.05.01.030.VIE.00.000 | Vật tư dùng để gia công thanh gia cường tầng cánh IP 20 theo Văn bản khuyến cáo số LTR-GMI-XVV4-0027 Rev.1 của Toshiba | Vật tư đặt tên theo nguyên tắc chuẩn hóa, không tồn khoVật tư không có trong KHSXKD năm 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Baosteel/ Trung Quốc",
-      "id": 100,
-      "ma_vt": "2.05.01.030.VIE.00.000",
-      "part_no": "Phôi thép rèn; kích thước 35x45x175mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 22,
-      "ten_vt": "Phôi thép rèn, kích thước 35x45x175mm, vật liệu: ASTM A182 F91 - Phôi thép rèn; kích thước 35x45x175mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91",
-      "ten_vt_goc": "Phôi thép rèn, kích thước 35x45x175mm, vật liệu: ASTM A182 F91",
-      "thanh_tien_thong_nhat": 631400000,
-      "thanh_tien_trinh": 631400000,
-      "thong_so_kt": "Phôi thép rèn; kích thước 35x45x175mm (dày x rộng x dài); Vật liệu: ASTM A182 F91; Phôi phải có đầy đủ hồ sơ/chứng chỉ chất lượng vật liệu, đảm bảo truy xuất được nguồn gốc vật liệu, đồng thời chứng minh đầy đủ các chỉ tiêu thành phần hóa học, cơ tính và các yêu cầu chất lượng liên quan đáp ứng yêu cầu của ASTM A182 F91"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 725000,
-      "don_gia_trinh": 725000,
-      "dvt": "Kg",
-      "ghi_chu": "4.31.28.586.JPN.99.000 | Vật tư dùng để hàn thanh gia cường tầng cánh IP 18/20 theo Văn bản khuyến cáo số LTR-GMI-XVV4-0027 Rev.1 của Toshiba | Vật tư đặt tên theo nguyên tắc chuẩn hóa, không tồn khoVật tư không có trong KHSXKD năm 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Kiswel/ Hàn Quốc",
-      "id": 101,
-      "ma_vt": "4.31.28.586.JPN.99.000",
-      "part_no": "Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm; NSX: Kobelco/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 80,
-      "ten_vt": "Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm - Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm; NSX: Kobelco/tương đương",
-      "ten_vt_goc": "Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm",
-      "thanh_tien_thong_nhat": 58000000,
-      "thanh_tien_trinh": 58000000,
-      "thong_so_kt": "Que hàn TIG AWS A5.28 ER90S-B3Mn, loại 2.4mm; NSX: Kobelco/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "Cơ sở 1: Báo giá nộp kèm",
-      "danh_gia_ttd": "TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: Phôi inconel 718, đường kính D50mm (Mã ERP: Chưa có mã vật tư).\n• Đơn giá trình thẩm định: 90.000.000 VNĐ (Số lượng: 1 Mét).\n• Đánh giá Chứng cứ Thẩm định: Đạt 100/100 điểm (Hạng A - 5/5 cơ sở chứng cứ đã nạp).\n• Đánh giá Mức độ Hợp lý Đơn giá: 100/100 điểm (🟢 Rất Hợp Lý (Đơn giá trình <= Giá thấp nhất công khai)).\n\nCƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n- Cơ sở 1 (Báo Giá Gốc): Đã đối chiếu các báo giá thương mại cạnh tranh trong Hồ sơ trình; ghi nhận đơn giá chào thấp nhất là 90.000.000 VNĐ/Mét từ CÔNG TY TNHH THƯƠNG MẠI KỸ THUẬT NĂNG LƯỢNG AN HIẾU (Trang 2 Báo giá); đơn giá chào đối chiếu khớp 100% với đơn giá dự toán trình.\n- Cơ sở 2 (ERP Vĩnh Tân 4): Qua rà soát CSDL lịch sử mua sắm ERP của NMNĐ Vĩnh Tân 4 theo từ khóa [Phôi inconel 718], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL ERP làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 3 (EVN IMIS): Tra cứu theo từ khóa [Phôi inconel 718, đường kính D50mm] trên CSDL Hợp đồng mua sắm toàn ngành EVN IMIS (2023-2026); kết quả đã đối soát toàn CSDL EVN: 0 bản ghi phù hợp (không phát sinh mua sắm tương đương).\n- Cơ sở 4 (Mua Sắm Công e-GP): Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [Phôi inconel 718], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.\n- Cơ sở 5 (Thương Mại Điện Tử): Đã tra cứu từ khóa [Phôi inconel 718, đường kính D50mm] trên các cổng Internet & Sàn TMĐT (eBay, Misumi, Google Web); kết quả ghi nhận vật tư thuộc danh mục thiết bị đặc thù công nghiệp, các trang web/nhà cung cấp không niêm yết đơn giá thương mại công khai (yêu cầu gửi thư yêu cầu báo giá riêng - Contact for Quote).\n\nKẾT LUẬN THẨM ĐỊNH: Đơn giá trình phù hợp với mặt bằng giá thị trường. Đề xuất phê duyệt giữ nguyên đơn giá trình là 90.000.000 VNĐ/Mét.",
-      "don_gia_thong_nhat": 90000000.0,
-      "don_gia_trinh": 90000000,
-      "dvt": "Mét",
-      "ghi_chu": "Chưa mua sắm | Mua sắm để gia công bulong tháo nửa dưới hộp chèn hơi số 2 theo Văn bản khuyến cáo số 3360/EPS-PXSCC-VT | Vật tư đặt tên theo nguyên tắc chuẩn hóa, không tồn khoVật tư không có trong KHSXKD năm 2026",
-      "gia_tri_giam": 0.0,
-      "hsx_xx": "Baosteel/ Trung Quốc",
-      "id": 102,
-      "ma_vt": "Chưa có mã vật tư",
-      "part_no": "Phôi inconel 718, đường kính D50mm",
-      "phan_bien_khvt": "",
-      "pycvt": "3071/KTAT",
-      "so_luong": 1,
-      "ten_vt": "Phôi inconel 718, đường kính D50mm - Phôi inconel 718, đường kính D50mm",
-      "ten_vt_goc": "Phôi inconel 718, đường kính D50mm",
-      "thanh_tien_thong_nhat": 90000000.0,
-      "thanh_tien_trinh": 90000000,
-      "thong_so_kt": "Phôi inconel 718, đường kính D50mm",
-      "search_keyword": "Phôi inconel 718"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 63063000,
-      "don_gia_trinh": 63063000,
-      "dvt": "Bộ",
-      "ghi_chu": "5.33.85.051.CHN.00.000 | Khắc phục phanh động cơ di chuyển MĐPĐ A,B bị hỏng theo BBKT 414/2026/NL-VT4, 415/2026/NL-VT4. |",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Intorq/ Trung Quốc",
-      "id": 103,
-      "ma_vt": "5.33.85.051.CHN.00.000",
-      "part_no": "Model: BFK458-18E\nSize: 18\nĐường kính phủ bì: 218,6mm\nLỗ lắp bulong: 6xM8\nĐường kính vòng chia bulong: 196mm\nĐiện áp: 205VDC\nNhà sản xuất: INTORQ",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 2,
-      "ten_vt": "Phanh đuôi động cơ, model: BFK458-18E - Model: BFK458-18E\nSize: 18\nĐường kính phủ bì: 218,6mm\nLỗ lắp bulong: 6xM8\nĐường kính vòng chia bulong: 196mm\nĐiện áp: 205VDC\nNhà sản xuất: INTORQ",
-      "ten_vt_goc": "Phanh đuôi động cơ, model: BFK458-18E",
-      "thanh_tien_thong_nhat": 126126000,
-      "thanh_tien_trinh": 126126000,
-      "thong_so_kt": "Model: BFK458-18E\nSize: 18\nĐường kính phủ bì: 218,6mm\nLỗ lắp bulong: 6xM8\nĐường kính vòng chia bulong: 196mm\nĐiện áp: 205VDC\nNhà sản xuất: INTORQ"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 2400000,
-      "don_gia_trinh": 2400000,
-      "dvt": "Bộ",
-      "ghi_chu": "3.84.64.021.GER.00.000 | Khắc phục phanh động cơ di chuyển MĐPĐ A,B bị hỏng theo BBKT 414/2026/NL-VT4, 415/2026/NL-VT4. |",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Siemens/ Đức",
-      "id": 104,
-      "ma_vt": "3.84.64.021.GER.00.000",
-      "part_no": "- Model:169800\n- Điện áp vào: 220-440VAC\nĐiện áp ra: 110-205VDC",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 1,
-      "ten_vt": "Bộ chỉnh lưu model:169800, Ngõ vào: 220-440VAC, Ngõ ra: 110-205VDC - - Model:169800\n- Điện áp vào: 220-440VAC\nĐiện áp ra: 110-205VDC",
-      "ten_vt_goc": "Bộ chỉnh lưu model:169800, Ngõ vào: 220-440VAC, Ngõ ra: 110-205VDC",
-      "thanh_tien_thong_nhat": 2400000,
-      "thanh_tien_trinh": 2400000,
-      "thong_so_kt": "- Model:169800\n- Điện áp vào: 220-440VAC\nĐiện áp ra: 110-205VDC"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 560000,
-      "don_gia_trinh": 560000,
-      "dvt": "Lít",
-      "ghi_chu": "1.31.23.425.CHN.00.000 | Vật tư dung để thay thế nhớt hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Shell/ Trung Quốc",
-      "id": 105,
-      "ma_vt": "1.31.23.425.CHN.00.000",
-      "part_no": "Nhớt SHELL OMALA S4 WE 220; Độ nhớt ISO VG 220; Qui cách: 20l/xô; NSX: Shell/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 20,
-      "ten_vt": "Nhớt SHELL OMALA S4 WE 220 - Nhớt SHELL OMALA S4 WE 220; Độ nhớt ISO VG 220; Qui cách: 20l/xô; NSX: Shell/tương đương",
-      "ten_vt_goc": "Nhớt SHELL OMALA S4 WE 220",
-      "thanh_tien_thong_nhat": 11200000,
-      "thanh_tien_trinh": 11200000,
-      "thong_so_kt": "Nhớt SHELL OMALA S4 WE 220; Độ nhớt ISO VG 220; Qui cách: 20l/xô; NSX: Shell/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 6700000,
-      "don_gia_trinh": 6700000,
-      "dvt": "Bộ",
-      "ghi_chu": "4.88.65.314.IND.00.000 | Vật tư dùng để làm kín hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Gea-Bgr/ Trung Quốc",
-      "id": 106,
-      "ma_vt": "4.88.65.314.IND.00.000",
-      "part_no": "Bộ vòng đệm tròn làm kín/ Gear Sealing O-Ring; vật liệu EPDM; gồm: o-ring part no 21336 (1 cái) , o-ring part no 21351 (1 cái), o-ring part no 21724 (1 cái); sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 1,
-      "ten_vt": "Bộ vòng đệm tròn làm kín/ Gear Sealing O-Ring; vật liệu EPDM; gồm: o-ring part no 21336 (1 cái), o-ring part no 21351 (1 cái), o-ring part no 21724 (1 cái); sử dụng cho Debris Filter có dw GIX/2945 - Bộ vòng đệm tròn làm kín/ Gear Sealing O-Ring; vật liệu EPDM; gồm: o-ring part no 21336 (1 cái) , o-ring part no 21351 (1 cái), o-ring part no 21724 (1 cái); sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "ten_vt_goc": "Bộ vòng đệm tròn làm kín/ Gear Sealing O-Ring; vật liệu EPDM; gồm: o-ring part no 21336 (1 cái), o-ring part no 21351 (1 cái), o-ring part no 21724 (1 cái); sử dụng cho Debris Filter có dw GIX/2945",
-      "thanh_tien_thong_nhat": 6700000,
-      "thanh_tien_trinh": 6700000,
-      "thong_so_kt": "Bộ vòng đệm tròn làm kín/ Gear Sealing O-Ring; vật liệu EPDM; gồm: o-ring part no 21336 (1 cái) , o-ring part no 21351 (1 cái), o-ring part no 21724 (1 cái); sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 7300000,
-      "don_gia_trinh": 7300000,
-      "dvt": "Cái",
-      "ghi_chu": "5.04.01.308.IND.00.000 | Vật tư dùng để làm kín hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Gea-Bgr/ Trung Quốc",
-      "id": 107,
-      "ma_vt": "5.04.01.308.IND.00.000",
-      "part_no": "U-Seal part no: 21338; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 2,
-      "ten_vt": "U-Seal part no: 21338 sử dụng cho bộ Debris Filter có dw GIX/2945 size DN2550 - U-Seal part no: 21338; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "ten_vt_goc": "U-Seal part no: 21338 sử dụng cho bộ Debris Filter có dw GIX/2945 size DN2550",
-      "thanh_tien_thong_nhat": 14600000,
-      "thanh_tien_trinh": 14600000,
-      "thong_so_kt": "U-Seal part no: 21338; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 7900000,
-      "don_gia_trinh": 7900000,
-      "dvt": "Cái",
-      "ghi_chu": "4.88.67.084.IND.00.000 | Vật tư dùng để làm kín hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Gea-Bgr/ Trung Quốc",
-      "id": 108,
-      "ma_vt": "4.88.67.084.IND.00.000",
-      "part_no": "Phớt chặn dầu/ Shaft Seal, Part no: 21340, sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 2,
-      "ten_vt": "Phớt chặn dầu/ Shaft Seal, Part no: 21340, sử dụng cho Debris Filter có dw GIX/2945 - Phớt chặn dầu/ Shaft Seal, Part no: 21340, sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "ten_vt_goc": "Phớt chặn dầu/ Shaft Seal, Part no: 21340, sử dụng cho Debris Filter có dw GIX/2945",
-      "thanh_tien_thong_nhat": 15800000,
-      "thanh_tien_trinh": 15800000,
-      "thong_so_kt": "Phớt chặn dầu/ Shaft Seal, Part no: 21340, sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 4200000,
-      "don_gia_trinh": 4200000,
-      "dvt": "Bộ",
-      "ghi_chu": "5.04.01.334.IND.00.000 | Vật tư dùng để làm kín hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Gea-Bgr/ Trung Quốc",
-      "id": 109,
-      "ma_vt": "5.04.01.334.IND.00.000",
-      "part_no": "Vòng đệm làm kín/ Gear Sealing Rear Bearing Part no: 21332, 21365; vật liệu: A890 Gr CD4MCU & POLYACE C; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 1,
-      "ten_vt": "Vòng đệm làm kín/ Gear Sealing Rear Bearing Part no: 21332, 21365 sử dụng cho Debris Filter có dw GIX/2945 - Vòng đệm làm kín/ Gear Sealing Rear Bearing Part no: 21332, 21365; vật liệu: A890 Gr CD4MCU & POLYACE C; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "ten_vt_goc": "Vòng đệm làm kín/ Gear Sealing Rear Bearing Part no: 21332, 21365 sử dụng cho Debris Filter có dw GIX/2945",
-      "thanh_tien_thong_nhat": 4200000,
-      "thanh_tien_trinh": 4200000,
-      "thong_so_kt": "Vòng đệm làm kín/ Gear Sealing Rear Bearing Part no: 21332, 21365; vật liệu: A890 Gr CD4MCU & POLYACE C; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 8200000,
-      "don_gia_trinh": 8200000,
-      "dvt": "Cái",
-      "ghi_chu": "5.04.01.316.IND.00.000 | Vật tư dùng để làm kín hộp giảm tốc của bộ lọc Debris Filter B tổ máy S1 theo BBKT số 1237/2026/VH-VT4 | Vật tư được đặt tên theo nguyên tắc chuẩn hoáVật tư không tồn kho, không có trong KHSXKD 2026",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Gea-Bgr/ Trung Quốc",
-      "id": 110,
-      "ma_vt": "5.04.01.316.IND.00.000",
-      "part_no": "Vòng đệm tròn làm kín/ Gear Sealing Center Bolt Washer (Bush, vật liệu Nylon, AWC665), Part no: 21367; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 1,
-      "ten_vt": "Vòng đệm tròn làm kín/ Gear Sealing Center Bolt Washer Part no: 21367 sử dụng cho Debris Filter có dw GIX/2945 - Vòng đệm tròn làm kín/ Gear Sealing Center Bolt Washer (Bush, vật liệu Nylon, AWC665), Part no: 21367; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương",
-      "ten_vt_goc": "Vòng đệm tròn làm kín/ Gear Sealing Center Bolt Washer Part no: 21367 sử dụng cho Debris Filter có dw GIX/2945",
-      "thanh_tien_thong_nhat": 8200000,
-      "thanh_tien_trinh": 8200000,
-      "thong_so_kt": "Vòng đệm tròn làm kín/ Gear Sealing Center Bolt Washer (Bush, vật liệu Nylon, AWC665), Part no: 21367; sử dụng cho bộ lọc Debris Filter có dw GIX/2945 size DN2550; NSX: GEA-BRG/tương đương"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 265000000,
-      "don_gia_trinh": 265000000,
-      "dvt": "cái",
-      "ghi_chu": "5.30.10.355.VIE.99.000 | Mua bổ sung để duy trì dự phòng, đáp ứng dự phòng thay thế cho các MĐPĐ | STT số 91 theo Quyết định số 1274/QĐ-EVN",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Thành Công/ Việt Nam",
-      "id": 111,
-      "ma_vt": "5.30.10.355.VIE.99.000",
-      "part_no": "Gàu múc MĐPĐ, Thể tích: 0.75m3, Vật liệu: E355DD",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 2,
-      "ten_vt": "Gàu múc MĐPĐ, Thể tích: 0.75m3, Vật liệu: E355DD - Gàu múc MĐPĐ, Thể tích: 0.75m3, Vật liệu: E355DD",
-      "ten_vt_goc": "Gàu múc MĐPĐ, Thể tích: 0.75m3, Vật liệu: E355DD",
-      "thanh_tien_thong_nhat": 530000000,
-      "thanh_tien_trinh": 530000000,
-      "thong_so_kt": "Gàu múc MĐPĐ, Thể tích: 0.75m3, Vật liệu: E355DD"
-    },
-    {
-      "co_so_thong_nhat": "",
-      "danh_gia_ttd": "",
-      "don_gia_thong_nhat": 140000000,
-      "don_gia_trinh": 140000000,
-      "dvt": "cái",
-      "ghi_chu": "5.30.10.356.VIE.00.000 | Mua bổ sung để duy trì dự phòng, đáp ứng dự phòng thay thế cho các CSU | STT số 92 theo Quyết định số 1274/QĐ-EVN",
-      "gia_tri_giam": 0,
-      "hsx_xx": "Thành Công/ Việt Nam",
-      "id": 112,
-      "ma_vt": "5.30.10.356.VIE.00.000",
-      "part_no": "Thể tích 0,52 m3\nVật liệu SMS570(JIS)+A709(ASTM)\nBảng vẽ tham khảo",
-      "phan_bien_khvt": "",
-      "pycvt": "",
-      "so_luong": 11,
-      "ten_vt": "Gàu múc CSU - Thể tích 0,52 m3\nVật liệu SMS570(JIS)+A709(ASTM)\nBảng vẽ tham khảo",
-      "ten_vt_goc": "Gàu múc CSU",
-      "thanh_tien_thong_nhat": 1540000000,
-      "thanh_tien_trinh": 1540000000,
-      "thong_so_kt": "Thể tích 0,52 m3\nVật liệu SMS570(JIS)+A709(ASTM)\nBảng vẽ tham khảo"
+      "thong_so_kt": "Bơm (SP-Circulation pump): \nTP400 PP, P4-400V/50\nĐộng cơ bơm: type: FCA 112 MC-2/PHE, Công Suất : 5,5kW\nĐiện áp: 400Vac\nTần số: 50Hz\nDòng định mức: 10.11A,\nTốc độ quay: 2900 rpm\nTrọng lượng: 34kg\nPoles: 2P, Insulation class: F\nDegress of protection: IP55,\nPF: 0,88, Connection: Sao /Tam giác (400/690 YV), Eff: 0,87 - 0,89\nStandard Specification :\nIEC60034-1",
+      "thue": "0.08",
+      "tien_thue": 123200000,
+      "search_keyword": "TP400 PP"
     }
   ]
 }

@@ -1,8 +1,37 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Layers, Table2, Search, FolderOpen, Bookmark, Save, Download, Upload, FileSpreadsheet, Building2, Database, Globe, Cloud } from 'lucide-react';
-import { useToast } from './ui/Toast';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Layers,
+  Table2,
+  Search,
+  FolderOpen,
+  Bookmark,
+  Save,
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Building2,
+  Database,
+  Globe,
+  Cloud,
+} from "lucide-react";
+import { useToast } from "./ui/Toast";
 
-export default function HeaderNav({ activeView, setActiveView, dossierName, onOpenProjects, onSaveAs, onSaveProject, onUploadExcel, onExportExcel, erpStatus, onOpenErpConfig, imisStatus, onOpenImisConfig, mscStatus, onOpenMscConfig }) {
+export default function HeaderNav({
+  activeView,
+  setActiveView,
+  dossierName,
+  onOpenProjects,
+  onSaveAs,
+  onSaveProject,
+  onUploadExcel,
+  onExportExcel,
+  erpStatus,
+  onOpenErpConfig,
+  imisStatus,
+  onOpenImisConfig,
+  mscStatus,
+  onOpenMscConfig,
+}) {
   const isErpOk = erpStatus?.is_configured;
   const isImisOk = imisStatus?.is_connected;
   const isMscOk = mscStatus?.active;
@@ -13,7 +42,7 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
 
   const fetchOneDriveStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/sync/onedrive-status');
+      const res = await fetch("/api/sync/onedrive-status");
       if (res.ok) {
         setOneDriveStatus(await res.json());
       }
@@ -31,65 +60,103 @@ export default function HeaderNav({ activeView, setActiveView, dossierName, onOp
   const handleManualOneDrivePush = async () => {
     setIsSyncingOneDrive(true);
     try {
-      const res = await fetch('/api/sync/onedrive-push', { method: 'POST' });
+      const res = await fetch("/api/sync/onedrive-push", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         if (data.synced_count > 0) {
-          toast.success(`Đã đồng bộ ${data.synced_count} tệp mới sang OneDrive EVN Cache!`);
+          toast.success(
+            `Đã đồng bộ ${data.synced_count} tệp mới sang OneDrive EVN Cache!`,
+          );
         } else {
-          toast.success(`Dữ liệu OneDrive đã là mới nhất! Toàn bộ ${data.total_files || 132} tệp đều trùng khớp.`);
+          toast.success(
+            `Dữ liệu OneDrive đã là mới nhất! Toàn bộ ${data.total_files || 132} tệp đều trùng khớp.`,
+          );
         }
         fetchOneDriveStatus();
       } else {
-        toast.error('Lỗi đồng bộ OneDrive: ' + (data.message || ''));
+        toast.error("Lỗi đồng bộ OneDrive: " + (data.message || ""));
       }
     } catch (e) {
-      toast.error('Lỗi kết nối máy chủ');
+      toast.error("Lỗi kết nối máy chủ");
     } finally {
       setIsSyncingOneDrive(false);
     }
   };
+  const [isPullingOneDrive, setIsPullingOneDrive] = useState(false);
 
+  const handleManualOneDrivePull = async () => {
+    if (
+      !window.confirm(
+        "Bạn có chắc chắn muốn tải lại dữ liệu từ OneDrive Cache về máy không? Thao tác này sẽ cập nhật lại dữ liệu hiện tại.",
+      )
+    ) {
+      return;
+    }
+    setIsPullingOneDrive(true);
+    try {
+      const res = await fetch("/api/sync/onedrive-pull", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(
+          data.message || "Đã nạp dữ liệu từ OneDrive Cache thành công!",
+        );
+        // Tải lại trang hoặc nạp lại state
+        window.location.reload();
+      } else {
+        toast.error("Lỗi nạp dữ liệu: " + (data.message || ""));
+      }
+    } catch (e) {
+      toast.error("Lỗi kết nối máy chủ");
+    } finally {
+      setIsPullingOneDrive(false);
+    }
+  };
   const handleOpenOneDriveFolder = async () => {
-    const folderPath = oneDriveStatus?.target_dir || 'D:\\OneDrive_Hieuna\\OneDrive - EVN\\Hiếu\\ThamDinhDuToanAppCache';
+    const folderPath =
+      oneDriveStatus?.target_dir ||
+      "D:\\OneDrive_Hieuna\\OneDrive - EVN\\Hiếu\\ThamDinhDuToanAppCache";
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(folderPath);
       }
     } catch (e) {
-      console.warn('Clipboard write error:', e);
+      console.warn("Clipboard write error:", e);
     }
 
     try {
-      const res = await fetch('/api/sync/onedrive-open', { method: 'POST' });
+      const res = await fetch("/api/sync/onedrive-open", { method: "POST" });
       const data = await res.json();
       const targetPath = data.path || folderPath;
       if (data.success) {
-        toast.success(`📋 Đã copy đường dẫn & kích hoạt mở Explorer:\n${targetPath}`);
+        toast.success(
+          `📋 Đã copy đường dẫn & kích hoạt mở Explorer:\n${targetPath}`,
+        );
       } else {
-        toast.error('Lỗi mở thư mục: ' + (data.message || ''));
+        toast.error("Lỗi mở thư mục: " + (data.message || ""));
       }
     } catch (e) {
-      toast.success(`📋 Đã copy đường dẫn OneDrive vào Clipboard:\n${folderPath}`);
+      toast.success(
+        `📋 Đã copy đường dẫn OneDrive vào Clipboard:\n${folderPath}`,
+      );
     }
   };
 
-const exportExecutiveReport = async () => {
-  try {
-    const res = await fetch('/api/export-executive-report');
-    if (!res.ok) throw new Error('Failed to export executive report');
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'executive_report.xlsx';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    toast.success('✅ Xuất Bản Lãnh Đạo thành công');
-  } catch (e) {
-    toast.error('❌ Lỗi xuất Bản Lãnh Đạo: ' + e.message);
-  }
-};
+  const exportExecutiveReport = async () => {
+    try {
+      const res = await fetch("/api/export-executive-report");
+      if (!res.ok) throw new Error("Failed to export executive report");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "executive_report.xlsx";
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("✅ Xuất Bản Lãnh Đạo thành công");
+    } catch (e) {
+      toast.error("❌ Lỗi xuất Bản Lãnh Đạo: " + e.message);
+    }
+  };
 
   return (
     <header className="bg-[#003366] text-white px-5 py-2.5 shrink-0 shadow-md z-30 flex items-center justify-between">
@@ -100,8 +167,12 @@ const exportExecutiveReport = async () => {
             EVN
           </div>
           <div>
-            <h1 className="text-xs font-bold tracking-wide uppercase">Hệ Thống Thẩm Định Dự Toán</h1>
-            <p className="text-[10px] text-teal-200 font-medium">Nhiệt Điện Vĩnh Tân 4 - Cơ Sở Giá KHVT & TTĐ</p>
+            <h1 className="text-xs font-bold tracking-wide uppercase">
+              Hệ Thống Thẩm Định Dự Toán
+            </h1>
+            <p className="text-[10px] text-teal-200 font-medium">
+              Nhiệt Điện Vĩnh Tân 4 - Cơ Sở Giá KHVT & TTĐ
+            </p>
           </div>
         </div>
 
@@ -110,7 +181,10 @@ const exportExecutiveReport = async () => {
         {/* Dossier Name */}
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-blue-200">Hồ sơ:</span>
-          <strong className="text-xs font-bold text-white max-w-xs truncate" title={dossierName}>
+          <strong
+            className="text-xs font-bold text-white max-w-xs truncate"
+            title={dossierName}
+          >
             {dossierName || "Gói 308 - Mua sắm vật tư SCTX đợt 8 năm 2026"}
           </strong>
         </div>
@@ -120,31 +194,32 @@ const exportExecutiveReport = async () => {
         {/* View Switcher Tabs */}
         <div className="flex items-center gap-1 bg-slate-900/60 p-1 rounded-lg border border-slate-700/60 text-xs font-bold">
           <button
-            onClick={() => setActiveView('quotes')}
+            onClick={() => setActiveView("quotes")}
             className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 ${
-              activeView === 'quotes'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              activeView === "quotes"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-slate-300 hover:text-white hover:bg-slate-800"
             }`}
           >
-            <Layers className="w-3.5 h-3.5 text-teal-300" /> 1. Báo Giá Gốc (PDF)
+            <Layers className="w-3.5 h-3.5 text-teal-300" /> 1. Báo Giá Gốc
+            (PDF)
           </button>
           <button
-            onClick={() => setActiveView('grid')}
+            onClick={() => setActiveView("grid")}
             className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 ${
-              activeView === 'grid'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              activeView === "grid"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-slate-300 hover:text-white hover:bg-slate-800"
             }`}
           >
             <Table2 className="w-3.5 h-3.5 text-blue-300" /> 2. Ma Trận Dự Toán
           </button>
           <button
-            onClick={() => setActiveView('inspector')}
+            onClick={() => setActiveView("inspector")}
             className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 ${
-              activeView === 'inspector'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+              activeView === "inspector"
+                ? "bg-teal-600 text-white shadow-xs"
+                : "text-slate-300 hover:text-white hover:bg-slate-800"
             }`}
           >
             <Search className="w-3.5 h-3.5 text-amber-300" /> 3. Duyệt Chi Tiết
@@ -154,23 +229,20 @@ const exportExecutiveReport = async () => {
 
       {/* Global Actions */}
       <div className="flex items-center gap-1.5 text-xs font-semibold">
-        
         {/* MSC Status Badge */}
         <button
           onClick={onOpenMscConfig}
           className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
             isMscOk
-              ? 'bg-orange-900/60 hover:bg-orange-800 border-orange-500/50 text-orange-200'
-              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+              ? "bg-orange-900/60 hover:bg-orange-800 border-orange-500/50 text-orange-200"
+              : "bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse"
           }`}
           title="Bấm để cấu hình chuỗi cURL Session Mua Sắm Công (e-GP)"
         >
-          <Globe className={`w-3.5 h-3.5 ${isMscOk ? 'text-orange-400' : 'text-amber-400'}`} />
-          {isMscOk ? (
-            <span>🌐 MSC: 200 OK</span>
-          ) : (
-            <span>🔴 MSC: Hết hạn</span>
-          )}
+          <Globe
+            className={`w-3.5 h-3.5 ${isMscOk ? "text-orange-400" : "text-amber-400"}`}
+          />
+          {isMscOk ? <span>🌐 MSC: 200 OK</span> : <span>🔴 MSC: Hết hạn</span>}
         </button>
 
         {/* IMIS Status Badge */}
@@ -178,12 +250,14 @@ const exportExecutiveReport = async () => {
           onClick={onOpenImisConfig}
           className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
             isImisOk
-              ? 'bg-purple-900/60 hover:bg-purple-800 border-purple-500/50 text-purple-200'
-              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+              ? "bg-purple-900/60 hover:bg-purple-800 border-purple-500/50 text-purple-200"
+              : "bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse"
           }`}
           title="Bấm để kiểm tra / đăng nhập Token API EVN IMIS"
         >
-          <Database className={`w-3.5 h-3.5 ${isImisOk ? 'text-purple-400' : 'text-amber-400'}`} />
+          <Database
+            className={`w-3.5 h-3.5 ${isImisOk ? "text-purple-400" : "text-amber-400"}`}
+          />
           {isImisOk ? (
             <span>🟢 IMIS: Đã kết nối</span>
           ) : (
@@ -196,12 +270,14 @@ const exportExecutiveReport = async () => {
           onClick={onOpenErpConfig}
           className={`px-2.5 py-1.5 rounded-md border flex items-center gap-1.5 transition font-bold ${
             isErpOk
-              ? 'bg-emerald-900/60 hover:bg-emerald-800 border-emerald-500/50 text-emerald-200'
-              : 'bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse'
+              ? "bg-emerald-900/60 hover:bg-emerald-800 border-emerald-500/50 text-emerald-200"
+              : "bg-amber-900/60 hover:bg-amber-800 border-amber-500/60 text-amber-200 animate-pulse"
           }`}
           title="Bấm để cấu hình CSDL Kế toán ERP 13 cột"
         >
-          <Database className={`w-3.5 h-3.5 ${isErpOk ? 'text-emerald-400' : 'text-amber-400'}`} />
+          <Database
+            className={`w-3.5 h-3.5 ${isErpOk ? "text-emerald-400" : "text-amber-400"}`}
+          />
           {isErpOk ? (
             <span>🟢 ERP: {erpStatus?.record_count || 0} HĐ</span>
           ) : (
@@ -209,19 +285,41 @@ const exportExecutiveReport = async () => {
           )}
         </button>
 
-        {/* OneDrive Cache Group: Sync Button + Quick Open Folder Button */}
+        {/* OneDrive Cache Group: Sync Lên + Kéo Về + Mở Folder */}
         <div className="flex items-center rounded-md border border-cyan-500/50 bg-cyan-900/50 overflow-hidden shadow-xs">
+          {/* Nút 1: Đẩy dữ liệu lên */}
           <button
             onClick={handleManualOneDrivePush}
             disabled={isSyncingOneDrive}
             className="px-2.5 py-1.5 hover:bg-cyan-800 text-cyan-200 flex items-center gap-1.5 transition font-bold text-xs cursor-pointer border-r border-cyan-500/30"
-            title={`Thư mục OneDrive Cache:\n${oneDriveStatus?.target_dir || 'Chưa kết nối'}\n• Lần đồng bộ gần nhất: ${oneDriveStatus?.last_synced || 'Chưa đồng bộ'}\n• Số file vừa cập nhật: ${oneDriveStatus?.synced_count ?? 0} tệp\n• Tổng số tệp trong kho cache: ${oneDriveStatus?.total_files ?? 132} tệp\n(Nhấp chuột để đồng bộ ngay lập tức)`}
+            title="Đẩy dữ liệu lên OneDrive Cache"
           >
-            <Cloud className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? 'text-cyan-400' : 'text-slate-400'} ${isSyncingOneDrive ? 'animate-spin' : ''}`} />
+            <Cloud
+              className={`w-3.5 h-3.5 ${oneDriveStatus?.available ? "text-cyan-400" : "text-slate-400"} ${isSyncingOneDrive ? "animate-spin" : ""}`}
+            />
             <span>
-              {isSyncingOneDrive ? 'Đang sync...' : (oneDriveStatus?.last_synced ? `OneDrive: ${oneDriveStatus.last_synced.slice(11, 16)}` : 'OneDrive')}
+              {isSyncingOneDrive
+                ? "Đang sync..."
+                : oneDriveStatus?.last_synced
+                  ? `OneDrive: ${oneDriveStatus.last_synced.slice(11, 16)}`
+                  : "OneDrive"}
             </span>
           </button>
+
+          {/* NÚT MỚI: Tải / Kéo dữ liệu về */}
+          <button
+            onClick={handleManualOneDrivePull}
+            disabled={isPullingOneDrive}
+            className="px-2 py-1.5 hover:bg-cyan-800 text-cyan-200 flex items-center gap-1 transition font-bold text-xs cursor-pointer border-r border-cyan-500/30"
+            title="Tải / Kéo toàn bộ dữ liệu từ OneDrive Cache về ứng dụng"
+          >
+            <Download
+              className={`w-3.5 h-3.5 text-teal-300 ${isPullingOneDrive ? "animate-bounce" : ""}`}
+            />
+            <span>{isPullingOneDrive ? "Đang kéo..." : "Kéo Về"}</span>
+          </button>
+
+          {/* Nút 3: Mở Folder trên Windows Explorer */}
           <button
             onClick={handleOpenOneDriveFolder}
             className="px-2 py-1.5 hover:bg-cyan-700/80 text-cyan-200 flex items-center gap-1 transition font-bold text-xs cursor-pointer"
@@ -256,6 +354,12 @@ const exportExecutiveReport = async () => {
           title="Lưu nhanh (Ctrl + S)"
         >
           <Save className="w-3.5 h-3.5 text-indigo-300" /> Lưu Nhanh
+        </button>
+        <button
+          onClick={exportExecutiveReport}
+          className="bg-indigo-700 hover:bg-indigo-800 text-white px-3 py-1.5 rounded-md flex items-center gap-1 transition ml-1"
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" /> Xuất Bản Lãnh Đạo
         </button>
 
         <div className="h-5 w-px bg-blue-800/80 mx-1"></div>

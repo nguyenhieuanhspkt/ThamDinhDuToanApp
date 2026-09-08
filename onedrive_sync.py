@@ -156,7 +156,53 @@ def push_to_onedrive(verbose=False, force=False):
         "message": msg,
         "errors": errors
     }
+def pull_from_onedrive():
+    """Kéo toàn bộ dữ liệu từ thư mục OneDrive EVN Cache về thư mục data local."""
+    if not is_onedrive_available():
+        return {"success": False, "message": f"Không tìm thấy thư mục OneDrive Cache: {ONEDRIVE_ROOT}"}
 
+    os.makedirs(LOCAL_DATA_DIR, exist_ok=True)
+    os.makedirs(LOCAL_CONFIG_DIR, exist_ok=True)
+
+    pulled_count = 0
+    errors = []
+
+    # 1. Kéo từ ONEDRIVE_DATA_DIR về LOCAL_DATA_DIR
+    if os.path.exists(ONEDRIVE_DATA_DIR):
+        for root, dirs, files in os.walk(ONEDRIVE_DATA_DIR):
+            rel_dir = os.path.relpath(root, ONEDRIVE_DATA_DIR)
+            target_local_dir = os.path.join(LOCAL_DATA_DIR, rel_dir) if rel_dir != "." else LOCAL_DATA_DIR
+            os.makedirs(target_local_dir, exist_ok=True)
+
+            for file in files:
+                if file in [".DS_Store", "Thumbs.db"]:
+                    continue
+                src_file = os.path.join(root, file)
+                dst_file = os.path.join(target_local_dir, file)
+                try:
+                    shutil.copy2(src_file, dst_file)
+                    pulled_count += 1
+                except Exception as e:
+                    errors.append(f"{file}: {str(e)}")
+
+    # 2. Kéo từ ONEDRIVE_CONFIG_DIR về LOCAL_CONFIG_DIR
+    if os.path.exists(ONEDRIVE_CONFIG_DIR):
+        for file in os.listdir(ONEDRIVE_CONFIG_DIR):
+            src_file = os.path.join(ONEDRIVE_CONFIG_DIR, file)
+            if os.path.isfile(src_file):
+                dst_file = os.path.join(LOCAL_CONFIG_DIR, file)
+                try:
+                    shutil.copy2(src_file, dst_file)
+                    pulled_count += 1
+                except Exception as e:
+                    errors.append(f"config/{file}: {str(e)}")
+
+    return {
+        "success": len(errors) == 0,
+        "pulled_count": pulled_count,
+        "message": f"Đã kéo thành công {pulled_count} tệp từ OneDrive Cache về máy cục bộ!",
+        "errors": errors
+    }
 if __name__ == "__main__":
     print("--- SYNCING TO ONEDRIVE CACHE ---")
     res = push_to_onedrive(verbose=True, force=True)
