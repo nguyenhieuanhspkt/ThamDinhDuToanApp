@@ -152,15 +152,30 @@ export default function PillarMsc({
       data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu,
     );
     setSearchKey(smartKw);
+
+    // Xử lý xác định dòng được chọn dựa trên dữ liệu đã lưu (saved evidence)
+    const currentItemsList = data?.analysis?.items || data?.items || [];
+    const savedRecord = data?.selected_record;
+
     if (
       data?.is_deselected ||
-      data?.selected_record === "NONE" ||
+      savedRecord === "NONE" ||
       data?.summary?.status === "MSC_DESELECTED" ||
       data?.summary?.is_deselected
     ) {
       setSelectedIdx(null);
+    } else if (savedRecord && typeof savedRecord === "object") {
+      // Tìm xem bản ghi đã lưu nằm ở index mấy trong danh sách hiện tại
+      const foundIdx = currentItemsList.findIndex(
+        (r) =>
+          (r.ma_tbmt && r.ma_tbmt === savedRecord.ma_tbmt) ||
+          (r.don_gia &&
+            r.don_gia === savedRecord.don_gia &&
+            r.danh_muc === savedRecord.danh_muc),
+      );
+      setSelectedIdx(foundIdx !== -1 ? foundIdx : 0);
     } else {
-      setSelectedIdx(0);
+      setSelectedIdx(currentItemsList.length > 0 ? 0 : null);
     }
 
     // Auto-search ONLY ONCE per item ID if no evidence data exists

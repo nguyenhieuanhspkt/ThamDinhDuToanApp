@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import {
   Building2,
   Database,
@@ -52,7 +58,7 @@ export default function PillarErp({
   const [summaryData, setSummaryData] = useState(data?.summary || {});
   const [searchKey, setSearchKey] = useState(() => getErpDefaultKw(item, data));
   const [selectedIdx, setSelectedIdx] = useState(() =>
-    getInitialSelectedIdx(data, data?.results)
+    getInitialSelectedIdx(data, data?.results),
   );
   const [searching, setSearching] = useState(false);
   const [refreshingSummary, setRefreshingSummary] = useState(false);
@@ -81,11 +87,18 @@ export default function PillarErp({
       if (list.length > 0 && erpResults.length === 0) {
         setErpResults(list);
       }
-      if (data?.mapping && Object.keys(data.mapping).length > 0 && Object.keys(mapping).length === 0) {
+      if (
+        data?.mapping &&
+        Object.keys(data.mapping).length > 0 &&
+        Object.keys(mapping).length === 0
+      ) {
         setMapping(data.mapping);
       }
       // Nếu local state chưa có thuyết minh mà props cha vừa có dữ liệu -> Khôi phục
-      if ((!summaryData?.summary_text) && (data?.summary?.summary_text || data?.summary_text)) {
+      if (
+        !summaryData?.summary_text &&
+        (data?.summary?.summary_text || data?.summary_text)
+      ) {
         setSummaryData(data?.summary || { summary_text: data?.summary_text });
       }
     }
@@ -150,7 +163,7 @@ export default function PillarErp({
     restoreSummary();
 
     return () => controller.abort();
-  }, [item?.ten_vt, data?.summary_text]);
+  }, [item?.ten_vt, data?.summary_text, searchKey, dgTrinh, selectedIdx]); // Thêm các dependencies còn thiếu
 
   const isDeselected = selectedIdx === null;
   const summaryText = isDeselected
@@ -189,7 +202,7 @@ export default function PillarErp({
       setSummaryData(sumData);
       setSelectedIdx(0);
       toast.success(
-        `Đã tìm thấy ${resList.length} kết quả ERP cho từ khóa [${cleanKw}]`
+        `Đã tìm thấy ${resList.length} kết quả ERP cho từ khóa [${cleanKw}]`,
       );
 
       onAutoSave?.({
@@ -231,14 +244,20 @@ export default function PillarErp({
       is_deselected: true,
     });
 
-    toast.info("Đã hủy chọn hợp đồng ERP. Không áp dụng kết quả ERP làm căn cứ.");
+    toast.info(
+      "Đã hủy chọn hợp đồng ERP. Không áp dụng kết quả ERP làm căn cứ.",
+    );
     try {
       await fetch("/api/erp/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keyword: searchKey,
-          ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(searchKey) ? searchKey : ""),
+          ma_vt: isValidErpCode(item?.ma_vt)
+            ? item.ma_vt
+            : isValidErpCode(searchKey)
+              ? searchKey
+              : "",
           item,
           dg_trinh: dgTrinh,
           selected_record: "NONE",
@@ -264,7 +283,11 @@ export default function PillarErp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keyword: searchKey,
-          ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(searchKey) ? searchKey : ""),
+          ma_vt: isValidErpCode(item?.ma_vt)
+            ? item.ma_vt
+            : isValidErpCode(searchKey)
+              ? searchKey
+              : "",
           item,
           dg_trinh: dgTrinh,
           selected_record: rec,
@@ -273,7 +296,9 @@ export default function PillarErp({
       const resp = await res.json();
       const sumData = resp.summary || {};
       setSummaryData(sumData);
-      toast.success(`Đã chọn hợp đồng ${rec.soHopDong || rec.so_hop_dong || "ERP"} làm căn cứ!`);
+      toast.success(
+        `Đã chọn hợp đồng ${rec.soHopDong || rec.so_hop_dong || "ERP"} làm căn cứ!`,
+      );
 
       onAutoSave?.({
         results: erpResults,
@@ -303,7 +328,11 @@ export default function PillarErp({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keyword: searchKey,
-          ma_vt: isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(searchKey) ? searchKey : ""),
+          ma_vt: isValidErpCode(item?.ma_vt)
+            ? item.ma_vt
+            : isValidErpCode(searchKey)
+              ? searchKey
+              : "",
           item,
           dg_trinh: dgTrinh,
           use_average: true,
@@ -313,7 +342,7 @@ export default function PillarErp({
       const sumData = resp.summary || {};
       setSummaryData(sumData);
       toast.success(
-        `Đã chọn phương án Đơn Giá Trung Bình (${sumData?.count_n || erpResults.length} đợt) làm căn cứ thuyết minh!`
+        `Đã chọn phương án Đơn Giá Trung Bình (${sumData?.count_n || erpResults.length} đợt) làm căn cứ thuyết minh!`,
       );
 
       onAutoSave?.({
@@ -342,7 +371,11 @@ export default function PillarErp({
       // Nếu danh sách kết quả đang rỗng -> Thử tìm kiếm lại bằng từ khóa / mã VT trước
       if (!targetList || targetList.length === 0) {
         const cleanKw = searchKey.trim() || item?.ten_vt || "";
-        const mvt = isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(cleanKw) ? cleanKw : "");
+        const mvt = isValidErpCode(item?.ma_vt)
+          ? item.ma_vt
+          : isValidErpCode(cleanKw)
+            ? cleanKw
+            : "";
         const searchRes = await fetch("/api/erp/search", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -387,7 +420,11 @@ export default function PillarErp({
         selRec = targetList[targetIdx];
       }
 
-      const mvt = isValidErpCode(item?.ma_vt) ? item.ma_vt : (isValidErpCode(searchKey) ? searchKey : "");
+      const mvt = isValidErpCode(item?.ma_vt)
+        ? item.ma_vt
+        : isValidErpCode(searchKey)
+          ? searchKey
+          : "";
       const res = await fetch("/api/erp/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -434,43 +471,50 @@ export default function PillarErp({
 
   const hasMapping = useMemo(
     () => mapping && Object.keys(mapping).length > 0,
-    [mapping]
+    [mapping],
   );
   const isColActive = useCallback(
     (key) => {
       if (!hasMapping) return true;
       return Boolean(mapping[key] && mapping[key].trim() !== "");
     },
-    [hasMapping, mapping]
+    [hasMapping, mapping],
   );
 
   // Tính toán chỉ số kinh tế, trượt giá & trần CPI
-  const { avgPrice, selectedRec, selectedTimeDelta, selectedDate, escalation, priceCeiling } =
-    useMemo(() => {
-      const validPrices = erpResults
-        .map((r) => parseFloat(r.donGia || r.don_gia || 0))
-        .filter((p) => p > 0);
-      const avg =
-        validPrices.length > 0
-          ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length
-          : 0;
+  const {
+    avgPrice,
+    selectedRec,
+    selectedTimeDelta,
+    selectedDate,
+    escalation,
+    priceCeiling,
+  } = useMemo(() => {
+    const validPrices = erpResults
+      .map((r) => parseFloat(r.donGia || r.don_gia || 0))
+      .filter((p) => p > 0);
+    const avg =
+      validPrices.length > 0
+        ? validPrices.reduce((a, b) => a + b, 0) / validPrices.length
+        : 0;
 
-      const rec =
-        typeof selectedIdx === "number" ? erpResults[selectedIdx] : null;
-      const date = rec?.ngayKyHd || rec?.ngay_ky_hd || rec?.ngayNhapKho || rec?.ngayChungTu;
-      const timeDelta = computeTimeDelta(date);
-      const price = rec ? parseFloat(rec.donGia || rec.don_gia || 0) : 0;
-      const ceiling = computeEscalationCeiling(price, timeDelta.months, 0.05);
+    const rec =
+      typeof selectedIdx === "number" ? erpResults[selectedIdx] : null;
+    const date =
+      rec?.ngayKyHd || rec?.ngay_ky_hd || rec?.ngayNhapKho || rec?.ngayChungTu;
+    const timeDelta = computeTimeDelta(date);
+    const price = rec ? parseFloat(rec.donGia || rec.don_gia || 0) : 0;
+    const ceiling = computeEscalationCeiling(price, timeDelta.months, 0.05);
 
-      return {
-        avgPrice: avg,
-        selectedRec: rec,
-        selectedTimeDelta: timeDelta,
-        selectedDate: date,
-        escalation: computeAnnualEscalation(price, dgTrinh, timeDelta.months),
-        priceCeiling: ceiling,
-      };
-    }, [erpResults, selectedIdx, dgTrinh]);
+    return {
+      avgPrice: avg,
+      selectedRec: rec,
+      selectedTimeDelta: timeDelta,
+      selectedDate: date,
+      escalation: computeAnnualEscalation(price, dgTrinh, timeDelta.months),
+      priceCeiling: ceiling,
+    };
+  }, [erpResults, selectedIdx, dgTrinh]);
 
   return (
     <div className="space-y-4">
@@ -486,7 +530,8 @@ export default function PillarErp({
           onClick={onOpenErpConfig}
           className="bg-blue-700 hover:bg-blue-800 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
         >
-          <Database className="w-3.5 h-3.5" /> ⚙️ Cấu hình CSDL ERP (Upload & Map 13 Cột)
+          <Database className="w-3.5 h-3.5" /> ⚙️ Cấu hình CSDL ERP (Upload &
+          Map 13 Cột)
         </button>
       </div>
 
@@ -494,7 +539,8 @@ export default function PillarErp({
       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-700 shrink-0 flex items-center gap-1">
-            <Search className="w-3.5 h-3.5 text-blue-700" /> Tra cứu ERP bằng tay:
+            <Search className="w-3.5 h-3.5 text-blue-700" /> Tra cứu ERP bằng
+            tay:
           </span>
           <input
             type="text"
@@ -551,7 +597,10 @@ export default function PillarErp({
                   : "bg-white text-blue-900 border-blue-300 hover:bg-blue-100"
               }`}
             >
-              🎯 Tên cốt lõi: <span className="font-semibold truncate max-w-[200px]">{coreName}</span>
+              🎯 Tên cốt lõi:{" "}
+              <span className="font-semibold truncate max-w-[200px]">
+                {coreName}
+              </span>
             </button>
           )}
           {(item?.part_no || item?.model) && (
@@ -563,7 +612,10 @@ export default function PillarErp({
                   : "bg-white text-blue-900 border-blue-300 hover:bg-blue-100"
               }`}
             >
-              ⚙️ Model/Part: <span className="font-mono font-semibold">{item.part_no || item.model}</span>
+              ⚙️ Model/Part:{" "}
+              <span className="font-mono font-semibold">
+                {item.part_no || item.model}
+              </span>
             </button>
           )}
           {item?.hang_sx && (
@@ -600,7 +652,8 @@ export default function PillarErp({
       {erpResults.length >= 2 && (
         <div className="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200 flex items-center justify-between gap-3 text-xs shadow-xs">
           <span className="font-bold text-blue-950 flex items-center gap-1.5 shrink-0">
-            <Calculator className="w-4 h-4 text-blue-700" /> Tùy chọn Phương án Căn cứ ERP ({erpResults.length} đợt mua):
+            <Calculator className="w-4 h-4 text-blue-700" /> Tùy chọn Phương án
+            Căn cứ ERP ({erpResults.length} đợt mua):
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -667,7 +720,9 @@ export default function PillarErp({
               ) : (
                 <>
                   <BarChart3 className="w-3.5 h-3.5 text-amber-500" />
-                  <span>📊 Chọn Đơn Giá Trung Bình (AVG): {fmt(avgPrice)} đ</span>
+                  <span>
+                    📊 Chọn Đơn Giá Trung Bình (AVG): {fmt(avgPrice)} đ
+                  </span>
                 </>
               )}
             </button>
@@ -682,24 +737,30 @@ export default function PillarErp({
             <div className="flex items-center gap-2 font-bold text-blue-950">
               <Clock className="w-4 h-4 text-blue-700" />
               <span>
-                KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ HỢP ĐỒNG #{typeof selectedIdx === "number" ? selectedIdx + 1 : 1}
+                KÍCH THƯỚC THỜI GIAN & TỐC ĐỘ TRƯỢT GIÁ HỢP ĐỒNG #
+                {typeof selectedIdx === "number" ? selectedIdx + 1 : 1}
               </span>
-              {selectedTimeDelta.badgeText && selectedTimeDelta.badgeText !== "—" && (
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                    selectedTimeDelta.isOver12Months
-                      ? "bg-amber-100 text-amber-900 border border-amber-300"
-                      : "bg-emerald-100 text-emerald-900 border border-emerald-300"
-                  }`}
-                >
-                  {selectedTimeDelta.badgeText}
-                </span>
-              )}
+              {selectedTimeDelta.badgeText &&
+                selectedTimeDelta.badgeText !== "—" && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      selectedTimeDelta.isOver12Months
+                        ? "bg-amber-100 text-amber-900 border border-amber-300"
+                        : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                    }`}
+                  >
+                    {selectedTimeDelta.badgeText}
+                  </span>
+                )}
             </div>
             <span className="text-[11px] text-slate-500 font-medium">
-              Ký: <b className="font-mono text-slate-700">{selectedDate || "—"}</b>{" "}
+              Ký:{" "}
+              <b className="font-mono text-slate-700">{selectedDate || "—"}</b>{" "}
               {selectedTimeDelta.months > 0 && (
-                <>(cách đây <b>{selectedTimeDelta.months}</b> tháng ~ <b>{selectedTimeDelta.years}</b> năm)</>
+                <>
+                  (cách đây <b>{selectedTimeDelta.months}</b> tháng ~{" "}
+                  <b>{selectedTimeDelta.years}</b> năm)
+                </>
               )}
             </span>
           </div>
@@ -737,7 +798,9 @@ export default function PillarErp({
                 <span className="text-sm font-black font-mono text-slate-900">
                   {fmt(priceCeiling)} đ
                 </span>
-                <span className="text-[10px] text-blue-600 font-medium">(Trần CPI)</span>
+                <span className="text-[10px] text-blue-600 font-medium">
+                  (Trần CPI)
+                </span>
               </div>
             </div>
 
@@ -750,11 +813,13 @@ export default function PillarErp({
                   <span className="text-slate-500">—</span>
                 ) : dgTrinh <= priceCeiling ? (
                   <span className="text-emerald-700 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> 🟢 Đạt (Dưới trần CPI)
+                    <ShieldCheck className="w-3.5 h-3.5" /> 🟢 Đạt (Dưới trần
+                    CPI)
                   </span>
                 ) : (
                   <span className="text-red-600 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5" /> 🔴 Vượt trần CPI (+{fmt(dgTrinh - priceCeiling)} đ)
+                    <AlertTriangle className="w-3.5 h-3.5" /> 🔴 Vượt trần CPI
+                    (+{fmt(dgTrinh - priceCeiling)} đ)
                   </span>
                 )}
               </div>
@@ -815,19 +880,29 @@ export default function PillarErp({
           <table className="w-full text-xs text-left border-collapse min-w-[1300px]">
             <thead className="bg-blue-50 text-blue-950 font-bold border-b border-blue-200">
               <tr>
-                <th className="py-2.5 px-2 border-r w-24 text-center">Căn Cứ</th>
-                <th className="py-2.5 px-2 border-r w-20 text-center">% Khớp</th>
+                <th className="py-2.5 px-2 border-r w-24 text-center">
+                  Căn Cứ
+                </th>
+                <th className="py-2.5 px-2 border-r w-20 text-center">
+                  % Khớp
+                </th>
                 {(isColActive("ma_vt") || isColActive("ten_vt")) && (
-                  <th className="py-2.5 px-3 border-r min-w-[180px]">Mã ERP & Tên Vật Tư</th>
+                  <th className="py-2.5 px-3 border-r min-w-[180px]">
+                    Mã ERP & Tên Vật Tư
+                  </th>
                 )}
                 {isColActive("thong_so_kt") && (
-                  <th className="py-2.5 px-3 border-r min-w-[200px]">Thông Số KT</th>
+                  <th className="py-2.5 px-3 border-r min-w-[200px]">
+                    Thông Số KT
+                  </th>
                 )}
                 {isColActive("dvt") && (
                   <th className="py-2.5 px-2 border-r w-16 text-center">ĐVT</th>
                 )}
                 {isColActive("so_luong") && (
-                  <th className="py-2.5 px-2 border-r w-16 text-right font-mono">SL</th>
+                  <th className="py-2.5 px-2 border-r w-16 text-right font-mono">
+                    SL
+                  </th>
                 )}
                 {isColActive("don_gia") && (
                   <th className="py-2.5 px-3 border-r w-32 text-right font-mono bg-blue-100/50">
@@ -845,7 +920,9 @@ export default function PillarErp({
                   </th>
                 )}
                 {isColActive("ngay_ky_hd") && (
-                  <th className="py-2.5 px-3 border-r w-36">Ngày Ký & Thời Gian</th>
+                  <th className="py-2.5 px-3 border-r w-36">
+                    Ngày Ký & Thời Gian
+                  </th>
                 )}
                 {isColActive("so_phieu_nhap") && (
                   <th className="py-2.5 px-3 border-r w-28">Số Phiếu Nhập</th>
@@ -854,7 +931,9 @@ export default function PillarErp({
                   <th className="py-2.5 px-3 border-r w-28">Ngày Nhập Kho</th>
                 )}
                 {isColActive("nha_thau") && (
-                  <th className="py-2.5 px-3 border-r min-w-[150px]">Nhà Thầu Cung Cấp</th>
+                  <th className="py-2.5 px-3 border-r min-w-[150px]">
+                    Nhà Thầu Cung Cấp
+                  </th>
                 )}
                 {isColActive("ghi_chu") && (
                   <th className="py-2.5 px-3 min-w-[120px]">Ghi Chú</th>
@@ -865,7 +944,8 @@ export default function PillarErp({
               {erpResults.map((r, i) => {
                 const isSelected = i === selectedIdx;
                 const dg = parseFloat(r.donGia || r.don_gia || 0);
-                const diff = dgTrinh > 0 && dg > 0 ? (((dg - dgTrinh) / dgTrinh) * 100) : 0;
+                const diff =
+                  dgTrinh > 0 && dg > 0 ? ((dg - dgTrinh) / dgTrinh) * 100 : 0;
 
                 return (
                   <tr
@@ -895,7 +975,9 @@ export default function PillarErp({
                             <Check className="w-3 h-3 group-hover:hidden" />
                             <X className="w-3 h-3 hidden group-hover:inline" />
                             <span className="group-hover:hidden">Đã Chọn</span>
-                            <span className="hidden group-hover:inline">Hủy Chọn</span>
+                            <span className="hidden group-hover:inline">
+                              Hủy Chọn
+                            </span>
                           </>
                         ) : (
                           <>
@@ -920,7 +1002,9 @@ export default function PillarErp({
                     </td>
                     {(isColActive("ma_vt") || isColActive("ten_vt")) && (
                       <td className="py-2 px-3 border-r">
-                        <div className="font-bold text-slate-900">{r.tenVt || r.ten_vt || r.maVt}</div>
+                        <div className="font-bold text-slate-900">
+                          {r.tenVt || r.ten_vt || r.maVt}
+                        </div>
                         <div className="font-mono text-blue-700 text-[10px] font-semibold">
                           {r.maVt || r.ma_vt || "—"}
                         </div>
@@ -975,7 +1059,12 @@ export default function PillarErp({
                           {r.ngayKyHd || r.ngay_ky_hd || r.ngayChungTu || "—"}
                         </div>
                         {(() => {
-                          const td = computeTimeDelta(r.ngayKyHd || r.ngay_ky_hd || r.ngayNhapKho || r.ngayChungTu);
+                          const td = computeTimeDelta(
+                            r.ngayKyHd ||
+                              r.ngay_ky_hd ||
+                              r.ngayNhapKho ||
+                              r.ngayChungTu,
+                          );
                           if (td.badgeText === "—") return null;
                           return (
                             <span
@@ -998,7 +1087,10 @@ export default function PillarErp({
                     )}
                     {isColActive("ngay_nhap_kho") && (
                       <td className="py-2 px-3 border-r text-slate-600 font-mono">
-                        {r.ngayNhapKho || r.ngay_nhap_kho || r.ngayChungTu || "—"}
+                        {r.ngayNhapKho ||
+                          r.ngay_nhap_kho ||
+                          r.ngayChungTu ||
+                          "—"}
                       </td>
                     )}
                     {isColActive("nha_thau") && (

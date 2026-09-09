@@ -1,12 +1,20 @@
-import React from 'react';
-import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import React from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Save,
+  Loader2,
+} from "lucide-react";
 
 export default function InspectorNavbar({
   selectedIndex,
   totalItems,
   currentItem,
   onNavigateIndex,
-  onExportPdf
+  onExportPdf,
+  onSave,
+  saving,
 }) {
   return (
     <div className="bg-white border-b px-5 py-2.5 shrink-0 flex items-center justify-between shadow-sm z-10 text-xs">
@@ -22,7 +30,9 @@ export default function InspectorNavbar({
           Mục {selectedIndex + 1} / {totalItems || 1}
         </span>
         <button
-          onClick={() => onNavigateIndex(Math.min(totalItems - 1, selectedIndex + 1))}
+          onClick={() =>
+            onNavigateIndex(Math.min(totalItems - 1, selectedIndex + 1))
+          }
           disabled={selectedIndex >= totalItems - 1}
           className="bg-[#003366] hover:bg-blue-900 disabled:opacity-40 text-white px-3.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition shadow-sm"
         >
@@ -32,10 +42,30 @@ export default function InspectorNavbar({
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <span className="text-slate-500">Đang duyệt:</span>
-          <strong className="text-slate-900 max-w-xs truncate" title={currentItem.ten_vt}>
-            {currentItem.ten_vt || 'Chưa chọn'}
+          <strong
+            className="text-slate-900 max-w-xs truncate"
+            title={currentItem.ten_vt}
+          >
+            {currentItem.ten_vt || "Chưa chọn"}
           </strong>
         </div>
+
+        {onSave && (
+          <button
+            onClick={onSave}
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
+            title="Lưu dữ liệu khối hiện tại"
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saving ? "Đang lưu..." : "Lưu khối hiện tại"}
+          </button>
+        )}
+
         <button
           onClick={onExportPdf}
           className="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition shadow-sm cursor-pointer"

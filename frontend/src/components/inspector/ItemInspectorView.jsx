@@ -223,7 +223,26 @@ export default function ItemInspectorView({
     if (activePillar === "imis" && !imisResults) loadImis();
     if (activePillar === "msc" && !mscResults) loadMsc();
   }, [activePillar, currentItem?.id, selectedIndex]);
-
+  // Thêm đoạn này bên trong component ItemInspectorView
+  const handleSaveCurrentPillar = () => {
+    if (activePillar === "quotes") {
+      saveStep(
+        "quotes",
+        { min_quote: minQuote, matches: supplierMatches },
+        "erp",
+      ); // Tự động sang ERP
+    } else if (activePillar === "erp") {
+      saveStep("erp", erpResults || {}, "imis"); // Tự động sang IMIS
+    } else if (activePillar === "imis") {
+      saveStep("imis", imisResults || {}, "msc"); // Tự động sang MSC (Mua sắm công)
+    } else if (activePillar === "msc") {
+      saveStep("muasamcong", mscResults || {}, "ecom"); // Tự động sang Ecom
+    } else if (activePillar === "ecom") {
+      saveStep("ecom", ecomResults || {}, "synthesis"); // Tự động sang Tổng hợp (Synthesis)
+    } else if (activePillar === "synthesis") {
+      saveStep("synthesis", synthesisResults || {}, null); // Khối cuối cùng
+    }
+  };
   const updateLocalEvidenceState = useCallback((stepKey, payload) => {
     if (stepKey === "quotes") setQuoteEvidence(payload);
     else if (stepKey === "erp") setErpResults(payload);
@@ -355,12 +374,15 @@ export default function ItemInspectorView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-white h-full">
       {/* Navigator Bar */}
+      {/* Navigator Bar tích hợp sẵn nút Lưu */}
       <InspectorNavbar
         selectedIndex={selectedIndex}
         totalItems={items.length}
         currentItem={currentItem}
         onNavigateIndex={onNavigateIndex}
         onExportPdf={handleExportPdf}
+        onSave={handleSaveCurrentPillar}
+        saving={saving}
       />
 
       {/* Body */}

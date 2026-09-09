@@ -22,6 +22,8 @@ import {
 import AuditProgressModal from "../modals/AuditProgressModal.jsx";
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
+  const [groupByPycvt, setGroupByPycvt] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("standard"); // 'standard' | 'coso_dongia'
@@ -830,7 +832,27 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       return (a.stt || origIdxA + 1) - (b.stt || origIdxB + 1);
     });
   }, [filteredItems, sortField, sortOrder, items, quoteMatches]);
+  const groupedItems = useMemo(() => {
+    if (!groupByPycvt) return { "Tất cả": sortedFilteredItems };
 
+    return sortedFilteredItems.reduce((acc, item) => {
+      const pycvtKey = (item.pycvt || "").trim() || "Chưa phân loại PYCVT";
+      if (!acc[pycvtKey]) acc[pycvtKey] = [];
+      acc[pycvtKey].push(item);
+      return acc;
+    }, {});
+  }, [sortedFilteredItems, groupByPycvt]);
+  const toggleGroupCollapse = (pycvtKey) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(pycvtKey)) {
+        next.delete(pycvtKey);
+      } else {
+        next.add(pycvtKey);
+      }
+      return next;
+    });
+  };
   // Summary stats
   const giam_tru = stats.total_trinh - stats.total_thong_nhat;
   const pct_giam =
@@ -899,6 +921,19 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
               {/* Bộ lọc nhanh trạng thái lưu CSDL Thẩm định */}
               <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-[10.5px] font-bold ml-1">
+                {/* Nút bật/tắt gom nhóm theo PYCVT */}
+                <button
+                  onClick={() => setGroupByPycvt(!groupByPycvt)}
+                  className={`px-3 py-1.5 rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
+                    groupByPycvt
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-slate-200/80 text-slate-700 hover:bg-slate-300 border border-slate-300"
+                  }`}
+                  title="Gom nhóm danh sách theo số Phiếu yêu cầu vật tư (PYCVT)"
+                >
+                  📂{" "}
+                  {groupByPycvt ? "Đang gom nhóm PYCVT" : "Gom nhóm theo PYCVT"}
+                </button>
                 <button
                   onClick={() => setFilterSaved("ALL")}
                   className={`px-2 py-0.5 rounded-md transition cursor-pointer ${filterSaved === "ALL" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-600 hover:text-slate-900"}`}
@@ -1209,7 +1244,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             </thead>
 
             <tbody className="divide-y divide-slate-200/80">
-              {sortedFilteredItems.length === 0 ? (
+              {Object.keys(groupedItems).length === 0 ? (
                 <tr>
                   <td
                     colSpan={14}
@@ -1221,352 +1256,412 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                   </td>
                 </tr>
               ) : (
-                sortedFilteredItems.map((it, idx) => {
-                  const origIdx = items.indexOf(it);
-                  const itemId = it.id || origIdx + 1;
-                  const sl = parseFloat(it.so_luong) || 1;
+                Object.entries(groupedItems).map(([pycvtKey, itemsInGroup]) => {
+                  const isCollapsed = collapsedGroups.has(pycvtKey);
 
-                  // Trình
-                  const dgTrinh = parseFloat(it.don_gia_trinh) || 0;
-                  const ttTrinh =
-                    parseFloat(it.thanh_tien_trinh) || sl * dgTrinh;
+                  // 2. Tính toán tổng tiền nhóm...
+                  const groupTotalTrinh = itemsInGroup.reduce((sum, it) => {
+                    const sl = parseFloat(it.so_luong) || 1;
+                    const dgTrinh = parseFloat(it.don_gia_trinh) || 0;
+                    return (
+                      sum + (parseFloat(it.thanh_tien_trinh) || sl * dgTrinh)
+                    );
+                  }, 0);
 
-                  // Thống nhất
-                  const dgTN = parseFloat(it.don_gia_thong_nhat) || 0;
-                  const ttTN =
-                    parseFloat(it.thanh_tien_thong_nhat) ||
-                    (dgTN > 0 ? sl * dgTN : 0);
-
-                  // % giảm
-                  const hasTN = dgTN > 0;
-                  const pctGiam =
-                    hasTN && dgTrinh > 0
-                      ? ((dgTrinh - dgTN) / dgTrinh) * 100
-                      : null;
-
-                  // Lowest quote & match info from auto-scan backend
-                  const itemMatch = quoteMatches[itemId] || {};
-                  const lowestPrice =
-                    itemMatch.lowest_price ||
-                    it.lowest_quote_price ||
-                    it.don_gia_nha_thau_thap_nhat ||
-                    it.don_gia_nhathau_min ||
-                    null;
-                  const lowestVendor =
-                    itemMatch.lowest_vendor ||
-                    it.lowest_quote_vendor ||
-                    it.ten_nha_thau_thap_nhat ||
-                    it.ten_nhathau_min ||
-                    "—";
-                  const noteCoSo =
-                    itemMatch.co_so_don_gia ||
-                    it.ghi_chu_co_so_don_gia ||
-                    it.co_so_thong_nhat ||
-                    it.danh_gia_ttd ||
-                    it.ghi_chu ||
-                    "—";
-
-                  // Status
-                  const status = !hasTN
-                    ? "pending"
-                    : pctGiam > 0
-                      ? "reduced"
-                      : pctGiam === 0
-                        ? "same"
-                        : "increased";
-
-                  const isEven = idx % 2 === 0;
-                  const isRunningThis = runningItemIds.has(itemId);
-
+                  const groupTotalThongNhat = itemsInGroup.reduce((sum, it) => {
+                    const sl = parseFloat(it.so_luong) || 1;
+                    const dgTN = parseFloat(it.don_gia_thong_nhat) || 0;
+                    return (
+                      sum +
+                      (parseFloat(it.thanh_tien_thong_nhat) ||
+                        (dgTN > 0 ? sl * dgTN : 0))
+                    );
+                  }, 0);
                   return (
-                    <tr
-                      key={idx}
-                      className={`group transition hover:bg-teal-50/60 ${isEven ? "bg-white" : "bg-slate-50/30"}`}
-                    >
-                      {/* Common Sticky Left 1..3 */}
-                      <td className="py-2.5 px-2 text-center font-mono text-slate-500 sticky left-0 bg-inherit group-hover:bg-teal-50 border-r border-slate-200 font-medium">
-                        {it.stt || origIdx + 1}
-                      </td>
-                      <td className="py-2.5 px-2 text-center font-mono text-slate-700 sticky left-10 bg-inherit group-hover:bg-teal-50 border-r border-slate-200 text-[11px] font-semibold">
-                        {it.pycvt || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-900 sticky left-[136px] bg-inherit group-hover:bg-teal-50 border-r border-slate-200 shadow-sm">
-                        <div
-                          className="line-clamp-2"
-                          title={it.ten_vt_goc || it.ten_vt}
+                    <React.Fragment key={pycvtKey}>
+                      {/* Dòng tiêu đề nhóm PYCVT ghim sticky chuẩn khung nhìn bảng */}
+                      {/* Dòng tiêu đề nhóm PYCVT (Chỉ hiển thị khi bật gom nhóm, bấm vào để Thu gọn / Mở rộng) */}
+                      {groupByPycvt && (
+                        <tr
+                          onClick={() => toggleGroupCollapse(pycvtKey)}
+                          className="bg-amber-50/98 border-y-2 border-amber-300 cursor-pointer hover:bg-amber-200/50 transition-colors select-none group/row"
+                          title="Nhấp để thu gọn / mở rộng nhóm vật tư này"
                         >
-                          {it.ten_vt_goc || it.ten_vt || ""}
-                        </div>
-                      </td>
-
-                      {/* NEW COLUMN: Từ Khóa Tra Cứu Dùng Chung 5 Cơ Sở */}
-                      <td className="py-2.5 px-2 border-r border-slate-200 bg-purple-50/30 group-hover:bg-purple-50/60">
-                        <input
-                          type="text"
-                          value={
-                            itemKeywords[itemId] ??
-                            (it.search_keyword || extractDefaultKeyword(it))
-                          }
-                          onChange={(e) =>
-                            handleKeywordChange(itemId, e.target.value)
-                          }
-                          className="w-full px-2 py-1 text-[11.5px] font-mono font-bold text-purple-950 bg-white border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 shadow-2xs"
-                          placeholder="Nhập từ khóa tra cứu 5 khối..."
-                          title="Từ khóa dùng chung để tra cứu liên hoàn cả 5 cơ sở chứng cứ (Bấm sửa trực tiếp)"
-                        />
-                      </td>
-
-                      {/* Common Columns 4..9 */}
-                      <td className="py-2.5 px-3 text-slate-600 border-r border-slate-200 text-[11px]">
-                        <div
-                          className="line-clamp-2"
-                          title={it.thong_so_kt || it.part_no}
-                        >
-                          {it.thong_so_kt || it.part_no || "—"}
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-2 text-center border-r border-slate-200 text-slate-700">
-                        {it.dvt || "Cái"}
-                      </td>
-                      <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">
-                        {sl}
-                      </td>
-                      <td
-                        className="py-2.5 px-3 border-r border-slate-200 text-[11px] text-slate-600 truncate max-w-[112px]"
-                        title={it.hsx_xx}
-                      >
-                        {it.hsx_xx || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-mono text-slate-800 border-r border-slate-200 text-[11px] font-semibold">
-                        {it.ma_vt || "—"}
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#003366] border-r border-slate-200 bg-blue-50/20 group-hover:bg-teal-50">
-                        {fmt(dgTrinh)} đ
-                      </td>
-
-                      {/* Conditional View Columns */}
-                      {viewMode === "standard" ? (
-                        <>
-                          <td className="py-2.5 px-3 text-right font-mono font-extrabold text-[#003366] border-r border-slate-200 bg-blue-50/10 group-hover:bg-teal-50">
-                            {fmt(ttTrinh)} đ
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-emerald-50/20 group-hover:bg-teal-50">
-                            {hasTN ? (
-                              <span className="text-emerald-900">
-                                {fmt(dgTN)} đ
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 text-[11px] italic">
-                                Chưa TĐ
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-emerald-50/10 group-hover:bg-teal-50">
-                            {hasTN ? (
-                              <span className="text-emerald-900">
-                                {fmt(ttTN)} đ
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 text-[11px] italic">
-                                —
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-amber-50/20 group-hover:bg-teal-50">
-                            {pctGiam === null ? (
-                              <span className="text-slate-300 text-[11px]">
-                                —
-                              </span>
-                            ) : pctGiam > 0 ? (
-                              <span className="text-emerald-700">
-                                -{pctGiam.toFixed(1)}%
-                              </span>
-                            ) : pctGiam < 0 ? (
-                              <span className="text-red-600">
-                                +{Math.abs(pctGiam).toFixed(1)}%
-                              </span>
-                            ) : (
-                              <span className="text-slate-500">0%</span>
-                            )}
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          {/* View 1: 10. Ghi chú cơ sở đơn giá */}
-                          <td className="py-2.5 px-3 border-r border-slate-200 bg-amber-50/10 text-slate-700 text-[11px]">
-                            <div className="line-clamp-2" title={noteCoSo}>
-                              {noteCoSo}
-                            </div>
-                          </td>
-
-                          {/* View 1: 11. Đơn giá nhà thầu báo giá thấp nhất */}
-                          <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-purple-50/20 text-purple-900">
-                            {lowestPrice ? (
-                              <span className="text-purple-900 font-bold">
-                                {fmt(lowestPrice)} đ
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 text-[11px] italic">
-                                —
-                              </span>
-                            )}
-                          </td>
-
-                          {/* View 1: 12. Tên Nhà thầu báo thấp nhất */}
-                          <td className="py-2.5 px-3 border-r border-slate-200 bg-purple-50/10 text-purple-900 font-semibold text-[11px]">
-                            <div
-                              className="truncate max-w-[180px]"
-                              title={lowestVendor}
-                            >
-                              {lowestVendor}
-                            </div>
-                          </td>
-
-                          {/* View 1: 13. Ý kiến thẩm định của TTĐ (ngắn gọn, chi tiết xin xem báo cáo) */}
-                          <td className="py-2.5 px-3 border-r border-slate-200 bg-teal-50/15 text-[11px] align-top max-w-[320px]">
-                            <div className="flex flex-col gap-1">
-                              {/* Badge trạng thái đánh giá */}
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {hasTN ? (
-                                  pctGiam > 0 ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                      Đề xuất giảm -{pctGiam.toFixed(1)}%
-                                    </span>
-                                  ) : pctGiam === 0 ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300 shadow-2xs">
-                                      <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
-                                      Giữ giá trình ({fmt(dgTrinh)} đ)
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs">
-                                      <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
-                                      Tăng +{Math.abs(pctGiam).toFixed(1)}%
-                                    </span>
-                                  )
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                    <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                                    Đang thu thập chứng cứ
-                                  </span>
-                                )}
+                          <td colSpan={15} className="p-0 relative">
+                            <div className="py-2.5 px-4 flex items-center justify-between sticky left-0 w-screen max-w-full bg-amber-100/98 shadow-sm z-20">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-5 h-5 rounded bg-amber-200 text-amber-950 flex items-center justify-center font-bold text-xs shadow-2xs group-hover/row:bg-amber-300 transition">
+                                  {isCollapsed ? "▶" : "▼"}
+                                </span>
+                                <span className="text-amber-950 font-extrabold text-xs uppercase tracking-wide">
+                                  📌 Nhóm Phiếu yêu cầu (PYCVT):
+                                </span>
+                                <span className="font-black text-amber-950 underline bg-amber-200 px-2 py-0.5 rounded text-xs">
+                                  {pycvtKey}
+                                </span>
+                                <span className="px-2.5 py-0.5 rounded-full bg-amber-300 text-amber-950 text-[11px] font-black shadow-2xs">
+                                  {itemsInGroup.length} vật tư
+                                </span>
                               </div>
 
-                              {/* Ý kiến đánh giá ngắn gọn */}
-                              {(() => {
-                                const opinion = getAppraisalOpinion(
-                                  it,
-                                  dgTrinh,
-                                  dgTN,
-                                  pctGiam,
-                                );
-                                return (
-                                  <>
-                                    <p
-                                      className="text-slate-800 leading-snug line-clamp-2 font-medium"
-                                      title={
-                                        opinion.fullText || opinion.briefText
-                                      }
-                                    >
-                                      {opinion.briefText}
-                                    </p>
-
-                                    {/* Nút/Link liên kết: Chi tiết xin xem báo cáo */}
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleOpenExistingAudit(it)
-                                      }
-                                      className="inline-flex items-center gap-1 text-[10.5px] text-teal-700 hover:text-teal-950 font-bold hover:underline transition self-start cursor-pointer mt-0.5 group/rep"
-                                      title="Nhấp để mở Bản thuyết minh & Báo cáo đối chiếu minh bạch 5 cơ sở"
-                                    >
-                                      <FileText className="w-3 h-3 text-teal-600 group-hover/rep:text-teal-800 shrink-0" />
-                                      <span>Chi tiết xin xem báo cáo</span>
-                                      <ExternalLink className="w-2.5 h-2.5 opacity-70 group-hover/rep:opacity-100 shrink-0" />
-                                    </button>
-                                  </>
-                                );
-                              })()}
+                              <div className="flex items-center gap-6 font-mono text-xs pr-8">
+                                <span className="text-blue-950 font-bold bg-white/90 px-2.5 py-1 rounded-md border border-blue-200 shadow-2xs">
+                                  Tổng TT Trình:{" "}
+                                  <strong className="font-black text-blue-900">
+                                    {fmt(groupTotalTrinh)} đ
+                                  </strong>
+                                </span>
+                                <span className="text-emerald-950 font-bold bg-white/90 px-2.5 py-1 rounded-md border border-emerald-200 shadow-2xs">
+                                  Tổng TT Thống Nhất:{" "}
+                                  <strong className="font-black text-emerald-900">
+                                    {fmt(groupTotalThongNhat)} đ
+                                  </strong>
+                                </span>
+                              </div>
                             </div>
                           </td>
-                        </>
+                        </tr>
                       )}
 
-                      {/* Action — Sticky Right */}
-                      <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
-                        <div className="flex flex-col items-center gap-1.5">
-                          {/* Trạng thái lưu CSDL Thẩm định */}
-                          {isItemSaved(it, origIdx) ? (
-                            <span
-                              className="w-full text-center py-0.5 bg-emerald-100 text-emerald-900 rounded text-[9.5px] font-bold border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs"
-                              title="Mục này đã tổng hợp và lưu vết CSDL Thẩm định"
-                            >
-                              <CheckCircle2 className="w-3 h-3 text-emerald-700" />{" "}
-                              Đã Lưu CSDL
-                            </span>
-                          ) : (
-                            <span
-                              className="w-full text-center py-0.5 bg-slate-100 text-slate-500 rounded text-[9.5px] font-semibold border border-slate-200 flex items-center justify-center gap-1"
-                              title="Mục này chưa lưu CSDL thẩm định"
-                            >
-                              <Clock className="w-3 h-3 text-slate-400" /> Chưa
-                              Lưu CSDL
-                            </span>
-                          )}
+                      {/* Vòng lặp các dòng vật tư bên trong nhóm */}
+                      {(!groupByPycvt || !isCollapsed) &&
+                        itemsInGroup.map((it, idxInGroup) => {
+                          const origIdx = items.indexOf(it);
+                          const itemId = it.id || origIdx + 1;
+                          const sl = parseFloat(it.so_luong) || 1;
 
-                          {/* 1-Click 5-Pillars Automation Button */}
-                          <button
-                            onClick={() => handleRun5Pillars(itemId, true)}
-                            disabled={isRunningThis}
-                            className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10.5px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
-                            title="Chạy 1 mạch tự động 5 khối chứng cứ kèm theo dõi tiến độ trực quan"
-                          >
-                            {isRunningThis ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
-                                <span>Đang tra...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
-                                <span>⚡ Tra 5 Cơ Sở</span>
-                              </>
-                            )}
-                          </button>
+                          // Trình
+                          const dgTrinh = parseFloat(it.don_gia_trinh) || 0;
+                          const ttTrinh =
+                            parseFloat(it.thanh_tien_trinh) || sl * dgTrinh;
 
-                          <div className="flex items-center gap-1 w-full">
-                            {hasTN ? (
-                              <button
-                                onClick={() => handleOpenExistingAudit(it)}
-                                className="flex-1 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded text-[9.5px] font-bold transition border border-emerald-300"
-                                title="Xem bảng báo cáo đối chiếu minh bạch 5 cơ sở đã thẩm định"
+                          // Thống nhất
+                          const dgTN = parseFloat(it.don_gia_thong_nhat) || 0;
+                          const ttTN =
+                            parseFloat(it.thanh_tien_thong_nhat) ||
+                            (dgTN > 0 ? sl * dgTN : 0);
+
+                          // % giảm
+                          const hasTN = dgTN > 0;
+                          const pctGiam =
+                            hasTN && dgTrinh > 0
+                              ? ((dgTrinh - dgTN) / dgTrinh) * 100
+                              : null;
+
+                          // Lowest quote & match info from auto-scan backend
+                          const itemMatch = quoteMatches[itemId] || {};
+                          const lowestPrice =
+                            itemMatch.lowest_price ||
+                            it.lowest_quote_price ||
+                            it.don_gia_nha_thau_thap_nhat ||
+                            it.don_gia_nhathau_min ||
+                            null;
+                          const lowestVendor =
+                            itemMatch.lowest_vendor ||
+                            it.lowest_quote_vendor ||
+                            it.ten_nha_thau_thap_nhat ||
+                            it.ten_nhathau_min ||
+                            "—";
+                          const noteCoSo =
+                            itemMatch.co_so_don_gia ||
+                            it.ghi_chu_co_so_don_gia ||
+                            it.co_so_thong_nhat ||
+                            it.danh_gia_ttd ||
+                            it.ghi_chu ||
+                            "—";
+
+                          const isEven = idxInGroup % 2 === 0;
+                          const isRunningThis = runningItemIds.has(itemId);
+
+                          return (
+                            <tr
+                              key={idxInGroup}
+                              className={`group transition hover:bg-teal-50/60 ${isEven ? "bg-white" : "bg-slate-50/30"}`}
+                            >
+                              {/* Common Sticky Left 1..3 */}
+                              <td className="py-2.5 px-2 text-center font-mono text-slate-500 sticky left-0 bg-inherit group-hover:bg-teal-50 border-r border-slate-200 font-medium">
+                                {it.stt || origIdx + 1}
+                              </td>
+                              <td className="py-2.5 px-2 text-center font-mono text-slate-700 sticky left-10 bg-inherit group-hover:bg-teal-50 border-r border-slate-200 text-[11px] font-semibold">
+                                {it.pycvt || "—"}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-900 sticky left-[136px] bg-inherit group-hover:bg-teal-50 border-r border-slate-200 shadow-sm">
+                                <div
+                                  className="line-clamp-2"
+                                  title={it.ten_vt_goc || it.ten_vt}
+                                >
+                                  {it.ten_vt_goc || it.ten_vt || ""}
+                                </div>
+                              </td>
+
+                              {/* Từ Khóa Tra Cứu Dùng Chung 5 Cơ Sở */}
+                              <td className="py-2.5 px-2 border-r border-slate-200 bg-purple-50/30 group-hover:bg-purple-50/60">
+                                <input
+                                  type="text"
+                                  value={
+                                    itemKeywords[itemId] ??
+                                    (it.search_keyword ||
+                                      extractDefaultKeyword(it))
+                                  }
+                                  onChange={(e) =>
+                                    handleKeywordChange(itemId, e.target.value)
+                                  }
+                                  className="w-full px-2 py-1 text-[11.5px] font-mono font-bold text-purple-950 bg-white border border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 shadow-2xs"
+                                  placeholder="Nhập từ khóa tra cứu 5 khối..."
+                                  title="Từ khóa dùng chung để tra cứu liên hoàn cả 5 cơ sở chứng cứ"
+                                />
+                              </td>
+
+                              {/* Common Columns 4..9 */}
+                              <td className="py-2.5 px-3 text-slate-600 border-r border-slate-200 text-[11px]">
+                                <div
+                                  className="line-clamp-2"
+                                  title={it.thong_so_kt || it.part_no}
+                                >
+                                  {it.thong_so_kt || it.part_no || "—"}
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-2 text-center border-r border-slate-200 text-slate-700">
+                                {it.dvt || "Cái"}
+                              </td>
+                              <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900 border-r border-slate-200">
+                                {sl}
+                              </td>
+                              <td
+                                className="py-2.5 px-3 border-r border-slate-200 text-[11px] text-slate-600 truncate max-w-[112px]"
+                                title={it.hsx_xx}
                               >
-                                Báo Cáo
-                              </button>
-                            ) : null}
+                                {it.hsx_xx || "—"}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-mono text-slate-800 border-r border-slate-200 text-[11px] font-semibold">
+                                {it.ma_vt || "—"}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-mono font-bold text-[#003366] border-r border-slate-200 bg-blue-50/20 group-hover:bg-teal-50">
+                                {fmt(dgTrinh)} đ
+                              </td>
 
-                            <button
-                              onClick={() => onSelectInspectorItem(origIdx)}
-                              className="flex-1 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9.5px] font-bold transition border border-slate-300"
-                              title="Soi chi tiết từng khối tại màn hình Inspector"
-                            >
-                              Soi Chi Tiết
-                            </button>
-                          </div>
+                              {/* Conditional View Columns */}
+                              {viewMode === "standard" ? (
+                                <>
+                                  <td className="py-2.5 px-3 text-right font-mono font-extrabold text-[#003366] border-r border-slate-200 bg-blue-50/10 group-hover:bg-teal-50">
+                                    {fmt(ttTrinh)} đ
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-emerald-50/20 group-hover:bg-teal-50">
+                                    {hasTN ? (
+                                      <span className="text-emerald-900">
+                                        {fmt(dgTN)} đ
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 text-[11px] italic">
+                                        Chưa TĐ
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-emerald-50/10 group-hover:bg-teal-50">
+                                    {hasTN ? (
+                                      <span className="text-emerald-900">
+                                        {fmt(ttTN)} đ
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 text-[11px] italic">
+                                        —
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-right font-mono font-bold border-r border-slate-200 bg-amber-50/20 group-hover:bg-teal-50">
+                                    {pctGiam === null ? (
+                                      <span className="text-slate-300 text-[11px]">
+                                        —
+                                      </span>
+                                    ) : pctGiam > 0 ? (
+                                      <span className="text-emerald-700">
+                                        -{pctGiam.toFixed(1)}%
+                                      </span>
+                                    ) : pctGiam < 0 ? (
+                                      <span className="text-red-600">
+                                        +{Math.abs(pctGiam).toFixed(1)}%
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-500">0%</span>
+                                    )}
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  {/* View 1: Ghi chú cơ sở đơn giá */}
+                                  <td className="py-2.5 px-3 border-r border-slate-200 bg-amber-50/10 text-slate-700 text-[11px]">
+                                    <div
+                                      className="line-clamp-2"
+                                      title={noteCoSo}
+                                    >
+                                      {noteCoSo}
+                                    </div>
+                                  </td>
 
-                          {hasTN && (
-                            <button
-                              onClick={() => handleExportPdf(itemId)}
-                              className="w-full px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[9.5px] font-bold transition border border-rose-300 flex items-center justify-center gap-1"
-                              title="Tải ngay file PDF Báo Cáo Thẩm Định chuẩn 2 trang A4"
-                            >
-                              <FileDown className="w-3 h-3 text-rose-600" />{" "}
-                              Xuất PDF 2 Trang
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                                  {/* View 1: Đơn giá nhà thầu thấp nhất */}
+                                  <td className="py-2.5 px-3 text-right font-mono font-extrabold border-r border-slate-200 bg-purple-50/20 text-purple-900">
+                                    {lowestPrice ? (
+                                      <span className="text-purple-900 font-bold">
+                                        {fmt(lowestPrice)} đ
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-300 text-[11px] italic">
+                                        —
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* View 1: Tên Nhà thầu thấp nhất */}
+                                  <td className="py-2.5 px-3 border-r border-slate-200 bg-purple-50/10 text-purple-900 font-semibold text-[11px]">
+                                    <div
+                                      className="truncate max-w-[180px]"
+                                      title={lowestVendor}
+                                    >
+                                      {lowestVendor}
+                                    </div>
+                                  </td>
+
+                                  {/* View 1: Ý kiến thẩm định */}
+                                  <td className="py-2.5 px-3 border-r border-slate-200 bg-teal-50/15 text-[11px] align-top max-w-[320px]">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        {hasTN ? (
+                                          pctGiam > 0 ? (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                              Đề xuất giảm -{pctGiam.toFixed(1)}
+                                              %
+                                            </span>
+                                          ) : pctGiam === 0 ? (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-300 shadow-2xs">
+                                              <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
+                                              Giữ giá trình ({fmt(dgTrinh)} đ)
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs">
+                                              <AlertCircle className="w-3 h-3 text-amber-600 shrink-0" />
+                                              Tăng +
+                                              {Math.abs(pctGiam).toFixed(1)}%
+                                            </span>
+                                          )
+                                        ) : (
+                                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                            Đang thu thập chứng cứ
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {(() => {
+                                        const opinion = getAppraisalOpinion(
+                                          it,
+                                          dgTrinh,
+                                          dgTN,
+                                          pctGiam,
+                                        );
+                                        return (
+                                          <>
+                                            <p
+                                              className="text-slate-800 leading-snug line-clamp-2 font-medium"
+                                              title={
+                                                opinion.fullText ||
+                                                opinion.briefText
+                                              }
+                                            >
+                                              {opinion.briefText}
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleOpenExistingAudit(it)
+                                              }
+                                              className="inline-flex items-center gap-1 text-[10.5px] text-teal-700 hover:text-teal-950 font-bold hover:underline transition self-start cursor-pointer mt-0.5 group/rep"
+                                            >
+                                              <FileText className="w-3 h-3 text-teal-600 shrink-0" />
+                                              <span>
+                                                Chi tiết xin xem báo cáo
+                                              </span>
+                                              <ExternalLink className="w-2.5 h-2.5 opacity-70 shrink-0" />
+                                            </button>
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </td>
+                                </>
+                              )}
+
+                              {/* Action — Sticky Right */}
+                              <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
+                                <div className="flex flex-col items-center gap-1.5">
+                                  {isItemSaved(it, origIdx) ? (
+                                    <span className="w-full text-center py-0.5 bg-emerald-100 text-emerald-900 rounded text-[9.5px] font-bold border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />{" "}
+                                      Đã Lưu CSDL
+                                    </span>
+                                  ) : (
+                                    <span className="w-full text-center py-0.5 bg-slate-100 text-slate-500 rounded text-[9.5px] font-semibold border border-slate-200 flex items-center justify-center gap-1">
+                                      <Clock className="w-3 h-3 text-slate-400" />{" "}
+                                      Chưa Lưu CSDL
+                                    </span>
+                                  )}
+
+                                  <button
+                                    onClick={() =>
+                                      handleRun5Pillars(itemId, true)
+                                    }
+                                    disabled={isRunningThis}
+                                    className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10.5px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                                  >
+                                    {isRunningThis ? (
+                                      <>
+                                        <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
+                                        <span>Đang tra...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
+                                        <span>⚡ Tra 5 Cơ Sở</span>
+                                      </>
+                                    )}
+                                  </button>
+
+                                  <div className="flex items-center gap-1 w-full">
+                                    {hasTN && (
+                                      <button
+                                        onClick={() =>
+                                          handleOpenExistingAudit(it)
+                                        }
+                                        className="flex-1 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded text-[9.5px] font-bold transition border border-emerald-300"
+                                      >
+                                        Báo Cáo
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() =>
+                                        onSelectInspectorItem(origIdx)
+                                      }
+                                      className="flex-1 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9.5px] font-bold transition border border-slate-300"
+                                    >
+                                      Soi Chi Tiết
+                                    </button>
+                                  </div>
+
+                                  {hasTN && (
+                                    <button
+                                      onClick={() => handleExportPdf(itemId)}
+                                      className="w-full px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[9.5px] font-bold transition border border-rose-300 flex items-center justify-center gap-1"
+                                    >
+                                      <FileDown className="w-3 h-3 text-rose-600" />{" "}
+                                      Xuất PDF 2 Trang
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </React.Fragment>
                   );
                 })
               )}
