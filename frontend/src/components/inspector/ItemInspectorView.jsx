@@ -18,7 +18,8 @@ import {
   PillarSynthesis,
 } from "./pillars";
 import ErrorBoundary from "../common/ErrorBoundary.jsx";
-
+import { Zap, Loader2 } from "lucide-react";
+import AuditProgressModal from "../modals/AuditProgressModal.jsx";
 export default function ItemInspectorView({
   selectedIndex,
   onNavigateIndex,
@@ -42,7 +43,16 @@ export default function ItemInspectorView({
   const [mscResults, setMscResults] = useState(null);
   const [ecomResults, setEcomResults] = useState(null);
   const [synthesisResults, setSynthesisResults] = useState(null);
-
+  // States cho 1-click 5 cơ sở & Modal minh bạch hóa
+  const [isSearching5Pillars, setIsSearching5Pillars] = useState(false);
+  const [auditModal, setAuditModal] = useState({
+    isOpen: false,
+    item: null,
+    keyword: "",
+    status: "running", // 'running' | 'completed' | 'error'
+    activeStep: 1,
+    auditData: null,
+  });
   // Loading states
   const [loading, setLoading] = useState({
     quotes: false,
@@ -70,6 +80,71 @@ export default function ItemInspectorView({
       console.error(e);
     }
   }, []);
+  //định nghĩa hàm handleRun5Pillars
+  const handleRun5Pillars = async () => {
+    const itemId = currentItem.id || selectedIndex + 1;
+    const kw =
+      currentItem.search_keyword ||
+      currentItem.ma_vt ||
+      currentItem.ten_vt ||
+      "";
+
+    setIsSearching5Pillars(true);
+    setAuditModal({
+      isOpen: true,
+      item: currentItem,
+      keyword: kw,
+      status: "running",
+      activeStep: 1,
+      auditData: null,
+    });
+
+    const stepInterval = setInterval(() => {
+      setAuditModal((prev) => {
+        if (prev.status === "running" && prev.activeStep < 5) {
+          return { ...prev, activeStep: prev.activeStep + 1 };
+        }
+        return prev;
+      });
+    }, 350);
+
+    try {
+      const res = await fetch(`/api/items/${itemId}/run-5-pillars`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword: kw, run_ai: false }),
+      });
+      const data = await res.json();
+      clearInterval(stepInterval);
+
+      if (data.success) {
+        // Tải lại dữ liệu các khối sau khi tra cứu xong
+        await loadAllEvidenceStatus();
+
+        // Tự động load lại state evidence của item hiện tại
+        const evRes = await fetch(`/api/items/${itemId}/evidence/get`);
+        if (evRes.ok) {
+          // Cập nhật lại các kết quả per-pillar nếu cần
+        }
+
+        setAuditModal((prev) => ({
+          ...prev,
+          status: "completed",
+          activeStep: 5,
+          auditData: data.audit_trail || data,
+          item: data.item || currentItem,
+        }));
+      } else {
+        setAuditModal((prev) => ({ ...prev, status: "error" }));
+      }
+    } catch (e) {
+      clearInterval(stepInterval);
+      console.error("Lỗi chạy 5 cơ sở:", e);
+      setAuditModal((prev) => ({ ...prev, status: "error" }));
+    } finally {
+      setIsSearching5Pillars(false);
+    }
+  };
 
   useEffect(() => {
     loadAllEvidenceStatus();
@@ -383,6 +458,8 @@ export default function ItemInspectorView({
         onExportPdf={handleExportPdf}
         onSave={handleSaveCurrentPillar}
         saving={saving}
+        handleRun5Pillars={handleRun5Pillars}
+        isSearching5Pillars={isSearching5Pillars}
       />
 
       {/* Body */}
@@ -515,6 +592,26 @@ export default function ItemInspectorView({
           </div>
         </main>
       </div>
+      {/* Modal Minh Bạch Hóa Tiến Trình & Báo Cáo 5 Cơ Sở */}
+      <AuditProgressModal
+        isOpen={auditModal.isOpen}
+        onClose={() => setAuditModal((prev) => ({ ...prev, isOpen: false }))}
+        item={auditModal.item}
+        keyword={auditModal.keyword}
+        status={auditModal.status}
+        activeStep={auditModal.activeStep}
+        auditData={auditModal.auditData}
+        onExportPdf={handleExportPdf}
+        onOpenInspector={(idx) => onNavigateIndex(idx)}
+        onItemUpdated={(updatedItem) => {
+          if (!updatedItem) return;
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === updatedItem.id ? { ...it, ...updatedItem } : it,
+            ),
+          );
+        }}
+      />
     </div>
   );
 }

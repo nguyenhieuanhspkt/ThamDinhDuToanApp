@@ -5,6 +5,7 @@ import {
   FileText,
   Save,
   Loader2,
+  Zap, // <-- 1. Bổ sung import Zap ở đây
 } from "lucide-react";
 
 export default function InspectorNavbar({
@@ -15,6 +16,8 @@ export default function InspectorNavbar({
   onExportPdf,
   onSave,
   saving,
+  handleRun5Pillars, // <-- 2. Nhận hàm này từ props
+  isSearching5Pillars, // <-- 3. Nhận trạng thái này từ props
 }) {
   return (
     <div className="bg-white border-b px-5 py-2.5 shrink-0 flex items-center justify-between shadow-sm z-10 text-xs">
@@ -37,6 +40,25 @@ export default function InspectorNavbar({
           className="bg-[#003366] hover:bg-blue-900 disabled:opacity-40 text-white px-3.5 py-1.5 rounded-lg font-semibold flex items-center gap-1 transition shadow-sm"
         >
           Tiếp theo <ChevronRight className="w-4 h-4" />
+        </button>
+        {/* Nút Tra 5 Cơ Sở */}
+        <button
+          onClick={handleRun5Pillars}
+          disabled={isSearching5Pillars}
+          className="bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-extrabold shadow-sm flex items-center gap-1.5 transition cursor-pointer"
+          title="Tra cứu tự động liên hoàn 5 khối chứng cứ cho mục vật tư này"
+        >
+          {isSearching5Pillars ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-200" />
+              <span>Đang tra cứu...</span>
+            </>
+          ) : (
+            <>
+              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+              <span>⚡ Tra 5 Cơ Sở</span>
+            </>
+          )}
         </button>
       </div>
       <div className="flex items-center gap-3">

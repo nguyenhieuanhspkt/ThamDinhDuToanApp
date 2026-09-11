@@ -75,30 +75,22 @@ export default function PillarErp({
     const list = data?.results || (Array.isArray(data) ? data : []);
 
     if (isNewItem) {
-      // Khi chuyển hẳn sang một vật tư mới -> Khởi tạo lại toàn bộ state theo props của vật tư đó
+      // Khi chuyển hẳn sang một vật tư mới -> Khởi tạo lại toàn bộ state theo props
       setErpResults(list);
       setMapping(data?.mapping || {});
       setSummaryData(data?.summary || {});
       setSearchKey(getErpDefaultKw(item, data));
       setSelectedIdx(getInitialSelectedIdx(data, list));
     } else {
-      // Nếu VẪN LÀ VẬT TƯ ĐÓ (Parent chỉ re-render do onAutoSave hoặc cập nhật ngầm):
-      // Tuyệt đối không đè state selectedIdx hay summaryData mà người dùng vừa nhấp chọn!
-      if (list.length > 0 && erpResults.length === 0) {
+      // Nếu VẪN LÀ VẬT TƯ ĐÓ:
+      if (list.length > 0) {
         setErpResults(list);
       }
-      if (
-        data?.mapping &&
-        Object.keys(data.mapping).length > 0 &&
-        Object.keys(mapping).length === 0
-      ) {
+      if (data?.mapping && Object.keys(data.mapping).length > 0) {
         setMapping(data.mapping);
       }
-      // Nếu local state chưa có thuyết minh mà props cha vừa có dữ liệu -> Khôi phục
-      if (
-        !summaryData?.summary_text &&
-        (data?.summary?.summary_text || data?.summary_text)
-      ) {
+      // ƯU TIÊN LẤY DỮ LIỆU SUMMARY TỪ PROPS NẾU ĐÃ CÓ (Tránh việc gọi lại API tra cứu)
+      if (data?.summary?.summary_text || data?.summary_text) {
         setSummaryData(data?.summary || { summary_text: data?.summary_text });
       }
     }
@@ -120,11 +112,11 @@ export default function PillarErp({
     if (
       isExplicitlyDeselected ||
       list.length === 0 ||
-      curSummaryText ||
+      curSummaryText || // <--- Khi đã chạy 5 cơ sở xong, biến này có giá trị (không rỗng)
       searching ||
       !item?.ten_vt
     ) {
-      return;
+      return; // Lập tức thoát, không gọi API tra cứu lại nữa!
     }
 
     const restoreSummary = async () => {
