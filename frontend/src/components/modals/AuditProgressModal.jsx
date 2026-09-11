@@ -273,7 +273,8 @@ function AuditProgressModalContent({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+      {/* Thay max-w-2xl thành max-w-5xl để mở rộng không gian hiển thị chứng cứ */}
+      <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         {/* Header Bar */}
         <div className="bg-gradient-to-r from-[#003366] via-blue-900 to-teal-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
@@ -505,6 +506,44 @@ function AuditProgressModalContent({
                             <td
                               className={`py-2.5 px-3 border-r text-[11.5px] align-top ${isDeselected ? "text-slate-500" : "text-slate-700"}`}
                             >
+                              {/* [BƯỚC 2.2] THÊM KHỐI MINH BẠCH TỪ KHÓA TRA CỨU & KẾT QUẢ CHO TỪNG CƠ SỞ */}
+                              <div className="mb-2 flex items-center justify-between gap-2 bg-purple-50/80 border border-purple-200/80 px-2.5 py-1 rounded-md text-[10.5px] font-mono">
+                                <div className="flex items-center gap-1.5 text-purple-950 truncate">
+                                  <Key className="w-3 h-3 text-purple-700 shrink-0" />
+                                  <span>Từ khóa tra:</span>
+                                  <strong
+                                    className="underline font-bold text-purple-900 truncate"
+                                    title={
+                                      st.step_id === "erp" && item?.ma_vt
+                                        ? item.ma_vt
+                                        : st.keyword_used ||
+                                          keyword ||
+                                          auditData?.keyword_used ||
+                                          "N/A"
+                                    }
+                                  >
+                                    {st.step_id === "erp" && item?.ma_vt
+                                      ? item.ma_vt
+                                      : st.keyword_used ||
+                                        keyword ||
+                                        auditData?.keyword_used ||
+                                        "N/A"}
+                                  </strong>
+                                </div>
+
+                                <div className="shrink-0">
+                                  {st.item_name ||
+                                  (st.price && st.price > 0) ? (
+                                    <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
+                                      Có kết quả
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/70 px-1.5 py-0.2 rounded">
+                                      0 kết quả (Trống)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                               {/* Khối Minh Bạch: Tên vật tư thực tế trong nguồn */}
                               {st.item_name ? (
                                 <div className="mb-1.5 pb-1.5 border-b border-slate-200/60">

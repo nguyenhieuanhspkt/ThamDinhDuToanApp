@@ -856,12 +856,16 @@ def api_erp_search():
     if not ma_vt and imis_core.is_valid_erp_code(keyword):
         ma_vt = keyword
 
-    if keyword.strip().lower().startswith("chưa") or keyword.strip().lower() in ("chưa có mã vật tư", "n/a", "none"):
-        keyword = (item.get("ten_vt_goc") or item.get("ten_vt") or "").split("\n")[0].split("-")[0].strip()
+    # ƯU TIÊN TUYỆT ĐỐI MA_VT: Nếu có ma_vt, dùng ma_vt làm từ khóa tìm kiếm chính, tránh bị lệch do tên vật tư dài
+    search_kw = ma_vt if ma_vt else keyword
 
-    results = imis_core.search_erp_baseline(keyword, ma_vt=ma_vt, min_score=min_score)
-    if not results and not is_manual and keyword:
-        clean_kw = keyword.split("\n")[0].split("-")[0].strip()
+    if search_kw.strip().lower().startswith("chưa") or search_kw.strip().lower() in ("chưa có mã vật tư", "n/a", "none"):
+        search_kw = (item.get("ten_vt_goc") or item.get("ten_vt") or "").split("\n")[0].split("-")[0].strip()
+
+    # Truyền search_kw thay vì dùng nguyên biến keyword thô
+    results = imis_core.search_erp_baseline(search_kw, ma_vt=ma_vt, min_score=min_score)
+    if not results and not is_manual and search_kw:
+        clean_kw = search_kw.split("\n")[0].split("-")[0].strip()
         results = imis_core.search_erp_baseline(clean_kw, min_score=40)
         
     cfg = imis_core.load_erp_mapping_config()
@@ -890,7 +894,6 @@ def api_erp_search():
         "summary": summary_data,
         "summary_text": summary_data.get("summary_text", "")
     })
-
 
 @app.route("/api/quotes/browse-folders", methods=["GET", "POST"])
 def api_quotes_browse_folders():
@@ -1448,8 +1451,9 @@ def api_run_5_pillars(item_id):
     dossier = load_dossier_data()
     items = dossier.get("items", [])
     target_item = None
-    for it in items:
-        if it.get("id") == item_id or items.index(it) + 1 == item_id:
+    for idx, it in enumerate(items):
+        it_id = str(it.get("id", ""))
+        if it_id == str(item_id) or (str(item_id).isdigit() and idx + 1 == int(item_id)):
             target_item = it
             break
             
@@ -1458,8 +1462,14 @@ def api_run_5_pillars(item_id):
         
     raw_ten = target_item.get("ten_vt", "")
     raw_part = target_item.get("part_no", "")
-    keyword = kw_input or target_item.get("search_keyword") or extract_default_keyword(raw_ten, raw_part)
-    target_item["search_keyword"] = keyword
+    ma_vt_val = target_item.get("ma_vt", "").strip()
+
+    # TÁCH BẠCH TỪ KHÓA RIÊNG BIỆT CHO TỪNG KHỐI
+    general_keyword = kw_input or target_item.get("search_keyword") or extract_default_keyword(raw_ten, raw_part)
+    erp_keyword = ma_vt_val if (ma_vt_val and "chưa" not in ma_vt_val.lower()) else general_keyword
+    clean_msc_kw = (target_item.get("ten_vt_goc") or target_item.get("ten_vt") or "").split("\n")[0].strip() or general_keyword
+    
+    target_item["search_keyword"] = general_keyword
     
     p_dir = get_project_files_dir()
     item_dir = os.path.join(p_dir, f"item_{item_id}")
@@ -1477,12 +1487,16 @@ def api_run_5_pillars(item_id):
         except Exception:
             pass
     
+    # Khởi tạo trước các biến kết quả
+    q_matches = None
+    recs = []
+    imis_res = {}
+    msc_analysis = None
+
     # 1. Báo giá gốc
     p1_desc = "Chưa nạp dữ liệu Báo giá gốc"
     p1_price = 0
-    q_matches = None
     try:
-        # Ưu tiên đọc từ file chứng cứ đã đối chiếu sẵn nếu có
         existing_q_file = os.path.join(item_dir, "chung_cu_quotes.json")
         if not os.path.exists(existing_q_file):
             existing_q_file = os.path.join(fallback_dir, "chung_cu_quotes.json")
@@ -1494,7 +1508,6 @@ def api_run_5_pillars(item_id):
             except Exception:
                 q_matches = None
 
-        # Nếu chưa có thì quét từ folder nguồn
         if not q_matches or not q_matches.get("min_price"):
             q_folder = None
             approved_file = os.path.join(p_dir, "bao_gia_project.json")
@@ -1518,32 +1531,27 @@ def api_run_5_pillars(item_id):
     except Exception as e:
         print(f"Pillar 1 error for item {item_id}: {e}")
 
-    # 2. ERP Vĩnh Tân 4 (Ưu tiên số 1 tuyệt đối: Mã ERP ma_vt)
+    # 2. ERP Vĩnh Tân 4 (Dùng erp_keyword ưu tiên mã ERP)
     p2_desc = "Chưa có dữ liệu ERP nội bộ"
     p2_price = 0
-    recs = []
     try:
-        ma_vt = (target_item.get("ma_vt") or "").strip()
-        # Ưu tiên 1: Tra cứu trực tiếp theo Mã ERP
-        if ma_vt:
-            recs = imis_core.search_erp_baseline(keyword="", ma_vt=ma_vt, min_score=40)
+        if imis_core.is_valid_erp_code(erp_keyword):
+            recs = imis_core.search_erp_baseline(keyword="", ma_vt=erp_keyword, min_score=40)
         
-        # Ưu tiên 2: Nếu chưa có, tra cứu theo Tên tiếng Việt chuẩn hóa của vật tư
         if not recs:
             clean_name = (target_item.get("ten_vt_goc") or target_item.get("ten_vt") or "").split("\n")[0].strip()
             if clean_name:
-                recs = imis_core.search_erp_baseline(keyword=clean_name, ma_vt=ma_vt, min_score=40)
+                recs = imis_core.search_erp_baseline(keyword=clean_name, ma_vt=erp_keyword, min_score=40)
                 
-        # Ưu tiên 3: Fallback bằng keyword
-        if not recs and keyword:
-            recs = imis_core.search_erp_baseline(keyword=keyword, ma_vt=ma_vt, min_score=40)
+        if not recs and general_keyword:
+            recs = imis_core.search_erp_baseline(keyword=general_keyword, ma_vt=erp_keyword, min_score=40)
 
         if isinstance(recs, dict):
             recs = recs.get("results", [])
 
         if recs:
             p2_price = float(recs[0].get("don_gia") or recs[0].get("donGia") or 0)
-            erp_ten_vt = recs[0].get('ten_vt') or recs[0].get('tenVt') or '' # Lấy tên vật tư trong ERP
+            erp_ten_vt = recs[0].get('ten_vt') or recs[0].get('tenVt') or ''
             hd_info = recs[0].get('so_hd') or recs[0].get('soHopDong') or recs[0].get('soPhieuNhap') or 'HĐ lưu trữ'
             date_info = recs[0].get('ngayNhapKho') or recs[0].get('ngayKyHd') or ''
             sl_info = recs[0].get('soLuong')
@@ -1551,7 +1559,6 @@ def api_run_5_pillars(item_id):
             sl_str = f", SL: {sl_info:g} {dvt_item}" if sl_info else ""
             date_str = f" ngày {date_info}" if date_info else ""
             
-            # Bổ sung tên vật tư ERP vào trong chuỗi mô tả
             p2_desc = f"Lịch sử nhập kho ERP Vĩnh Tân 4 [{erp_ten_vt}]: {p2_price:,.0f} đ/{dvt_item} (HĐ: {hd_info}{date_str}{sl_str})".replace(",", ".")
             if len(recs) > 1:
                 other_prices = [f"{float(r.get('donGia') or r.get('don_gia') or 0):,.0f} đ".replace(",", ".") for r in recs[1:3]]
@@ -1563,7 +1570,7 @@ def api_run_5_pillars(item_id):
             "results": recs if isinstance(recs, list) else [],
             "summary": {"status": "MATCHED" if recs else "NO_ERP_DATA", "summary_text": p2_desc},
             "summary_text": p2_desc,
-            "keyword": ma_vt or keyword
+            "keyword": erp_keyword
         }
         write_evidence("chung_cu_erp.json", erp_payload)
     except Exception as e:
@@ -1573,21 +1580,22 @@ def api_run_5_pillars(item_id):
     p3_desc = "Chưa có dữ liệu EVN IMIS"
     p3_price = 0
     try:
-        imis_res = imis_core.search_item_sources(keyword, ma_vt=target_item.get("ma_vt", ""))
+        imis_res = imis_core.search_item_sources(general_keyword, ma_vt=ma_vt_val)
         imis_recs = imis_res.get("imis", [])
+        unit_str = target_item.get("dvt", "Cái")
         if imis_recs:
             p3_price = float(imis_recs[0].get("don_gia") or 0)
-            p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/Cái ({imis_recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
+            p3_desc = f"IMIS EVN: {p3_price:,.0f} đ/{unit_str} ({imis_recs[0].get('ten_don_vi', 'Tập đoàn')})".replace(",", ".")
         else:
-            p3_desc = f"Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [{keyword}], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS."
+            p3_desc = f"Trong khoảng thời gian tra cứu từ ngày 01/01/2023 đến nay, qua đối chiếu CSDL EVN IMIS theo từ khóa [{general_keyword}], vật tư chưa tìm thấy dữ liệu mua sắm tương đương trên CSDL EVN IMIS."
             
         imis_payload = {
             "imis": imis_recs,
             "erp": imis_res.get("erp", []),
             "summary": {"status": "MATCHED" if imis_recs else "NO_IMIS_DATA", "summary_text": p3_desc},
             "summary_text": p3_desc,
-            "keyword": keyword,
-            "used_keyword": keyword
+            "keyword": general_keyword,
+            "used_keyword": general_keyword
         }
         write_evidence("chung_cu_imis.json", imis_payload)
     except Exception as e:
@@ -1597,23 +1605,23 @@ def api_run_5_pillars(item_id):
     p4_desc = "Chưa có dữ liệu Mua sắm công e-GP"
     p4_price = 0
     try:
-        clean_msc_kw = (target_item.get("ten_vt_goc") or target_item.get("ten_vt") or "").split("\n")[0].strip()
-        msc_analysis = msc_matcher.search_muasamcong(clean_msc_kw or keyword)
-        if (not msc_analysis or not msc_analysis.get("success")) and keyword and keyword != clean_msc_kw:
-            msc_analysis = msc_matcher.search_muasamcong(keyword)
+        msc_analysis = msc_matcher.search_muasamcong(clean_msc_kw)
+        if (not msc_analysis or not msc_analysis.get("success")) and general_keyword and general_keyword != clean_msc_kw:
+            msc_analysis = msc_matcher.search_muasamcong(general_keyword)
             
         if msc_analysis and msc_analysis.get("success"):
             comp = msc_matcher.analyze_msc_comparison(target_item, msc_analysis)
             p4_price = float(comp.get("min_price") or 0)
+            unit_str = target_item.get("dvt", "Cái")
             if p4_price > 0:
-                p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/Cái (Kết quả trúng thầu)".replace(",", ".")
+                p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/{unit_str} (Kết quả trúng thầu)".replace(",", ".")
             else:
-                p4_desc = f"Đã tra cứu từ khóa [{clean_msc_kw or keyword}] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự."
+                p4_desc = f"Đã tra cứu từ khóa [{clean_msc_kw}] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự."
             msc_payload = {
                 "results": comp.get("items", []),
                 "summary": comp.get("summary", {}),
                 "summary_text": p4_desc,
-                "keyword": clean_msc_kw or keyword,
+                "keyword": clean_msc_kw,
                 "analysis": comp
             }
             write_evidence("chung_cu_muasamcong.json", msc_payload)
@@ -1624,12 +1632,12 @@ def api_run_5_pillars(item_id):
     p5_desc = "Vật tư đặc thù - Yêu cầu báo giá riêng (Contact for Quote)"
     p5_price = 0
     try:
-        ecom_res = {"keyword": keyword, "records": [], "note": "Contact for Quote"}
+        ecom_res = {"keyword": general_keyword, "records": [], "note": "Contact for Quote"}
         write_evidence("chung_cu_ecom.json", ecom_res)
     except Exception as e:
         print(f"Pillar 5 error for item {item_id}: {e}")
 
-    # 6. Synthesis (Tùy chọn AI - Mặc định tắt để ưu tiên rút ngắn thời gian tra cứu cơ sở 1 đến cơ sở 5)
+    # 6. Synthesis
     run_ai = bool(req.get("run_ai", False))
     pillars_dict = {
         "p1_desc": p1_desc, "p1_price": p1_price,
@@ -1642,7 +1650,6 @@ def api_run_5_pillars(item_id):
     if run_ai:
         sme_result = ai_synthesis.generate_ai_synthesis(target_item, pillars_dict)
     else:
-        # Tổng hợp tức thời 5 cơ sở bằng quy tắc chuẩn, không mất thời gian gọi mạng AI LLM
         valid_prices = [p for p in [p1_price, p2_price, p3_price, p4_price, p5_price] if p > 0]
         dg_trinh_val = float(target_item.get("don_gia_trinh") or 0)
         suggested_price = min(valid_prices) if valid_prices else dg_trinh_val
@@ -1678,7 +1685,7 @@ def api_run_5_pillars(item_id):
         dg_trinh = float(target_item.get("don_gia_trinh") or 0)
         target_item["gia_tri_giam"] = (dg_trinh - target_item["don_gia_thong_nhat"]) * sl
 
-    # 7. Build Comprehensive Audit Trail for 100% Transparency
+    # 7. Build Comprehensive Audit Trail với từ khóa riêng cho từng bước
     dg_trinh_val = float(target_item.get("don_gia_trinh") or 0)
     dg_tn_val = float(target_item.get("don_gia_thong_nhat") or dg_trinh_val)
     sl_val = float(target_item.get("so_luong") or 1)
@@ -1691,7 +1698,7 @@ def api_run_5_pillars(item_id):
     p1_item_name = ""
     p1_specs = ""
     p1_score = 0
-    if 'q_matches' in locals() and q_matches:
+    if q_matches:
         p1_count = len(q_matches.get("matches", []))
         if q_matches.get("matches"):
             top_m = q_matches["matches"][0]
@@ -1706,7 +1713,7 @@ def api_run_5_pillars(item_id):
     p2_year = ""
     p2_item_name = ""
     p2_specs = ""
-    if 'recs' in locals() and recs:
+    if recs:
         p2_count = len(recs)
         top_rec = recs[0]
         p2_contract = top_rec.get("so_hd") or top_rec.get("soHopDong") or top_rec.get("soPhieuNhap") or ""
@@ -1717,7 +1724,7 @@ def api_run_5_pillars(item_id):
     p3_count = 0
     p3_unit = ""
     p3_item_name = ""
-    if 'imis_res' in locals() and imis_res and imis_res.get("imis"):
+    if imis_res and imis_res.get("imis"):
         p3_count = len(imis_res["imis"])
         top_imis = imis_res["imis"][0]
         p3_unit = top_imis.get("ten_don_vi", "")
@@ -1726,8 +1733,8 @@ def api_run_5_pillars(item_id):
     audit_trail = {
         "item_id": item_id,
         "ten_vt": raw_ten,
-        "ma_vt": target_item.get("ma_vt", ""),
-        "keyword_used": keyword,
+        "ma_vt": ma_vt_val,
+        "keyword_used": general_keyword,
         "so_luong": sl_val,
         "dvt": target_item.get("dvt", "Cái"),
         "don_gia_trinh": dg_trinh_val,
@@ -1747,6 +1754,7 @@ def api_run_5_pillars(item_id):
                 "supplier": p1_supplier,
                 "file": p1_file,
                 "score": p1_score,
+                "keyword_used": general_keyword, # Từ khóa riêng cho bước 1
                 "detail": p1_desc
             },
             {
@@ -1760,6 +1768,7 @@ def api_run_5_pillars(item_id):
                 "contract": p2_contract,
                 "contract_info": f"HĐ: {p2_contract}, {p2_year}" if p2_contract else p2_year,
                 "year": p2_year,
+                "keyword_used": erp_keyword, # Đảm bảo bước 2 hiển thị chuẩn Mã ERP
                 "detail": p2_desc
             },
             {
@@ -1771,6 +1780,7 @@ def api_run_5_pillars(item_id):
                 "item_name": p3_item_name,
                 "unit": p3_unit,
                 "supplier": p3_unit,
+                "keyword_used": general_keyword, # Từ khóa riêng cho bước 3
                 "detail": p3_desc
             },
             {
@@ -1778,6 +1788,7 @@ def api_run_5_pillars(item_id):
                 "name": "4. Mua Sắm Công e-GP",
                 "status": "success" if p4_price > 0 else "empty",
                 "price": p4_price,
+                "keyword_used": clean_msc_kw, # Từ khóa riêng cho bước 4
                 "detail": p4_desc
             },
             {
@@ -1785,6 +1796,7 @@ def api_run_5_pillars(item_id):
                 "name": "5. TMĐT & Tham Khảo Web",
                 "status": "info",
                 "price": p5_price,
+                "keyword_used": general_keyword, # Từ khóa riêng cho bước 5
                 "detail": p5_desc
             },
             {
@@ -1801,18 +1813,16 @@ def api_run_5_pillars(item_id):
     }
 
     write_evidence("chung_cu_audit_trail.json", audit_trail)
-
     save_dossier_data(dossier)
     
     return jsonify({
         "success": True,
         "item_id": item_id,
-        "keyword": keyword,
+        "keyword": general_keyword,
         "audit_trail": audit_trail,
         "synthesis": sme_result,
         "item": target_item
     })
-
 
 @app.route("/api/import-excel", methods=["POST"])
 def api_import_excel():
