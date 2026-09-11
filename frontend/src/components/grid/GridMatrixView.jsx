@@ -51,6 +51,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     isOpen: false,
     item: null,
     keyword: "",
+    erpKeyword: "", // <-- Bổ sung thêm trường này
     status: "running", // 'running' | 'completed' | 'error'
     activeStep: 1,
     auditData: null,
@@ -164,58 +165,69 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
   const handleRun5Pillars = async (itemId, openModal = true) => {
     const it = items.find((x) => x.id === itemId) || items[itemId - 1];
-    const kw = itemKeywords[itemId] || extractDefaultKeyword(it);
+
+    // 1. Từ khóa chung thống nhất cho các khối khác (Báo giá, IMIS, MSC, TMĐT)
+    const generalKw = itemKeywords[itemId] || extractDefaultKeyword(it);
+
+    // 2. Từ khóa riêng cho ERP: Ưu tiên mã ERP nếu hợp lệ, nếu không thì fallback về từ khóa chung
+    const erpKw =
+      it?.ma_vt &&
+      it.ma_vt.trim() !== "" &&
+      !it.ma_vt.toLowerCase().includes("chưa")
+        ? it.ma_vt
+        : generalKw;
 
     if (openModal && it) {
       setAuditModal({
         isOpen: true,
         item: it,
-        keyword: kw,
+        keyword: generalKw, // Từ khóa chung cho các khối
+        erpKeyword: erpKw, // Từ khóa riêng cho khối ERP
         status: "running",
-        activeStep: 1, // Bắt đầu ở bước 1: Báo giá
+        activeStep: 1,
         auditData: null,
       });
     }
 
     try {
-      // BƯỚC 1: Khối 1 - Báo giá gốc (PDF)
+      // BƯỚC 1: Khối 1 - Báo giá gốc (PDF) - Dùng từ khóa chung
       setAuditModal((prev) => ({ ...prev, activeStep: 1 }));
       await fetch(`/api/quotes/match-item`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: itemId, item: it }),
+        body: JSON.stringify({ item_id: itemId, item: it, keyword: generalKw }),
       });
 
-      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 (Khâu quét Excel nặng thực tế)
+      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 - RIÊNG KHỐI NÀY DÙNG erpKw
       setAuditModal((prev) => ({ ...prev, activeStep: 2 }));
       await fetch(`/api/erp/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: kw,
+          keyword: erpKw, // <--- Chỉ riêng ERP dùng mã ERP
           item: it,
           dg_trinh: it.don_gia_trinh,
         }),
       });
 
-      // BƯỚC 3: Khối 3 - EVN IMIS (Khâu gọi API mạng ngoài)
+      // BƯỚC 3: Khối 3 - EVN IMIS - Dùng từ khóa chung
       setAuditModal((prev) => ({ ...prev, activeStep: 3 }));
       await fetch(`/api/imis/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: kw,
+          keyword: generalKw, // <--- Dùng từ khóa chung
           item: it,
           dg_trinh: it.don_gia_trinh,
         }),
       });
 
-      // BƯỚC 4: Khối 4 - Mua sắm công e-GP
+      // BƯỚC 4: Khối 4 - Mua sắm công e-GP - Dùng từ khóa chung
       setAuditModal((prev) => ({ ...prev, activeStep: 4 }));
       await fetch(`/api/msc/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: kw, item: it }),
+        body: JSON.stringify({ keyword: generalKw, item: it }), // <--- Dùng từ khóa chung
       });
 
       // BƯỚC 5 & 6: Khối 5 (TMĐT) & Tổng hợp AI / Chốt giá
@@ -238,7 +250,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         const ev = evData.evidence || {};
         const completedAuditData = {
           item_id: itemId,
-          keyword_used: kw,
+          keyword_used: generalKw,
           result: {
             don_gia_trinh: it.don_gia_trinh,
             don_gia_thong_nhat: it.don_gia_thong_nhat || it.don_gia_trinh,
@@ -1759,6 +1771,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         onClose={() => setAuditModal((prev) => ({ ...prev, isOpen: false }))}
         item={auditModal.item}
         keyword={auditModal.keyword}
+        erpKeyword={auditModal.erpKeyword}
         status={auditModal.status}
         activeStep={auditModal.activeStep}
         auditData={auditModal.auditData}

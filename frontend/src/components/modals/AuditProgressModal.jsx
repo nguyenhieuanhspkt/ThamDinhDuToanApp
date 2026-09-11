@@ -26,6 +26,7 @@ function AuditProgressModalContent({
   onClose,
   item,
   keyword,
+  erpKeyword, // <-- Thêm prop này vào đây
   status = "running", // 'running' | 'completed' | 'error'
   activeStep = 1,
   auditData,
@@ -514,16 +515,16 @@ function AuditProgressModalContent({
                                   <strong
                                     className="underline font-bold text-purple-900 truncate"
                                     title={
-                                      st.step_id === "erp" && item?.ma_vt
-                                        ? item.ma_vt
+                                      idx === 1 || st.name?.includes("ERP")
+                                        ? erpKeyword || item?.ma_vt
                                         : st.keyword_used ||
                                           keyword ||
                                           auditData?.keyword_used ||
                                           "N/A"
                                     }
                                   >
-                                    {st.step_id === "erp" && item?.ma_vt
-                                      ? item.ma_vt
+                                    {idx === 1 || st.name?.includes("ERP")
+                                      ? erpKeyword || item?.ma_vt
                                       : st.keyword_used ||
                                         keyword ||
                                         auditData?.keyword_used ||
@@ -697,23 +698,36 @@ function AuditProgressModalContent({
               </div>
 
               {/* Hộp Kết Luận Đơn Giá & Tiết Kiệm */}
+              {/* Hộp Kết Luận Đơn Giá & Tiết Kiệm */}
               <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 border-2 border-emerald-400 rounded-xl p-3.5 shadow-2xs flex items-center justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
                     KẾT LUẬN THẨM ĐỊNH & ĐƠN GIÁ THỐNG NHẤT:
                   </span>
-                  <div className="flex items-baseline gap-2 mt-1">
+                  <div className="flex items-baseline gap-2 mt-1 flex-wrap">
                     <span className="text-lg font-black font-mono text-emerald-950">
                       {fmt(currentPrice)}
                     </span>
                     <span className="text-xs text-emerald-700 font-semibold">
                       /{item?.dvt || "Cái"}
                     </span>
-                    {currentWinning && (
-                      <span className="text-[10.5px] font-semibold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-2 py-0.5 rounded-full ml-1">
-                        Theo {currentWinning}
-                      </span>
-                    )}
+                    {(() => {
+                      const listSteps =
+                        editableSteps.length > 0 ? editableSteps : steps;
+                      const activeList = listSteps
+                        .slice(0, 5)
+                        .filter((s) => !s.is_deselected && s.price > 0);
+                      activeList.sort((a, b) => a.price - b.price);
+                      const bestPillar =
+                        activeList[0]?.name ||
+                        currentWinning ||
+                        "Chưa xác định";
+                      return (
+                        <span className="text-[11px] font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 rounded-md shadow-2xs">
+                          (Cơ sở: {bestPillar})
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
                     Thành tiền thẩm định:{" "}
