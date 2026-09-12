@@ -1051,6 +1051,21 @@ def api_save_evidence_step(item_id=None, step_type=None):
     item_id = item_id or req.get("item_id")
     step_type = step_type or req.get("step_type")
     payload = req.get("payload", req)
+    
+    # [DEBUG 1]: In ra kiểm tra xem p4 / muasamcong có bị đánh dấu hủy hay không
+    if step_type == "muasamcong" or step_type == "synthesis":
+        print(f"--- [DEBUG EVIDENCE] step_type: {step_type} | payload keys: {list(payload.keys()) if isinstance(payload, dict) else type(payload)} ---")
+        if isinstance(payload, dict):
+            print(f"    is_deselected: {payload.get('is_deselected')} | min_price: {payload.get('min_price')}")
+
+    if isinstance(payload, dict) and payload.get("is_deselected") is True:
+        payload["min_price"] = 0
+        payload["don_gia_tham_chieu"] = 0
+        if "selected_record" in payload:
+            payload["selected_record"] = "NONE"
+        if "min_msc" in payload:
+            payload["min_msc"] = None
+
     if not item_id or not step_type:
         return jsonify({"success": False, "message": "Thiếu thông tin"}), 400
         
@@ -1069,12 +1084,54 @@ def api_save_evidence_step(item_id=None, step_type=None):
             existing_data = {}
 
     if isinstance(existing_data, dict) and isinstance(payload, dict):
+        if payload.get("is_deselected") is True:
+            existing_data["min_price"] = 0
+            existing_data["don_gia_tham_chieu"] = 0
+            existing_data["selected_record"] = "NONE"
+            
         existing_data.update(payload)
         final_payload = existing_data
     else:
         final_payload = payload
 
     final_payload["thoi_gian_luu"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Nếu là bước synthesis, tự động quét file chứng cứ thô để ép giá về 0 nếu cơ sở bị hủy
+    if step_type == "synthesis" and isinstance(final_payload, dict):
+        if "pillars" not in final_payload or not isinstance(final_payload["pillars"], dict):
+            final_payload["pillars"] = {}
+            
+        pillar_map = {
+            "p1": "quotes",
+            "p2": "erp",
+            "p3": "imis",
+            "p4": "muasamcong",
+            "p5": "ecom"
+        }
+        
+        for p_key, s_type in pillar_map.items():
+            sub_path = os.path.join(item_dir, f"chung_cu_{s_type}.json")
+            if os.path.exists(sub_path):
+                try:
+                    with open(sub_path, "r", encoding="utf-8") as sf:
+                        sub_data = json.load(sf)
+                        if sub_data.get("is_deselected") is True or sub_data.get("min_price", 1) == 0:
+                            if p_key in final_payload["pillars"]:
+                                final_payload["pillars"][p_key]["price"] = 0
+                            else:
+                                final_payload["pillars"][p_key] = {
+                                    "has": sub_data.get("has_data", True),
+                                    "name": f"Cơ sở {p_key[-1]}",
+                                    "price": 0
+                                }
+                except Exception as ex:
+                    print(f"Lỗi đọc file chứng cứ phụ {s_type}: {ex}")
+
+    # [DEBUG 2]: Nếu là file synthesis, in cụ thể trạng thái của khối p4 ngay trước khi ghi file
+    if step_type == "synthesis" and isinstance(final_payload, dict):
+        pillars_data = final_payload.get("pillars", {})
+        print(f"--- [DEBUG SYNTHESIS - PILLARS] p4 data inside synthesis: {pillars_data.get('p4', 'Not found')} ---")
+
     with open(fpath, "w", encoding="utf-8") as f:
         json.dump(final_payload, f, ensure_ascii=False, indent=2)
 

@@ -190,54 +190,77 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     }
 
     try {
-      // BƯỚC 1: Khối 1 - Báo giá gốc (PDF) - Dùng từ khóa chung
+      // BƯỚC 1: Khối 1 - Báo giá gốc (PDF) - Dùng từ khóa chung & Đính kèm match kết quả
       setAuditModal((prev) => ({ ...prev, activeStep: 1 }));
-      await fetch(`/api/quotes/match-item`, {
+      const resQuotes = await fetch(`/api/quotes/match-item`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item_id: itemId, item: it, keyword: generalKw }),
       });
+      const quotesData = await resQuotes.json();
+      // Gọi API lưu chứng cứ bước 1 vào server
+      await fetch(`/api/items/${itemId}/evidence/quotes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(quotesData),
+      });
 
-      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 - RIÊNG KHỐI NÀY DÙNG erpKw
+      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 - RIÊNG KHỐI NÀY DÙNG erpKw & LƯU CHỨNG CỨ
       setAuditModal((prev) => ({ ...prev, activeStep: 2 }));
-      await fetch(`/api/erp/search`, {
+      const resErp = await fetch(`/api/erp/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: erpKw, // <--- Chỉ riêng ERP dùng mã ERP
+          keyword: erpKw,
           item: it,
           dg_trinh: it.don_gia_trinh,
         }),
       });
+      const erpData = await resErp.json();
+      await fetch(`/api/items/${itemId}/evidence/erp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(erpData),
+      });
 
-      // BƯỚC 3: Khối 3 - EVN IMIS - Dùng từ khóa chung
+      // BƯỚC 3: Khối 3 - EVN IMIS - Dùng từ khóa chung & LƯU CHỨNG CỨ
       setAuditModal((prev) => ({ ...prev, activeStep: 3 }));
-      await fetch(`/api/imis/search`, {
+      const resImis = await fetch(`/api/imis/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: generalKw, // <--- Dùng từ khóa chung
+          keyword: generalKw,
           item: it,
           dg_trinh: it.don_gia_trinh,
         }),
       });
+      const imisData = await resImis.json();
+      await fetch(`/api/items/${itemId}/evidence/imis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(imisData),
+      });
 
-      // BƯỚC 4: Khối 4 - Mua sắm công e-GP - Dùng từ khóa chung
+      // BƯỚC 4: Khối 4 - Mua sắm công e-GP - Truyền `save_evidence: true` để backend tự lưu
       setAuditModal((prev) => ({ ...prev, activeStep: 4 }));
       await fetch(`/api/msc/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: generalKw, item: it }), // <--- Dùng từ khóa chung
+        body: JSON.stringify({
+          keyword: generalKw,
+          item: it,
+          save_evidence: true,
+        }),
       });
 
-      // BƯỚC 5 & 6: Khối 5 (TMĐT) & Tổng hợp AI / Chốt giá
+      // BƯỚC 5 & 6: Khối 5 (TMĐT) & Tổng hợp AI / Chốt giá (API này tự động ghi lưu synthesis)
       setAuditModal((prev) => ({ ...prev, activeStep: 5 }));
       await fetch(`/api/items/${itemId}/run-ai-synthesis`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
 
-      // SAU KHI HOÀN TẤT CÁC BƯỚC: Gọi API lấy toàn bộ evidence đã lưu để dựng lại audit_trail đầy đủ
+      // SAU KHI HOÀN TẤT CÁC BƯỚC: Lấy toàn bộ evidence đã lưu để dựng lại audit_trail đầy đủ
       const resEv = await fetch(`/api/evidence/get?item_id=${itemId}`);
       const evData = await resEv.json();
 
@@ -246,7 +269,6 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         if (typeof loadAllEvidenceStatus === "function")
           await loadAllEvidenceStatus();
 
-        // Xây dựng object auditData hoàn chỉnh từ kho dữ liệu thật vừa lưu
         const ev = evData.evidence || {};
         const completedAuditData = {
           item_id: itemId,
