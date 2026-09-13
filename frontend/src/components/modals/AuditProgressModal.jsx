@@ -19,6 +19,7 @@ import {
   Key,
   Table2,
   Zap,
+  Database,
 } from "lucide-react";
 
 function AuditProgressModalContent({
@@ -33,6 +34,8 @@ function AuditProgressModalContent({
   onExportPdf,
   onOpenInspector,
   onItemUpdated,
+  onForceRescan,
+  isFromCache = false,
 }) {
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [runningAi, setRunningAi] = useState(false);
@@ -59,7 +62,8 @@ function AuditProgressModalContent({
   const [togglingIdx, setTogglingIdx] = useState(null);
   const itemIdRef = item?.id || auditData?.item_id;
   React.useEffect(() => {
-    const initSteps = (steps || []).map((s) => ({
+    const sourceSteps = (steps && steps.length > 0) ? steps : (auditData?.steps || []);
+    const initSteps = sourceSteps.map((s) => ({
       ...s,
       _orig_price: s._orig_price !== undefined ? s._orig_price : s.price || 0,
       _orig_detail: s._orig_detail || s.detail || "",
@@ -67,7 +71,7 @@ function AuditProgressModalContent({
     setEditableSteps(initSteps);
     setActiveApprovedPrice(dgTn);
     setActiveWinningPillar(item?.co_so_thong_nhat || "");
-  }, [itemIdRef, dgTn]);
+  }, [itemIdRef, dgTn, auditData, steps]);
 
   const handleTogglePillar = async (idx, exclude) => {
     const itemId = item?.id || auditData?.item_id;
@@ -291,8 +295,16 @@ function AuditProgressModalContent({
             <div>
               <h3 className="font-bold text-sm leading-tight flex items-center gap-2">
                 {status === "running" && "⚡ Đang Tra Cứu Đa Tầng 5 Cơ Sở..."}
-                {status === "completed" &&
-                  "Báo Cáo Minh Bạch Thẩm Định 5 Cơ Sở"}
+                {status === "completed" && (
+                  <span className="flex items-center gap-2">
+                    <span>Báo Cáo Minh Bạch Thẩm Định 5 Cơ Sở</span>
+                    {(isFromCache || auditData?.is_from_cache) && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 text-[10.5px] font-medium flex items-center gap-1 tracking-normal">
+                        <Database className="w-3 h-3 text-emerald-300" /> CSDL Đã Lưu (0ms)
+                      </span>
+                    )}
+                  </span>
+                )}
                 {status === "error" && "Lỗi Xử Lý Thẩm Định"}
               </h3>
               <p className="text-[10px] text-teal-200 font-mono mt-0.5">
@@ -475,8 +487,8 @@ function AuditProgressModalContent({
                       <th className="py-2.5 px-3 text-right w-36 font-mono">
                         Đơn Giá Tham Chiếu
                       </th>
-                      <th className="py-2.5 px-2 text-center w-24">
-                        Trạng Thái
+                      <th className="py-2.5 px-2 text-center w-28">
+                        Trạng Thái & Thao Tác
                       </th>
                     </tr>
                   </thead>
@@ -487,6 +499,12 @@ function AuditProgressModalContent({
                         const isDeselected = Boolean(st.is_deselected);
                         const hasPrice =
                           !isDeselected && st.price && st.price > 0;
+                        const pillarKey =
+                          st.key === "muasamcong"
+                            ? "msc"
+                            : st.key ||
+                              ["quotes", "erp", "imis", "msc", "ecom"][idx] ||
+                              "quotes";
                         return (
                           <tr
                             key={idx}
@@ -626,7 +644,7 @@ function AuditProgressModalContent({
                               className={`py-2.5 px-3 text-right font-mono font-bold border-r align-top ${hasPrice ? "text-slate-900 text-[12px]" : "text-slate-400"}`}
                             >
                               {hasPrice ? (
-                                `${fmt(st.price)} đ`
+                                fmt(st.price)
                               ) : isDeselected && st._orig_price > 0 ? (
                                 <span className="text-amber-700/60 line-through text-[11px] font-normal">
                                   {fmt(st._orig_price)}
@@ -672,22 +690,58 @@ function AuditProgressModalContent({
                                       </button>
                                     ) : null
                                   ) : hasPrice || st.item_name ? (
+                                    <div className="flex flex-col gap-1 w-full">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleTogglePillar(idx, true)
+                                        }
+                                        disabled={togglingIdx === idx}
+                                        title="Loại trừ cơ sở này (không áp dụng so sánh đơn giá)"
+                                        className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-rose-800 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                      >
+                                        {togglingIdx === idx ? (
+                                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                        ) : (
+                                          "✕ Hủy / Loại Trừ"
+                                        )}
+                                      </button>
+
+                                      {/* Nút Chọn Nhanh Đơn Giá Minh Bạch */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveApprovedPrice(st.price);
+                                          setActiveWinningPillar(st.name);
+                                          toast?.success?.(
+                                            `Đã chọn áp dụng đơn giá từ ${st.name}: ${fmt(st.price)}`,
+                                          );
+                                        }}
+                                        className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-teal-900 bg-teal-100 hover:bg-teal-200 border border-teal-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer"
+                                      >
+                                        ⚡ Chọn Giá
+                                      </button>
+                                    </div>
+                                  ) : null)}
+
+                                  {/* Nút Soi Chi Tiết riêng cho từng cơ sở */}
+                                  {status === "completed" && onOpenInspector && (
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        handleTogglePillar(idx, true)
-                                      }
-                                      disabled={togglingIdx === idx}
-                                      title="Loại trừ cơ sở này (không áp dụng so sánh đơn giá do không tương thích kỹ thuật)"
-                                      className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-rose-800 hover:text-rose-950 bg-rose-50 hover:bg-rose-100 border border-rose-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer disabled:opacity-50"
+                                      onClick={() => {
+                                        onClose();
+                                        onOpenInspector(
+                                          item?.id ? item.id - 1 : 0,
+                                          pillarKey,
+                                        );
+                                      }}
+                                      title={`Soi chi tiết ${st.name} trong View 3`}
+                                      className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-semibold text-slate-700 hover:text-slate-950 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer mt-0.5"
                                     >
-                                      {togglingIdx === idx ? (
-                                        <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                                      ) : (
-                                        "🚫 Loại trừ"
-                                      )}
+                                      <ExternalLink className="w-2.5 h-2.5 text-slate-500" />
+                                      <span>Soi chi tiết</span>
                                     </button>
-                                  ) : null)}
+                                  )}
                               </div>
                             </td>
                           </tr>
@@ -863,6 +917,17 @@ function AuditProgressModalContent({
 
           {status === "completed" && (
             <div className="flex items-center gap-2">
+              {onForceRescan && (
+                <button
+                  type="button"
+                  onClick={() => onForceRescan(item?.id || auditData?.item_id)}
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                  title="Tra cứu quét lại toàn bộ 5 bước qua mạng và cập nhật CSDL"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-600" />
+                  <span>Quét lại từ đầu</span>
+                </button>
+              )}
               {onOpenInspector && (
                 <button
                   onClick={() => {

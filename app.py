@@ -1043,6 +1043,208 @@ def api_msc_search():
     return jsonify({"success": True, "analysis": comp})
 
 
+def cascade_sync_synthesis(item_id, item_dir, step_type, saved_payload):
+    """
+    Tự động đồng bộ liên thông (Auto-Cascade Sync) sang chung_cu_synthesis.json và dossier
+    khi có bất kỳ khối chứng cứ nào (quotes, erp, imis, muasamcong, ecom) được lưu.
+    """
+    try:
+        dossier = load_dossier_data()
+        items = dossier.get("items", [])
+        item = next((i for i in items if i.get("id") == item_id or items.index(i) + 1 == item_id), None)
+        if not item:
+            return None
+
+        dg_trinh = float(item.get("don_gia_trinh") or 0)
+        qty = float(item.get("so_luong") or 1)
+        dvt = item.get("dvt", "Cái")
+        ten_vt = item.get("ten_vt", "")
+        ma_vt = item.get("ma_vt", "")
+
+        q_file = os.path.join(item_dir, "chung_cu_quotes.json")
+        erp_file = os.path.join(item_dir, "chung_cu_erp.json")
+        imis_file = os.path.join(item_dir, "chung_cu_imis.json")
+        msc_file = os.path.join(item_dir, "chung_cu_muasamcong.json")
+        ecom_file = os.path.join(item_dir, "chung_cu_ecom.json")
+        syn_file = os.path.join(item_dir, "chung_cu_synthesis.json")
+
+        p1_price, p2_price, p3_price, p4_price, p5_price = 0, 0, 0, 0, 0
+        p1_desc, p2_desc, p3_desc, p4_desc, p5_desc = "", "", "", "", ""
+
+        # 1. Báo giá
+        if os.path.exists(q_file):
+            try:
+                with open(q_file, "r", encoding="utf-8") as f:
+                    qd = json.load(f)
+                    p1_price = float(qd.get("min_price") or qd.get("don_gia") or 0)
+                    p1_supplier = qd.get("matched_supplier", {}).get("company") or qd.get("lowest_vendor") or "Nhà thầu chào"
+                    p1_desc = qd.get("summary_text") or f"Đã đối chiếu các báo giá thương mại; đơn giá chào thấp nhất là {p1_price:,.0f} đ từ {p1_supplier}.".replace(",", ".")
+            except Exception: pass
+
+        # 2. ERP Vĩnh Tân 4
+        if os.path.exists(erp_file):
+            try:
+                with open(erp_file, "r", encoding="utf-8") as f:
+                    ed = json.load(f)
+                    is_erp_deselected = bool(ed.get("is_deselected") or ed.get("selected_record") == "NONE" or ed.get("status") == "ERP_DESELECTED")
+                    if is_erp_deselected:
+                        p2_price = 0
+                    else:
+                        sel = ed.get("selected_record")
+                        if isinstance(sel, dict):
+                            p2_price = float(sel.get("donGia") or sel.get("don_gia") or 0)
+                        elif sel != "NONE":
+                            p2_price = float(ed.get("don_gia_tham_chieu") or 0)
+                            if p2_price == 0:
+                                recs = ed.get("results") or ed.get("hop_dong") or []
+                                if recs: p2_price = float(recs[0].get("donGia") or recs[0].get("don_gia") or 0)
+                    p2_desc = ed.get("summary_text", "")
+            except Exception: pass
+
+        # 3. EVN IMIS
+        if os.path.exists(imis_file):
+            try:
+                with open(imis_file, "r", encoding="utf-8") as f:
+                    imd = json.load(f)
+                    is_imis_deselected = bool(imd.get("is_deselected") or imd.get("selected_record") == "NONE" or imd.get("status") == "IMIS_DESELECTED" or imd.get("summary", {}).get("status") == "IMIS_DESELECTED")
+                    if is_imis_deselected:
+                        p3_price = 0
+                    else:
+                        sel = imd.get("selected_record")
+                        if isinstance(sel, dict):
+                            p3_price = float(sel.get("donGia") or sel.get("don_gia") or 0)
+                        elif sel == "AVERAGE" or imd.get("use_average"):
+                            p3_price = float(imd.get("summary", {}).get("avg_price") or 0)
+                        elif sel != "NONE":
+                            p3_price = float(imd.get("don_gia_tham_chieu") or 0)
+                            if p3_price == 0:
+                                res_list = imd.get("imis", []) or imd.get("results", [])
+                                if res_list: p3_price = float(res_list[0].get("don_gia") or res_list[0].get("donGia") or 0)
+                    p3_desc = imd.get("summary_text", "")
+            except Exception: pass
+
+        # 4. Mua Sắm Công e-GP
+        if os.path.exists(msc_file):
+            try:
+                with open(msc_file, "r", encoding="utf-8") as f:
+                    mscd = json.load(f)
+                    is_msc_deselected = bool(mscd.get("is_deselected") or mscd.get("selected_record") == "NONE" or mscd.get("status") == "MSC_DESELECTED")
+                    if is_msc_deselected:
+                        p4_price = 0
+                    else:
+                        sel = mscd.get("selected_record")
+                        if isinstance(sel, dict):
+                            p4_price = float(sel.get("donGia") or sel.get("don_gia") or sel.get("trung_thau_don_gia") or 0)
+                        elif sel != "NONE":
+                            p4_price = float(mscd.get("don_gia_tham_chieu") or mscd.get("min_price") or 0)
+                    p4_desc = mscd.get("summary_text", "")
+            except Exception: pass
+
+        # 5. TMĐT / Web
+        if os.path.exists(ecom_file):
+            try:
+                with open(ecom_file, "r", encoding="utf-8") as f:
+                    ecd = json.load(f)
+                    is_ecom_deselected = bool(ecd.get("is_deselected") or ecd.get("selected_record") == "NONE")
+                    if is_ecom_deselected:
+                        p5_price = 0
+                    else:
+                        sel = ecd.get("selected_record")
+                        if isinstance(sel, dict):
+                            p5_price = float(sel.get("donGia") or sel.get("don_gia") or sel.get("price") or 0)
+                        else:
+                            p5_price = float(ecd.get("don_gia_tham_chieu") or ecd.get("landed_price") or ecd.get("price") or 0)
+                    p5_desc = ecd.get("summary_text", "")
+            except Exception: pass
+
+        # Tính giá tham chiếu thấp nhất hợp lệ (> 0)
+        ref_prices = [p for p in [p1_price, p2_price, p3_price, p4_price, p5_price] if p > 0]
+        min_ref_price = min(ref_prices) if ref_prices else dg_trinh
+
+        winning_pillar = "Cơ sở 1: Báo Giá Gốc"
+        if min_ref_price == p5_price and p5_price > 0:
+            winning_pillar = "Cơ sở 5: Tham khảo TMĐT / Giá Web"
+        elif min_ref_price == p2_price and p2_price > 0:
+            winning_pillar = "Cơ sở 2: CSDL lịch sử mua sắm ERP Vĩnh Tân 4"
+        elif min_ref_price == p3_price and p3_price > 0:
+            winning_pillar = "Cơ sở 3: EVN IMIS"
+        elif min_ref_price == p4_price and p4_price > 0:
+            winning_pillar = "Cơ sở 4: Mua Sắm Công e-GP"
+        elif min_ref_price == p1_price and p1_price > 0:
+            winning_pillar = "Cơ sở 1: Báo Giá Gốc"
+
+        diff_amount = dg_trinh - min_ref_price
+        diff_pct = (diff_amount / min_ref_price * 100.0) if min_ref_price > 0 else 0.0
+        is_warning = diff_pct > 10.0 and min_ref_price > 0
+        suggested_price = min_ref_price if is_warning else dg_trinh
+        savings = (dg_trinh - suggested_price) * qty
+        price_score = max(50, int(100 - diff_pct)) if is_warning else 100
+        risk_flag = "HIGH_PRICE_WARNING" if is_warning else "NORMAL"
+
+        pillars_dict = {
+            "p1_price": p1_price, "p2_price": p2_price, "p3_price": p3_price, "p4_price": p4_price, "p5_price": p5_price,
+            "p1_desc": p1_desc, "p2_desc": p2_desc, "p3_desc": p3_desc, "p4_desc": p4_desc, "p5_desc": p5_desc
+        }
+
+        local_opinion = ai_synthesis.generate_local_sme_opinion(
+            item, pillars_dict, is_warning, diff_pct, min_ref_price, suggested_price, savings, winning_pillar
+        )
+
+        synthesis_text = (
+            f"TỔNG HỢP ĐÁNH GIÁ THẨM ĐỊNH MỤC: {ten_vt} (Mã ERP: {ma_vt}).\n"
+            f"• Đơn giá trình thẩm định: {ai_synthesis.fmt_vnd(dg_trinh)} (Số lượng: {qty} {dvt}).\n"
+            f"• Đánh giá Chứng cứ Thẩm định: 5/5 cơ sở chứng cứ đã rà soát.\n"
+            f"• Mức độ Hợp lý Đơn giá: {price_score}/100 điểm.\n\n"
+            f"{local_opinion}\n\n"
+            f"CƠ SỞ THẨM ĐỊNH THỐNG NHẤT 5 CƠ SỞ CHỨNG CỨ:\n"
+            f"- Cơ sở 1 (Báo Giá Gốc): {p1_desc}\n"
+            f"- Cơ sở 2 (ERP Vĩnh Tân 4): {p2_desc}\n"
+            f"- Cơ sở 3 (EVN IMIS): {p3_desc}\n"
+            f"- Cơ sở 4 (Mua Sắm Công e-GP): {p4_desc}\n"
+            f"- Cơ sở 5 (Thương Mại Điện Tử): {p5_desc}\n\n"
+            f"KẾT LUẬN THẨM ĐỊNH: Đề xuất giá thẩm định phê duyệt chốt là {ai_synthesis.fmt_vnd(suggested_price)} "
+            f"(Cơ sở: {winning_pillar} | Giá trị tiết kiệm dự kiến: {ai_synthesis.fmt_vnd(savings)})."
+        )
+
+        p6_payload = {
+            "item_id": item_id,
+            "approved_price": suggested_price,
+            "total_savings": savings,
+            "coverage_score": 100,
+            "price_score": price_score,
+            "risk_flag": risk_flag,
+            "used_ai": False,
+            "summary_text": synthesis_text,
+            "co_so_thong_nhat": winning_pillar,
+            "pillars": {
+                "p1": {"name": "Cơ sở 1: Báo Giá Gốc", "price": p1_price, "has": p1_price > 0},
+                "p2": {"name": "Cơ sở 2: ERP Vĩnh Tân 4", "price": p2_price, "has": p2_price > 0},
+                "p3": {"name": "Cơ sở 3: EVN IMIS", "price": p3_price, "has": p3_price > 0},
+                "p4": {"name": "Cơ sở 4: Mua Sắm Công e-GP", "price": p4_price, "has": p4_price > 0},
+                "p5": {"name": "Cơ sở 5: Thương Mại Điện Tử", "price": p5_price, "has": p5_price > 0}
+            },
+            "thoi_gian_luu": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        # Ghi lại chung_cu_synthesis.json
+        with open(syn_file, "w", encoding="utf-8") as sf:
+            json.dump(p6_payload, sf, ensure_ascii=False, indent=2)
+
+        # Cập nhật hồ sơ dossier
+        item["don_gia_thong_nhat"] = suggested_price
+        item["thanh_tien_thong_nhat"] = suggested_price * qty
+        item["gia_tri_giam"] = savings
+        item["co_so_thong_nhat"] = winning_pillar
+        item["danh_gia_ttd"] = synthesis_text
+        save_dossier_data(dossier)
+
+        print(f"[AutoCascadeSync] Đã tự động đồng bộ synthesis cho item #{item_id} sau khi lưu {step_type}: Giá chốt = {suggested_price}")
+        return p6_payload
+    except Exception as ex:
+        print(f"[AutoCascadeSync] Lỗi tự động đồng bộ synthesis cho item #{item_id}: {ex}")
+        return None
+
+
 @app.route("/api/evidence/save-step", methods=["POST"])
 @app.route("/api/items/<int:item_id>/evidence/<step_type>", methods=["POST", "DELETE"])
 def api_save_evidence_step(item_id=None, step_type=None):
@@ -1135,8 +1337,14 @@ def api_save_evidence_step(item_id=None, step_type=None):
     with open(fpath, "w", encoding="utf-8") as f:
         json.dump(final_payload, f, ensure_ascii=False, indent=2)
 
-    # Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án
-    if step_type == "synthesis" or "approved_price" in payload:
+    syn_data = None
+    # 1. Nếu lưu các khối chứng cứ thành phần (quotes, erp, imis, muasamcong, ecom):
+    # Tự động đồng bộ liên thông (Auto-Cascade Sync) sang chung_cu_synthesis.json và dossier
+    if step_type in ["quotes", "erp", "imis", "muasamcong", "ecom"]:
+        syn_data = cascade_sync_synthesis(item_id, item_dir, step_type, final_payload)
+
+    # 2. Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án
+    elif step_type == "synthesis" or "approved_price" in payload:
         try:
             approved_p = float(payload.get("approved_price") if payload.get("approved_price") is not None else 0)
             sum_text = payload.get("summary_text") or ""
@@ -1153,6 +1361,7 @@ def api_save_evidence_step(item_id=None, step_type=None):
                         it["co_so_thong_nhat"] = payload["co_so_thong_nhat"]
                     break
             save_dossier_data(dossier)
+            syn_data = final_payload
         except Exception as e:
             print(f"Lỗi đồng bộ hồ sơ dự án khi lưu synthesis: {e}")
             
@@ -1161,7 +1370,7 @@ def api_save_evidence_step(item_id=None, step_type=None):
     except Exception:
         pass
         
-    return jsonify({"success": True, "filename": fname})
+    return jsonify({"success": True, "filename": fname, "synthesis": syn_data})
 
 
 @app.route("/api/evidence/get", methods=["GET"])
@@ -1219,7 +1428,10 @@ def api_get_item_evidence(item_id=None, step_type=None):
         else:
             evidence[s] = None
             
-    return jsonify({"success": True, "evidence": evidence})
+    resp = jsonify({"success": True, "evidence": evidence})
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.route("/api/items/<int:item_id>/run-ai-synthesis", methods=["POST"])

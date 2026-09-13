@@ -115,6 +115,7 @@ export default function PillarMsc({
               used_keyword: targetKw,
               tu_khoa_tra_cuu: targetKw,
               selected_record: resItems[0] || null,
+              don_gia_tham_chieu: parseFloat(resItems[0]?.don_gia || 0),
             });
           }
         }
@@ -308,6 +309,7 @@ export default function PillarMsc({
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,
         selected_record: rec,
+        don_gia_tham_chieu: recPrice,
         is_deselected: false,
       });
     }
@@ -327,6 +329,7 @@ export default function PillarMsc({
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,
         selected_record: "NONE",
+        don_gia_tham_chieu: 0,
         is_deselected: true,
       });
     }

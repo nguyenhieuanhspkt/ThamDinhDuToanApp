@@ -28,6 +28,7 @@ export default function App() {
   const excelInputRef = React.useRef(null);
 
   const [activeProjectId, setActiveProjectId] = useState('ThamDinhDot8_lân2.json');
+  const [inspectorPillar, setInspectorPillar] = useState('quotes');
   const [dossierName, setDossierName] = useState('Gói 308 - Mua sắm vật tư SCTX đợt 8 năm 2026');
   const [refreshKey, setRefreshKey] = useState(0);
   const [folderPath, setFolderPath] = useState(
@@ -83,8 +84,9 @@ export default function App() {
     fetchMscStatus();
   }, []);
 
-  const handleSelectInspectorItem = (idx) => {
+  const handleSelectInspectorItem = (idx, pillar = 'quotes') => {
     setInspectorIndex(idx);
+    setInspectorPillar(pillar || 'quotes');
     setActiveView('inspector');
   };
 
@@ -221,6 +223,7 @@ export default function App() {
             <ItemInspectorView
               selectedIndex={inspectorIndex}
               onNavigateIndex={setInspectorIndex}
+              initialPillar={inspectorPillar}
               onOpenPdfPage={handleOpenPdfPage}
               onOpenErpConfig={() => setIsErpConfigOpen(true)}
               onOpenImisConfig={() => setIsImisConfigOpen(true)}

@@ -20,6 +20,7 @@ import {
 import ErrorBoundary from "../common/ErrorBoundary.jsx";
 import { Zap, Loader2 } from "lucide-react";
 import AuditProgressModal from "../modals/AuditProgressModal.jsx";
+import { buildCompletedAuditSteps } from "../../utils/evidenceAdapter.js";
 export default function ItemInspectorView({
   selectedIndex,
   onNavigateIndex,
@@ -29,9 +30,17 @@ export default function ItemInspectorView({
   onOpenMscConfig,
   imisStatus,
   mscStatus,
+  initialPillar = "quotes",
 }) {
   const toast = useToast();
-  const [activePillar, setActivePillar] = useState("quotes");
+  const [activePillar, setActivePillar] = useState(initialPillar || "quotes");
+
+  useEffect(() => {
+    if (initialPillar) {
+      setActivePillar(initialPillar);
+    }
+  }, [initialPillar]);
+
   const [items, setItems] = useState([]);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [evidenceStatus, setEvidenceStatus] = useState({});
@@ -81,33 +90,140 @@ export default function ItemInspectorView({
     }
   }, []);
   //định nghĩa hàm handleRun5Pillars
-  const handleRun5Pillars = async (itemId, openModal = true) => {
-    const it = items.find((x) => x.id === itemId) || items[itemId - 1];
-    const kw = itemKeywords[itemId] || extractDefaultKeyword(it);
+  const handleRun5Pillars = async (
+    itemId,
+    openModal = true,
+    forceRefresh = false,
+  ) => {
+    const targetId =
+      typeof itemId === "number" || typeof itemId === "string"
+        ? itemId
+        : currentItem?.id || selectedIndex + 1;
+    const it =
+      items.find((x) => String(x.id) === String(targetId)) ||
+      currentItem ||
+      items[selectedIndex];
+    if (!it) return;
 
+    const kw = itemKeywords[targetId] || extractDefaultKeyword(it);
+    const erpKw =
+      it?.ma_vt &&
+      it.ma_vt.trim() !== "" &&
+      !it.ma_vt.toLowerCase().includes("chưa")
+        ? it.ma_vt
+        : kw;
+
+    // --- DATA GUARD (CACHE / CSDL RE-USE) ---
+    // Nếu không yêu cầu forceRefresh, kiểm tra xem vật tư này đã có CSDL lưu trữ chưa
+    if (!forceRefresh) {
+      try {
+        const resEvCheck = await fetch(
+          `/api/evidence/get?item_id=${targetId}&_t=${Date.now()}`
+        );
+        if (resEvCheck.ok) {
+          const evData = await resEvCheck.json();
+          const ev = evData.evidence || {};
+          const hasExistingEvidence =
+            evData.success &&
+            ev &&
+            (ev.quotes || ev.erp || ev.imis || ev.muasamcong || ev.ecom || ev.synthesis);
+
+          if (hasExistingEvidence) {
+            console.log(
+              `[DataGuard - View 3] Item ${targetId} đã có CSDL chứng cứ, nạp trực tiếp trong 0ms.`,
+            );
+            const completedAuditData = {
+              item_id: targetId,
+              keyword_used: kw,
+              result: {
+                don_gia_trinh: it.don_gia_trinh,
+                don_gia_thong_nhat: it.don_gia_thong_nhat || it.don_gia_trinh,
+                thanh_tien_thong_nhat: it.thanh_tien_thong_nhat,
+                gia_tri_giam: it.gia_tri_giam || 0,
+              },
+              synthesis: ev.synthesis || {},
+              steps: buildCompletedAuditSteps(ev, it),
+              is_from_cache: true,
+            };
+
+            if (openModal) {
+              setAuditModal({
+                isOpen: true,
+                item: it,
+                keyword: kw,
+                erpKeyword: erpKw,
+                status: "completed",
+                activeStep: 6,
+                auditData: completedAuditData,
+                isFromCache: true,
+              });
+            }
+            return; // Dừng ngay, không quét lại mạng
+          }
+        }
+      } catch (checkErr) {
+        console.warn(
+          "[DataGuard - View 3] Lỗi kiểm tra CSDL chứng cứ, tiếp tục quét:",
+          checkErr,
+        );
+      }
+    }
+
+    setIsSearching5Pillars(true);
     if (openModal && it) {
       setAuditModal({
         isOpen: true,
         item: it,
         keyword: kw,
+        erpKeyword: erpKw,
         status: "running",
         activeStep: 1, // Bắt đầu ở bước 1: Báo giá
         auditData: null,
+        isFromCache: false,
       });
     }
+
+    // In-Memory Evidence Accumulator: Gom dữ liệu trực tiếp trong phiên quét
+    const liveEv = {};
 
     try {
       // BƯỚC 1: Khối 1 - Báo giá gốc (PDF)
       setAuditModal((prev) => ({ ...prev, activeStep: 1 }));
-      await fetch(`/api/quotes/match-item`, {
+      const resQuotes = await fetch(`/api/quotes/match-item`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: itemId, item: it }),
+        body: JSON.stringify({ item_id: targetId, item: it, keyword: kw }),
+      });
+      const quotesData = await resQuotes.json();
+      liveEv.quotes = quotesData;
+      await fetch(`/api/items/${targetId}/evidence/quotes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(quotesData),
       });
 
-      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 (Khâu quét Excel nặng thực tế)
+      // BƯỚC 2: Khối 2 - ERP Vĩnh Tân 4 (Dùng erpKw và lưu chứng cứ)
       setAuditModal((prev) => ({ ...prev, activeStep: 2 }));
-      await fetch(`/api/erp/search`, {
+      const resErp = await fetch(`/api/erp/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keyword: erpKw,
+          item: it,
+          dg_trinh: it.don_gia_trinh,
+        }),
+      });
+      const erpData = await resErp.json();
+      liveEv.erp = erpData;
+      await fetch(`/api/items/${targetId}/evidence/erp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(erpData),
+      });
+
+      // BƯỚC 3: Khối 3 - EVN IMIS (Khâu gọi API mạng ngoài và lưu chứng cứ)
+      setAuditModal((prev) => ({ ...prev, activeStep: 3 }));
+      const resImis = await fetch(`/api/imis/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,47 +232,53 @@ export default function ItemInspectorView({
           dg_trinh: it.don_gia_trinh,
         }),
       });
-
-      // BƯỚC 3: Khối 3 - EVN IMIS (Khâu gọi API mạng ngoài)
-      setAuditModal((prev) => ({ ...prev, activeStep: 3 }));
-      await fetch(`/api/imis/search`, {
+      const imisData = await resImis.json();
+      liveEv.imis = imisData;
+      await fetch(`/api/items/${targetId}/evidence/imis`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          keyword: kw,
-          item: it,
-          dg_trinh: it.don_gia_trinh,
-        }),
+        body: JSON.stringify(imisData),
       });
 
       // BƯỚC 4: Khối 4 - Mua sắm công e-GP
       setAuditModal((prev) => ({ ...prev, activeStep: 4 }));
-      await fetch(`/api/msc/search`, {
+      const resMsc = await fetch(`/api/msc/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: kw, item: it }),
+        body: JSON.stringify({ keyword: kw, item: it, save_evidence: true }),
       });
+      const mscData = await resMsc.json();
+      liveEv.muasamcong = mscData;
 
       // BƯỚC 5 & 6: Khối 5 (TMĐT) & Tổng hợp AI / Chốt giá
       setAuditModal((prev) => ({ ...prev, activeStep: 5 }));
-      await fetch(`/api/items/${itemId}/run-ai-synthesis`, {
+      const resSyn = await fetch(`/api/items/${targetId}/run-ai-synthesis`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+      const synData = await resSyn.json();
+      liveEv.synthesis = synData?.synthesis || synData;
 
       // SAU KHI HOÀN TẤT CÁC BƯỚC: Gọi API lấy toàn bộ evidence đã lưu để dựng lại audit_trail đầy đủ
-      const resEv = await fetch(`/api/evidence/get?item_id=${itemId}`);
+      const resEv = await fetch(`/api/evidence/get?item_id=${targetId}&_t=${Date.now()}`);
       const evData = await resEv.json();
 
-      if (evData.success) {
+      if (evData.success || Object.keys(liveEv).length > 0) {
         await fetchGridData();
         if (typeof loadAllEvidenceStatus === "function")
           await loadAllEvidenceStatus();
 
-        // Xây dựng object auditData hoàn chỉnh từ kho dữ liệu thật vừa lưu
-        const ev = evData.evidence || {};
+        // Xây dựng object auditData hoàn chỉnh từ kho dữ liệu thật hòa trộn với liveEv
+        const backendEv = (evData && evData.evidence) || {};
+        const ev = { ...liveEv, ...backendEv };
+        Object.keys(liveEv).forEach((k) => {
+          if (!ev[k] || (typeof ev[k] === "object" && Object.keys(ev[k]).length === 0)) {
+            ev[k] = liveEv[k];
+          }
+        });
+
         const completedAuditData = {
-          item_id: itemId,
+          item_id: targetId,
           keyword_used: kw,
           result: {
             don_gia_trinh: it.don_gia_trinh,
@@ -164,48 +286,9 @@ export default function ItemInspectorView({
             thanh_tien_thong_nhat: it.thanh_tien_thong_nhat,
             gia_tri_giam: it.gia_tri_giam || 0,
           },
-          steps: [
-            {
-              id: 1,
-              name: "1. Báo Giá Gốc (PDF)",
-              detail: ev.quotes?.summary_text || "Đã đối chiếu báo giá gốc",
-              price: ev.quotes?.min_price || 0,
-            },
-            {
-              id: 2,
-              name: "2. ERP Vĩnh Tân 4",
-              detail: ev.erp?.summary_text || "Đã rà soát CSDL ERP",
-              price: ev.erp?.results?.[0]?.don_gia || 0,
-            },
-            {
-              id: 3,
-              name: "3. EVN IMIS Toàn Ngành",
-              detail: ev.imis?.summary_text || "Đã rà soát CSDL IMIS",
-              price: ev.imis?.imis?.[0]?.don_gia || 0,
-            },
-            {
-              id: 4,
-              name: "4. Mua Sắm Công e-GP",
-              detail:
-                ev.muasamcong?.summary_text || "Đã tra cứu Cổng Mua Sắm Công",
-              price: ev.muasamcong?.min_price || 0,
-            },
-            {
-              id: 5,
-              name: "5. TMĐT & Tham Khảo Web",
-              detail: ev.ecom?.summary_text || "Đã khảo sát thị trường web",
-              price: 0,
-            },
-            {
-              id: 6,
-              name: "6. AI Thuyết Minh & Chốt Giá",
-              detail:
-                ev.synthesis?.summary_text ||
-                it.danh_gia_ttd ||
-                "Đã tổng hợp chốt giá",
-              price: it.don_gia_thong_nhat || it.don_gia_trinh,
-            },
-          ],
+          synthesis: ev.synthesis || {},
+          steps: buildCompletedAuditSteps(ev, it),
+          is_from_cache: false,
         };
 
         if (openModal) {
@@ -215,6 +298,7 @@ export default function ItemInspectorView({
             activeStep: 6,
             auditData: completedAuditData,
             item: it,
+            isFromCache: false,
           }));
         }
       } else {
@@ -227,6 +311,8 @@ export default function ItemInspectorView({
       if (openModal) {
         setAuditModal((prev) => ({ ...prev, status: "error" }));
       }
+    } finally {
+      setIsSearching5Pillars(false);
     }
   };
 
@@ -427,6 +513,27 @@ export default function ItemInspectorView({
         toast?.success?.(
           `Đã lưu chứng cứ ${stepKey.toUpperCase()} cho mục ${selectedIndex + 1}!`,
         );
+        if (ret.synthesis) {
+          setSynthesisResults(ret.synthesis);
+          updateLocalEvidenceState("synthesis", ret.synthesis);
+          setItems((prev) =>
+            prev.map((it, idx) => {
+              if (it.id === itemId || idx === selectedIndex) {
+                return {
+                  ...it,
+                  don_gia_thong_nhat: ret.synthesis.approved_price,
+                  thanh_tien_thong_nhat:
+                    ret.synthesis.approved_price *
+                    (parseFloat(it.so_luong) || 1),
+                  co_so_thong_nhat:
+                    ret.synthesis.co_so_thong_nhat || it.co_so_thong_nhat,
+                  danh_gia_ttd: ret.synthesis.summary_text || it.danh_gia_ttd,
+                };
+              }
+              return it;
+            }),
+          );
+        }
         await loadAllEvidenceStatus();
         // === NÂNG TRẢI NGHIỆM: Nếu đang ở bước 6 (synthesis), tự động nhảy sang mục chưa lưu tiếp theo ===
         if (stepKey === "synthesis") {
@@ -459,11 +566,33 @@ export default function ItemInspectorView({
       updateLocalEvidenceState(stepKey, payload);
       const itemId = currentItem.id || selectedIndex + 1;
       try {
-        await fetch(`/api/items/${itemId}/evidence/${stepKey}`, {
+        const res = await fetch(`/api/items/${itemId}/evidence/${stepKey}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        const ret = await res.json();
+        if (ret?.synthesis) {
+          setSynthesisResults(ret.synthesis);
+          updateLocalEvidenceState("synthesis", ret.synthesis);
+          setItems((prev) =>
+            prev.map((it, idx) => {
+              if (it.id === itemId || idx === selectedIndex) {
+                return {
+                  ...it,
+                  don_gia_thong_nhat: ret.synthesis.approved_price,
+                  thanh_tien_thong_nhat:
+                    ret.synthesis.approved_price *
+                    (parseFloat(it.so_luong) || 1),
+                  co_so_thong_nhat:
+                    ret.synthesis.co_so_thong_nhat || it.co_so_thong_nhat,
+                  danh_gia_ttd: ret.synthesis.summary_text || it.danh_gia_ttd,
+                };
+              }
+              return it;
+            }),
+          );
+        }
         loadAllEvidenceStatus();
       } catch (e) {
         console.warn(`[AutoSave] Không thể lưu ngầm ${stepKey}:`, e);
@@ -721,11 +850,20 @@ export default function ItemInspectorView({
         onClose={() => setAuditModal((prev) => ({ ...prev, isOpen: false }))}
         item={auditModal.item}
         keyword={auditModal.keyword}
+        erpKeyword={auditModal.erpKeyword || currentItem?.ma_vt}
         status={auditModal.status}
         activeStep={auditModal.activeStep}
         auditData={auditModal.auditData}
         onExportPdf={handleExportPdf}
-        onOpenInspector={(idx) => onNavigateIndex(idx)}
+        isFromCache={Boolean(auditModal.isFromCache || auditModal.auditData?.is_from_cache)}
+        onForceRescan={(reItemId) => {
+          const targetId = reItemId || auditModal.item?.id || currentItem?.id;
+          if (targetId) handleRun5Pillars(targetId, true, true);
+        }}
+        onOpenInspector={(idx, pillar) => {
+          onNavigateIndex(idx);
+          if (pillar) setActivePillar(pillar);
+        }}
         onItemUpdated={(updatedItem) => {
           if (!updatedItem) return;
           setItems((prev) =>
