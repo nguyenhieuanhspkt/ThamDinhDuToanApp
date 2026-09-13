@@ -219,18 +219,43 @@ ThamDinhDuToanApp/
 ---
 
 ## 6. LỊCH SỬ CẬP NHẬT KIẾN TRÚC MỚI NHẤT
-- **Module Hóa God Component `ItemInspectorView.jsx` (Commit `11341f4`)**:
-  - Tách thành công file 4.416 dòng thành 20 module chuyên trách theo từng cơ sở nghiệp vụ độc lập.
-  - File coordinator rút gọn còn 372 dòng (giảm 91.5%).
-  - Zero-Regression: Giữ nguyên 100% chức năng, giao diện, API contracts, tính năng deselect IMIS và tự động đồng bộ giá tổng hợp sang Cơ sở 6.
-  - Bản build Vite đạt tốc độ ~335ms, 0 lỗi.
+- **Đợt Nâng Cấp & Ổn Định Dữ Liệu Ngày 13/09/2026**:
+  - **Khắc phục triệt để lỗi tự ghi đè khi bấm "Soi chi tiết" Mua sắm công**:
+    + Loại bỏ `executeCascadeSearch` trong `useEffect` khi mount ở `PillarMsc.jsx`.
+    + Khôi phục CSDL STT 94 chuẩn xác (`selected_index: 1`, record "Cao su non áp vải", Berubco).
+  - **Biên soạn Cẩm nang kiến trúc `BaiHoc.md`**:
+    + Hoàn thành 6 chương chuyên sâu đúc kết nguyên lý thiết kế, cấm kỵ vòng lặp tự ghi đè và quy tắc bảo toàn CSDL. Đã commit `ab2e6f4` lên nhánh `master`.
+  - **Khởi tạo nhánh Nâng cấp Kiến trúc `refactor/architecture-upgrade`**:
+    + Hoàn thành Phase 1 Refactor (Commit `f6b8474`):
+      * Gỡ bỏ `onAutoSave` trong `useEffect` khi mount ở `PillarErp.jsx` và `PillarImis.jsx`.
+      * Gỡ bỏ đoạn tự động gọi lại API trong `ItemInspectorView.jsx` (dòng 466-472) khi chuyển tab.
+      * Build Vite thành công 100%, không phát sinh lỗi regression.
+  - **Thiết kế Kiến trúc Data Models (Domain-Driven Design)**:
+    + Thống nhất tư duy tách mỗi Thực thể (Entity) thành 1 file model riêng biệt trong package `models/`.
+    + Thiết kế cơ chế "Cổng Kiểm Soát Biên 2 Chiều" cho API trong `app.py` (`from_dict()` khi ĐỌC để tự động bù biến thiếu, `to_dict()` khi GHI để chuẩn hóa đĩa).
 
 ---
 
-## 7. KẾ HOẠCH BƯỚC TIẾP THEO
-- [x] Tự động hóa Tra cứu 5 Cơ Sở 1-Click trực tiếp từ Bảng Ma trận (`GridMatrixView.jsx`).
-- [x] Chuẩn hóa văn phong Tổ Thẩm định Dự toán cho toàn bộ ứng dụng và xuất file PDF chuẩn 2 trang A4.
-- [x] Module hóa kiến trúc `ItemInspectorView.jsx` thành 6 pillar riêng biệt.
-- [ ] Chạy kiểm thử batch tự động cho toàn bộ 98 mục vật tư trong dự án `ThamDinhDot8_lân2`.
-- [ ] Hoàn thiện xuất file Excel báo cáo tổng hợp 13 cột chuẩn EVN Vĩnh Tân 4 sau khi hoàn tất 98 mục.
+## 7. MỤC TIÊU VÀ KẾ HOẠCH CHO TUẦN SAU (Nhánh `refactor/architecture-upgrade`)
+- [ ] **Mục tiêu 1 - Xây dựng Gói Thư Mục `models/`**:
+  - `models/__init__.py`: Xuất các model công khai và registry ánh xạ.
+  - `models/base.py`: Lớp cơ sở `BaseEvidenceModel` xử lý serialization `to_dict()` và `from_dict()`.
+  - `models/project.py`: Quản lý thực thể Hồ sơ Dự án Thẩm định (`ProjectDossier`).
+  - `models/item.py`: Quản lý từng mục vật tư trong danh mục 112 vật tư (`DossierItem`).
+  - `models/quotes.py`: Quản lý chứng cứ Báo giá gốc (`QuotesEvidence`).
+  - `models/erp.py`: Quản lý chứng cứ Lịch sử mua sắm ERP Vĩnh Tân 4 (`ErpEvidence`).
+  - `models/imis.py`: Quản lý chứng cứ Hợp đồng EVN IMIS toàn ngành (`ImisEvidence`).
+  - `models/msc.py`: Quản lý chứng cứ Mua sắm công e-GP (`MscEvidence`).
+  - `models/ecom.py`: Quản lý chứng cứ Giá thị trường TMĐT / Web (`EcomEvidence`).
+  - `models/synthesis.py`: Quản lý Bản thuyết minh, điểm số và chốt đơn giá phê duyệt (`SynthesisEvidence`).
+- [ ] **Mục tiêu 2 - Kiểm Thử Độc Lập `test_models.py`**:
+  - Chạy kịch bản test tự động nạp dữ liệu thực tế từ 112 vật tư hiện có.
+  - Kiểm tra tính năng tự động bù đắp biến thiếu và chữa lành dữ liệu cũ (Zero-Regression).
+- [ ] **Mục tiêu 3 - Chuẩn Hóa API trong `app.py`**:
+  - Áp dụng `models/` vào các endpoint `/api/dossier`, `/api/evidence/get`, `/api/evidence/save-step`.
+  - Tách logic tự động cascade vào `SynthesisEvidence.update_from_pillar(...)`.
+- [ ] **Mục tiêu 4 - Hoàn Thiện Cơ Chế Quản Lý Đa Dự Án**:
+  - Đảm bảo dữ liệu đọc/ghi đồng bộ chuẩn xác từ `data/projects/{tên_dự_án}.json` và thư mục con `_files/`.
+- [ ] **Mục tiêu 5 - Báo Cáo Xuất Bản**:
+  - Hoàn thiện xuất file Excel báo cáo tổng hợp 13 cột và PDF kết luận thẩm định chuẩn EVN Vĩnh Tân 4.
 
