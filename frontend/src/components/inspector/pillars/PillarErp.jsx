@@ -135,17 +135,6 @@ export default function PillarErp({
         const resp = await res.json();
         if (resp.summary) {
           setSummaryData(resp.summary);
-          if (onAutoSave) {
-            onAutoSave({
-              results: resp.results || list,
-              mapping: resp.mapping || mapping,
-              summary: resp.summary,
-              summary_text: resp.summary?.summary_text || "",
-              keyword: searchKey || item?.ten_vt || "",
-              used_keyword: searchKey || item?.ten_vt || "",
-              selected_record: resp.results?.[0] || null,
-            });
-          }
         }
       } catch (err) {
         if (err.name !== "AbortError") console.error("ERP Restore Error:", err);

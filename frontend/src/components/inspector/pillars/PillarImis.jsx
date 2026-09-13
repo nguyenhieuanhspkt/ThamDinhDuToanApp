@@ -91,18 +91,6 @@ export default function PillarImis({ loading, saving, data, dgTrinh, item, onSav
       .then(resp => {
         if (resp.summary) {
           setSummaryData(resp.summary);
-          if (onAutoSave) {
-            onAutoSave({
-              imis: resp.imis || list,
-              erp: resp.erp || [],
-              summary: resp.summary,
-              summary_text: resp.summary?.summary_text || '',
-              keyword: kwToUse,
-              used_keyword: kwToUse,
-              selected_record: resp.imis?.[0] || null,
-              is_deselected: false
-            });
-          }
         }
       })
       .catch(console.error);

@@ -462,14 +462,6 @@ export default function ItemInspectorView({
     }
   }, [currentItem]);
 
-  // Trigger search when pillar tab is opened if no data and no saved evidence
-  useEffect(() => {
-    if (!currentItem?.ten_vt) return;
-    const evSt = evidenceStatus[currentItem?.id] || {};
-    if (activePillar === "quotes" && !quoteEvidence && !evSt.has_quotes) loadQuotes();
-    if (activePillar === "erp" && !erpResults && !evSt.has_erp) loadErp();
-    if (activePillar === "imis" && !imisResults && !evSt.has_imis) loadImis();
-  }, [activePillar, currentItem?.id, selectedIndex, evidenceStatus]);
   // Thêm đoạn này bên trong component ItemInspectorView
   const handleSaveCurrentPillar = () => {
     if (activePillar === "quotes") {
