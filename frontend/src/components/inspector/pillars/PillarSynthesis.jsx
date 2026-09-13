@@ -26,6 +26,7 @@ import {
   computeEscalationCeiling,
   computeLandedCost,
 } from "../utils/keywordHelpers.js";
+import { normalizeMscEvidence } from "../../../utils/evidenceAdapter.js";
 import { PillarHeader, LoadingSpinner, SaveFooter } from "../common";
 
 export default function PillarSynthesis({
@@ -116,30 +117,14 @@ export default function PillarSynthesis({
           0,
       );
 
-  const isMscDeselected = Boolean(
-    mscResults?.is_deselected ||
-    mscResults?.selected_record === "NONE" ||
-    mscResults?.summary?.status === "MSC_DESELECTED" ||
-    mscResults?.summary?.is_deselected,
+  const normMsc = useMemo(
+    () => normalizeMscEvidence(mscResults, item),
+    [mscResults, item],
   );
-
-  const mscList =
-    mscResults?.analysis?.items ||
-    mscResults?.items ||
-    mscResults?.danh_sach_ket_qua ||
-    (Array.isArray(mscResults) ? mscResults : []);
-  const p4_price = isMscDeselected
-    ? 0
-    : parseFloat(
-        (typeof mscResults?.selected_record === "object" &&
-          (mscResults.selected_record?.don_gia ||
-            mscResults.selected_record?.donGia ||
-            mscResults.selected_record?.trung_thau_don_gia)) ||
-          mscResults?.don_gia_tham_chieu ||
-          mscResults?.min_price ||
-          (!mscResults?.selected_record && extractFirstPrice(mscList)) ||
-          0,
-      );
+  const isMscDeselected = normMsc.isDeselected;
+  const p4_price = isMscDeselected ? 0 : normMsc.price; // Đơn giá đã quy đổi trước thuế VAT 8%
+  const p4_raw_price = normMsc.rawPrice; // Giá gốc gồm VAT trên e-GP
+  const mscList = normMsc.results;
 
   const ecomList =
     ecomResults?.items || (Array.isArray(ecomResults) ? ecomResults : []);
@@ -492,15 +477,20 @@ export default function PillarSynthesis({
       p4_desc = `Qua rà soát Cổng Mạng Đấu thầu Quốc gia e-GP (muasamcong.mpi.gov.vn) theo từ khóa [${mscKw}], các kết quả tra cứu không có tính chất kỹ thuật và quy cách tương đồng phù hợp với vật tư đang xét. Thẩm định viên không áp dụng CSDL Mua sắm công làm căn cứ so sánh đơn giá cho mục này.`;
     } else if (p4_price > 0) {
       const rec =
+        normMsc.activeRecord ||
         (typeof mscResults?.selected_record === "object" &&
           mscResults?.selected_record) ||
         mscResults?.analysis?.items?.[0] ||
         mscResults?.items?.[0];
       const vendorInfo =
-        rec?.hang_sx || rec?.nhà_thầu
-          ? ` (Nhà thầu ${rec.hang_sx || rec.nhà_thầu})`
+        rec?.hang_sx || rec?.nha_thau_trung || rec?.winningName
+          ? ` (Nhà thầu/Hãng: ${rec.hang_sx || rec.nha_thau_trung || rec.winningName})`
           : "";
-      p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai tham chiếu là ${fmt(p4_price)} VNĐ/${unit}${vendorInfo}.`;
+      const rawPriceNote =
+        p4_raw_price && p4_raw_price !== p4_price
+          ? ` [Giá gốc e-GP gồm VAT 8%: ${fmt(p4_raw_price)} VNĐ]`
+          : "";
+      p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); ghi nhận đơn giá trúng thầu công khai quy đổi trước thuế VAT 8% là ${fmt(p4_price)} VNĐ/${unit}${rawPriceNote}${vendorInfo}.`;
     } else if (has_p4) {
       p4_desc = `Tra cứu theo từ khóa [${mscKw}] trên Cổng Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn); kết quả đã rà soát e-GP: vật tư đặc thù, không ghi nhận gói thầu mua sắm tương đồng.`;
     } else {
@@ -947,11 +937,12 @@ export default function PillarSynthesis({
       name: "Cơ sở 4: Mua Sắm Công e-GP",
       price: eff_p4,
       origPrice: p4_price,
+      rawPrice: p4_raw_price,
       has: has_p4,
       isExcluded: deselectedPillars.p4,
       kw: mscKw,
       sourceDesc: p4_rec
-        ? `TBMT: ${p4_rec.ma_tbmt || "—"} | Danh mục: ${p4_rec.danh_muc || p4_rec.ten_hang_hoa || "—"}`
+        ? `TBMT: ${p4_rec.ma_tbmt || "—"} | Danh mục: ${p4_rec.danh_muc || p4_rec.ten_hang_hoa || "—"}${p4_raw_price && p4_raw_price !== p4_price ? ` (Gốc e-GP VAT 8%: ${fmt(p4_raw_price)} đ)` : ""}`
         : "",
     },
     {

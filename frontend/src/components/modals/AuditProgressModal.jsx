@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FileCheck2,
   Building2,
@@ -21,6 +21,7 @@ import {
   Zap,
   Database,
 } from "lucide-react";
+import { resolveEffectiveAuditPrice } from "../../utils/evidenceAdapter.js";
 
 function AuditProgressModalContent({
   isOpen,
@@ -40,38 +41,59 @@ function AuditProgressModalContent({
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [runningAi, setRunningAi] = useState(false);
   const [customAiData, setCustomAiData] = useState(null);
+  const [manualOverride, setManualOverride] = useState(null);
 
   const result = auditData?.result || {};
   const steps = auditData?.steps || [];
   const dgTrinh =
-    auditData?.don_gia_trinh ||
+    parseFloat(auditData?.don_gia_trinh ||
     result.don_gia_trinh ||
-    item?.don_gia_trinh ||
+    item?.don_gia_trinh) ||
     0;
-  const dgTn =
-    auditData?.don_gia_thong_nhat ||
-    result.don_gia_thong_nhat ||
-    item?.don_gia_thong_nhat ||
-    dgTrinh;
+  const qty = parseFloat(item?.so_luong || 1);
 
   const [editableSteps, setEditableSteps] = useState(steps);
-  const [activeApprovedPrice, setActiveApprovedPrice] = useState(dgTn);
-  const [activeWinningPillar, setActiveWinningPillar] = useState(
-    item?.co_so_thong_nhat || "",
-  );
   const [togglingIdx, setTogglingIdx] = useState(null);
   const itemIdRef = item?.id || auditData?.item_id;
+  const stepsCount = auditData?.steps?.length || steps?.length || 0;
+  const auditSignature = `${itemIdRef}_${status}_${stepsCount}`;
+
   React.useEffect(() => {
-    const sourceSteps = (steps && steps.length > 0) ? steps : (auditData?.steps || []);
+    const sourceSteps =
+      auditData?.steps && auditData.steps.length > 0
+        ? auditData.steps
+        : steps && steps.length > 0
+          ? steps
+          : [];
+
+    if (sourceSteps.length === 0 && editableSteps.length > 0) return;
+
     const initSteps = sourceSteps.map((s) => ({
       ...s,
-      _orig_price: s._orig_price !== undefined ? s._orig_price : s.price || 0,
+      _orig_price: s._orig_price !== undefined && s._orig_price > 0 ? s._orig_price : s.price || 0,
       _orig_detail: s._orig_detail || s.detail || "",
     }));
     setEditableSteps(initSteps);
-    setActiveApprovedPrice(dgTn);
-    setActiveWinningPillar(item?.co_so_thong_nhat || "");
-  }, [itemIdRef, dgTn, auditData, steps]);
+    setManualOverride(null);
+  }, [auditSignature]);
+
+  // SINGLE SOURCE OF TRUTH: Tính toán Đơn giá duyệt, Cơ sở chiến thắng & Tiết kiệm theo thời gian thực
+  const currentResolution = useMemo(() => {
+    const currentList = editableSteps.length > 0 ? editableSteps : steps;
+    return resolveEffectiveAuditPrice(
+      currentList,
+      dgTrinh,
+      qty,
+      manualOverride?.price,
+      manualOverride?.pillar
+    );
+  }, [editableSteps, steps, dgTrinh, qty, manualOverride]);
+
+  const currentPrice = currentResolution.approvedPrice;
+  const currentWinning = currentResolution.winningPillar;
+  const giaTriGiam = currentResolution.totalSavings;
+  const pctGiam = currentResolution.pctGiam;
+  const ttThongNhat = currentResolution.thanhTien;
 
   const handleTogglePillar = async (idx, exclude) => {
     const itemId = item?.id || auditData?.item_id;
@@ -104,25 +126,15 @@ function AuditProgressModalContent({
       };
     });
     setEditableSteps(newSteps);
+    setManualOverride(null); // Xóa chọn thủ công để tự động lấy giá cơ sở hợp lệ thấp nhất còn lại
 
-    // 2. Tính toán lại đơn giá chốt từ các cơ sở còn hiệu lực
-    const activePrices = [];
-    newSteps.slice(0, 5).forEach((st) => {
-      if (!st.is_deselected && st.price && st.price > 0) {
-        activePrices.push({ name: st.name, price: st.price });
-      }
-    });
+    // 2. Tính toán lại đơn giá chốt bằng Engine dùng chung
+    const newRes = resolveEffectiveAuditPrice(newSteps, dgTrinh, qty, null, null);
+    const newApprovedPrice = newRes.approvedPrice;
+    const newWinningPillar = newRes.winningPillar;
+    const newThanhTien = newRes.thanhTien;
+    const newGiaTriGiam = newRes.totalSavings;
 
-    let newApprovedPrice = dgTrinh;
-    let newWinningPillar = "Cơ sở 1: Báo Giá Gốc";
-    if (activePrices.length > 0) {
-      activePrices.sort((a, b) => a.price - b.price);
-      newApprovedPrice = activePrices[0].price;
-      newWinningPillar = activePrices[0].name;
-    }
-
-    setActiveApprovedPrice(newApprovedPrice);
-    setActiveWinningPillar(newWinningPillar);
     if (customAiData) {
       setCustomAiData((prev) => ({
         ...prev,
@@ -132,14 +144,14 @@ function AuditProgressModalContent({
       }));
     }
 
-    const qty = parseFloat(item?.so_luong || 1);
-    const newThanhTien = newApprovedPrice * qty;
-    const newGiaTriGiam = (dgTrinh - newApprovedPrice) * qty;
-
     // 3. Gọi API cập nhật file chứng cứ của cơ sở này ngầm
     try {
+      const origP = targetStep?._orig_price || targetStep?.price || 0;
       const stepPayload = {
         is_deselected: exclude,
+        min_price: exclude ? 0 : origP,
+        don_gia_tham_chieu: exclude ? 0 : origP,
+        selected_record: exclude ? "NONE" : targetStep?.selected_record,
         status: exclude ? `${stepKey.toUpperCase()}_DESELECTED` : "MATCH",
         summary: {
           is_deselected: exclude,
@@ -261,20 +273,12 @@ function AuditProgressModalContent({
     },
   ];
 
-  const currentPrice =
-    customAiData?.approved_price !== undefined
-      ? customAiData.approved_price
-      : activeApprovedPrice;
-  const currentWinning = customAiData?.winning_pillar || activeWinningPillar;
-  const giaTriGiam = (dgTrinh - currentPrice) * (item?.so_luong || 1);
-  const pctGiam = dgTrinh > 0 ? ((dgTrinh - currentPrice) / dgTrinh) * 100 : 0;
   const danhGiaTtd =
     auditData?.synthesis?.summary_text ||
     auditData?.danh_gia_ttd ||
     result.danh_gia_ttd ||
     item?.danh_gia_ttd ||
     "";
-  const ttThongNhat = currentPrice * (item?.so_luong || 1);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -536,6 +540,7 @@ function AuditProgressModalContent({
                                       idx === 1 || st.name?.includes("ERP")
                                         ? erpKeyword || item?.ma_vt
                                         : st.keyword_used ||
+                                          st.tu_khoa_tra_cuu ||
                                           keyword ||
                                           auditData?.keyword_used ||
                                           "N/A"
@@ -544,6 +549,7 @@ function AuditProgressModalContent({
                                     {idx === 1 || st.name?.includes("ERP")
                                       ? erpKeyword || item?.ma_vt
                                       : st.keyword_used ||
+                                        st.tu_khoa_tra_cuu ||
                                         keyword ||
                                         auditData?.keyword_used ||
                                         "N/A"}
@@ -644,11 +650,25 @@ function AuditProgressModalContent({
                               className={`py-2.5 px-3 text-right font-mono font-bold border-r align-top ${hasPrice ? "text-slate-900 text-[12px]" : "text-slate-400"}`}
                             >
                               {hasPrice ? (
-                                fmt(st.price)
+                                <>
+                                  <div>{fmt(st.price)}</div>
+                                  {(st.key === "muasamcong" || st.key === "msc" || st.name?.includes("Mua Sắm Công")) && st.raw_price && st.raw_price !== st.price && (
+                                    <div className="text-[9.5px] text-slate-500 font-normal mt-0.5">
+                                      Gốc e-GP: {fmt(st.raw_price)} (VAT 8%)
+                                    </div>
+                                  )}
+                                </>
                               ) : isDeselected && st._orig_price > 0 ? (
-                                <span className="text-amber-700/60 line-through text-[11px] font-normal">
-                                  {fmt(st._orig_price)}
-                                </span>
+                                <>
+                                  <span className="text-amber-700/60 line-through text-[11px] font-normal">
+                                    {fmt(st._orig_price)}
+                                  </span>
+                                  {(st.key === "muasamcong" || st.key === "msc" || st.name?.includes("Mua Sắm Công")) && st._orig_raw_price && (
+                                    <div className="text-[9.5px] text-slate-400 font-normal line-through">
+                                      Gốc e-GP: {fmt(st._orig_raw_price)}
+                                    </div>
+                                  )}
+                                </>
                               ) : (
                                 "—"
                               )}
@@ -711,11 +731,20 @@ function AuditProgressModalContent({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          setActiveApprovedPrice(st.price);
-                                          setActiveWinningPillar(st.name);
-                                          toast?.success?.(
-                                            `Đã chọn áp dụng đơn giá từ ${st.name}: ${fmt(st.price)}`,
-                                          );
+                                          setManualOverride({ price: st.price, pillar: st.name });
+                                          const itemId = item?.id || auditData?.item_id;
+                                          if (onItemUpdated && itemId) {
+                                            const p = parseFloat(st.price) || 0;
+                                            const tt = p * qty;
+                                            const sv = (dgTrinh - p) * qty;
+                                            onItemUpdated({
+                                              id: itemId,
+                                              don_gia_thong_nhat: p,
+                                              thanh_tien_thong_nhat: tt,
+                                              gia_tri_giam: sv,
+                                              co_so_thong_nhat: st.name,
+                                            });
+                                          }
                                         }}
                                         className="w-full inline-flex items-center justify-center gap-1 text-[10px] font-bold text-teal-900 bg-teal-100 hover:bg-teal-200 border border-teal-300 px-1.5 py-0.5 rounded transition shadow-2xs cursor-pointer"
                                       >
@@ -751,8 +780,7 @@ function AuditProgressModalContent({
                 </table>
               </div>
 
-              {/* Hộp Kết Luận Đơn Giá & Tiết Kiệm */}
-              {/* Hộp Kết Luận Đơn Giá & Tiết Kiệm */}
+              {/* Hộp Kết Luận Đơn Giá & Tiết Kiệm - Single Source of Truth */}
               <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 border-2 border-emerald-400 rounded-xl p-3.5 shadow-2xs flex items-center justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
@@ -765,28 +793,14 @@ function AuditProgressModalContent({
                     <span className="text-xs text-emerald-700 font-semibold">
                       /{item?.dvt || "Cái"}
                     </span>
-                    {(() => {
-                      const listSteps =
-                        editableSteps.length > 0 ? editableSteps : steps;
-                      const activeList = listSteps
-                        .slice(0, 5)
-                        .filter((s) => !s.is_deselected && s.price > 0);
-                      activeList.sort((a, b) => a.price - b.price);
-                      const bestPillar =
-                        activeList[0]?.name ||
-                        currentWinning ||
-                        "Chưa xác định";
-                      return (
-                        <span className="text-[11px] font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 rounded-md shadow-2xs">
-                          (Cơ sở: {bestPillar})
-                        </span>
-                      );
-                    })()}
+                    <span className="text-[11px] font-bold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 rounded-md shadow-2xs">
+                      (Cơ sở: {currentWinning})
+                    </span>
                   </div>
                   <p className="text-[11px] text-emerald-800 mt-0.5">
                     Thành tiền thẩm định:{" "}
                     <strong className="font-mono">
-                      {fmt(currentPrice * (item?.so_luong || 1))}
+                      {fmt(ttThongNhat)}
                     </strong>
                   </p>
                 </div>

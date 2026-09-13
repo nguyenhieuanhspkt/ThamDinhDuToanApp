@@ -4,6 +4,7 @@ import { PILLARS } from "./constants/pillars.js";
 import {
   extractCleanImisKeyword,
   getDefaultImisKeyword,
+  getDefaultMscKeyword,
 } from "./utils/keywordHelpers.js";
 import InspectorNavbar from "./coordinator/InspectorNavbar.jsx";
 import InspectorSidebar from "./coordinator/InspectorSidebar.jsx";
@@ -242,10 +243,11 @@ export default function ItemInspectorView({
 
       // BƯỚC 4: Khối 4 - Mua sắm công e-GP
       setAuditModal((prev) => ({ ...prev, activeStep: 4 }));
+      const mscKw = getDefaultMscKeyword(it, kw);
       const resMsc = await fetch(`/api/msc/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: kw, item: it, save_evidence: true }),
+        body: JSON.stringify({ keyword: mscKw || kw, item: it, save_evidence: true }),
       });
       const mscData = await resMsc.json();
       liveEv.muasamcong = mscData;
@@ -460,14 +462,14 @@ export default function ItemInspectorView({
     }
   }, [currentItem]);
 
-  // Trigger search when pillar tab is opened if no data
+  // Trigger search when pillar tab is opened if no data and no saved evidence
   useEffect(() => {
     if (!currentItem?.ten_vt) return;
-    if (activePillar === "quotes" && !quoteEvidence) loadQuotes();
-    if (activePillar === "erp" && !erpResults) loadErp();
-    if (activePillar === "imis" && !imisResults) loadImis();
-    if (activePillar === "msc" && !mscResults) loadMsc();
-  }, [activePillar, currentItem?.id, selectedIndex]);
+    const evSt = evidenceStatus[currentItem?.id] || {};
+    if (activePillar === "quotes" && !quoteEvidence && !evSt.has_quotes) loadQuotes();
+    if (activePillar === "erp" && !erpResults && !evSt.has_erp) loadErp();
+    if (activePillar === "imis" && !imisResults && !evSt.has_imis) loadImis();
+  }, [activePillar, currentItem?.id, selectedIndex, evidenceStatus]);
   // Thêm đoạn này bên trong component ItemInspectorView
   const handleSaveCurrentPillar = () => {
     if (activePillar === "quotes") {
@@ -795,6 +797,7 @@ export default function ItemInspectorView({
 
               {activePillar === "msc" && (
                 <PillarMsc
+                  key={currentItem?.id || selectedIndex}
                   loading={loading.msc}
                   saving={saving}
                   data={mscResults}
@@ -866,11 +869,54 @@ export default function ItemInspectorView({
         }}
         onItemUpdated={(updatedItem) => {
           if (!updatedItem) return;
+          const targetId = updatedItem.id;
           setItems((prev) =>
-            prev.map((it) =>
-              it.id === updatedItem.id ? { ...it, ...updatedItem } : it,
+            prev.map((it, idx) =>
+              it.id === targetId || idx + 1 === targetId
+                ? { ...it, ...updatedItem }
+                : it,
             ),
           );
+          setAuditModal((prev) => {
+            const isMatch =
+              prev.item?.id === targetId || prev.auditData?.item_id === targetId;
+            if (!isMatch) return prev;
+            return {
+              ...prev,
+              item: { ...prev.item, ...updatedItem },
+              auditData: {
+                ...prev.auditData,
+                don_gia_thong_nhat: updatedItem.don_gia_thong_nhat,
+                co_so_thong_nhat: updatedItem.co_so_thong_nhat,
+                result: {
+                  ...(prev.auditData?.result || {}),
+                  ...updatedItem,
+                },
+              },
+            };
+          });
+
+          // Sync ngầm dossier xuống server
+          (async () => {
+            try {
+              const res = await fetch("/api/dossier");
+              if (res.ok) {
+                const dData = await res.json();
+                dData.items = (dData.items || []).map((it, idx) =>
+                  it.id === targetId || idx + 1 === targetId
+                    ? { ...it, ...updatedItem }
+                    : it,
+                );
+                await fetch("/api/dossier", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(dData),
+                });
+              }
+            } catch (err) {
+              console.error("Lỗi sync dossier:", err);
+            }
+          })();
         }}
       />
     </div>

@@ -27,6 +27,10 @@ import { fmt } from "../utils/formatters.js";
 import {
   generateKeywordCandidates,
   getDefaultImisKeyword,
+  extractBrandFromItem,
+  extractModelFromItem,
+  extractMultiScenarioKeywords,
+  getDefaultMscKeyword,
 } from "../utils/keywordHelpers.js";
 import {
   PillarHeader,
@@ -49,32 +53,49 @@ export default function PillarMsc({
 }) {
   const toast = useToast();
   const candidates = generateKeywordCandidates(item?.ten_vt);
-  const getSmartMscKw = (rawName, savedKw) => {
-    const smart = getDefaultImisKeyword(rawName);
-    if (!savedKw || savedKw === rawName) return smart || rawName;
-    return savedKw;
-  };
+  const multiScenarios = extractMultiScenarioKeywords(item);
 
-  const defaultKw = getSmartMscKw(
-    item?.ten_vt || "",
-    data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu,
-  );
+  const savedKw = data?.tu_khoa_tra_cuu || data?.keyword || data?.used_keyword;
+  const defaultKw = savedKw || getDefaultMscKeyword(item);
 
   const [searchKey, setSearchKey] = useState(defaultKw);
   const [searching, setSearching] = useState(false);
   const [mscResponse, setMscResponse] = useState(data || null);
-  const [selectedIdx, setSelectedIdx] = useState(() =>
-    data?.is_deselected ||
-    data?.selected_record === "NONE" ||
-    data?.summary?.status === "MSC_DESELECTED" ||
-    data?.summary?.is_deselected
-      ? null
-      : 0,
-  );
+
+  // Độc lập hoàn toàn với index: Dùng Entity Object selectedRecord
+  const [selectedRecord, setSelectedRecord] = useState(() => {
+    if (
+      data?.is_deselected ||
+      data?.selected_record === "NONE" ||
+      data?.summary?.status === "MSC_DESELECTED" ||
+      data?.summary?.is_deselected
+    ) {
+      return null;
+    }
+    const initialList = data?.analysis?.items || data?.items || data?.danh_sach_ket_qua || [];
+    // ƯU TIÊN 1: Đọc theo selected_index đã lưu trong CSDL
+    if (typeof data?.selected_index === "number" && initialList[data.selected_index]) {
+      return initialList[data.selected_index];
+    }
+    // ƯU TIÊN 2: Đọc theo selected_record dạng object
+    if (data?.selected_record && typeof data.selected_record === "object") {
+      return data.selected_record;
+    }
+    return initialList[0] || null;
+  });
+
+  const [isDeselected, setIsDeselected] = useState(() => {
+    return Boolean(
+      data?.is_deselected ||
+      data?.selected_record === "NONE" ||
+      data?.summary?.status === "MSC_DESELECTED" ||
+      data?.summary?.is_deselected,
+    );
+  });
 
   // Pagination states
-  const [pageNumber, setPageNumber] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageNumber, setPageNumber] = useState(() => Number(data?.page_number || 0));
+  const [pageSize, setPageSize] = useState(() => Number(data?.page_size || 20));
 
   // In-table quick filters
   const [filterKw, setFilterKw] = useState("");
@@ -102,21 +123,39 @@ export default function PillarMsc({
         const resData = await res.json();
         if (resData.success) {
           setMscResponse(resData);
-          setSelectedIdx(0);
           setPageNumber(pNum);
           setPageSize(pSz);
           const resAnalysis = resData.analysis || resData;
           const resItems = resAnalysis.items || resData.items || [];
-          if (onAutoSave) {
-            onAutoSave({
-              analysis: resAnalysis,
-              items: resItems,
-              keyword: targetKw,
-              used_keyword: targetKw,
-              tu_khoa_tra_cuu: targetKw,
-              selected_record: resItems[0] || null,
-              don_gia_tham_chieu: parseFloat(resItems[0]?.don_gia || 0),
-            });
+          if (resItems.length > 0) {
+            const chosen = resItems[0];
+            const rawP = parseFloat(chosen.don_gia_goc_egp || chosen.don_gia || 0);
+            const preTaxP = chosen.don_gia_truoc_thue
+              ? parseFloat(chosen.don_gia_truoc_thue)
+              : Math.round(rawP / 1.08);
+
+            setSelectedRecord(chosen);
+            setIsDeselected(false);
+
+            if (onAutoSave) {
+              onAutoSave({
+                analysis: resAnalysis,
+                items: resItems,
+                keyword: targetKw,
+                used_keyword: targetKw,
+                tu_khoa_tra_cuu: targetKw,
+                page_number: pNum,
+                selected_index: 0,
+                selected_record: chosen,
+                don_gia_tham_chieu: preTaxP,
+                don_gia_truoc_thue: preTaxP,
+                don_gia_goc_egp: rawP,
+                is_deselected: false,
+              });
+            }
+          } else {
+            setSelectedRecord(null);
+            setIsDeselected(true);
           }
         }
       } catch (e) {
@@ -126,6 +165,291 @@ export default function PillarMsc({
       }
     },
     [searchKey, pageSize, item, onAutoSave],
+  );
+
+  // THUẬT TOÁN THÁC ĐỔ 4 KỊCH BẢN (CASCADE STRATEGY)
+  const executeCascadeSearch = useCallback(
+    async (targetItem, customPageSize = pageSize) => {
+      if (!targetItem) return;
+      const scenarios = extractMultiScenarioKeywords(targetItem);
+      const { brandKw, modelKw, nameKw, specKw } = scenarios;
+
+      setSearching(true);
+      try {
+        // Kịch bản 1: Search theo HÃNG -> Máy lọc MODEL sau
+        if (brandKw) {
+          const res = await fetch("/api/msc/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              keyword: brandKw,
+              item: targetItem,
+              save_evidence: true,
+              page_number: 0,
+              page_size: customPageSize,
+            }),
+          });
+          const resData = await res.json();
+          const list = resData?.analysis?.items || resData?.items || [];
+          if (list.length > 0) {
+            let candidateList = list;
+            if (modelKw) {
+              const mLow = modelKw.toLowerCase();
+              const matched = list.filter(
+                (r) =>
+                  (r.danh_muc || "").toLowerCase().includes(mLow) ||
+                  (r.thong_so_kt || "").toLowerCase().includes(mLow) ||
+                  (r.ky_ma_hieu || "").toLowerCase().includes(mLow) ||
+                  (r.xuat_xu || "").toLowerCase().includes(mLow),
+              );
+              if (matched.length > 0) {
+                candidateList = matched;
+                setFilterKw(modelKw);
+              } else {
+                // Lọc theo Model ra 0 dòng -> KB1 thất bại (= 0), rơi xuống KB2!
+                candidateList = [];
+              }
+            }
+            if (candidateList.length > 0) {
+              const chosen = candidateList[0];
+              const rawP = parseFloat(chosen.don_gia_goc_egp || chosen.don_gia || 0);
+              const preTaxP = chosen.don_gia_truoc_thue
+                ? parseFloat(chosen.don_gia_truoc_thue)
+                : Math.round(rawP / 1.08);
+
+              setMscResponse(resData);
+              setSearchKey(brandKw);
+              setSelectedRecord(chosen);
+              setIsDeselected(false);
+              setPageNumber(0);
+
+              if (onAutoSave) {
+                onAutoSave({
+                  analysis: resData.analysis || resData,
+                  items: list,
+                  keyword: brandKw,
+                  used_keyword: brandKw,
+                  tu_khoa_tra_cuu: brandKw,
+                  page_number: 0,
+                  selected_index: 0,
+                  selected_record: chosen,
+                  don_gia_tham_chieu: preTaxP,
+                  don_gia_truoc_thue: preTaxP,
+                  don_gia_goc_egp: rawP,
+                  is_deselected: false,
+                  scenario_used: 1,
+                });
+              }
+              toast.success(`[Kịch bản 1: Hãng "${brandKw}"] Đã tìm thấy ${candidateList.length} gói thầu khớp Model!`);
+              return;
+            }
+          }
+        }
+
+        // Kịch bản 2 (nếu KB1 = 0): Search theo MODEL -> Máy lọc HÃNG sau
+        if (modelKw) {
+          const res = await fetch("/api/msc/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              keyword: modelKw,
+              item: targetItem,
+              save_evidence: true,
+              page_number: 0,
+              page_size: customPageSize,
+            }),
+          });
+          const resData = await res.json();
+          const list = resData?.analysis?.items || resData?.items || [];
+          if (list.length > 0) {
+            let candidateList = list;
+            if (brandKw) {
+              const bLow = brandKw.toLowerCase();
+              const matched = list.filter(
+                (r) =>
+                  (r.danh_muc || "").toLowerCase().includes(bLow) ||
+                  (r.hang_sx || "").toLowerCase().includes(bLow) ||
+                  (r.thong_so_kt || "").toLowerCase().includes(bLow) ||
+                  (r.xuat_xu || "").toLowerCase().includes(bLow),
+              );
+              if (matched.length > 0) {
+                candidateList = matched;
+                setFilterKw(brandKw);
+              }
+            }
+            const chosen = candidateList[0];
+            const rawP = parseFloat(chosen.don_gia_goc_egp || chosen.don_gia || 0);
+            const preTaxP = chosen.don_gia_truoc_thue
+              ? parseFloat(chosen.don_gia_truoc_thue)
+              : Math.round(rawP / 1.08);
+
+            setMscResponse(resData);
+            setSearchKey(modelKw);
+            setSelectedRecord(chosen);
+            setIsDeselected(false);
+            setPageNumber(0);
+
+            if (onAutoSave) {
+              onAutoSave({
+                analysis: resData.analysis || resData,
+                items: list,
+                keyword: modelKw,
+                used_keyword: modelKw,
+                tu_khoa_tra_cuu: modelKw,
+                page_number: 0,
+                selected_index: 0,
+                selected_record: chosen,
+                don_gia_tham_chieu: preTaxP,
+                don_gia_truoc_thue: preTaxP,
+                don_gia_goc_egp: rawP,
+                is_deselected: false,
+                scenario_used: 2,
+              });
+            }
+            toast.success(`[Kịch bản 2: Model "${modelKw}"] Đã tìm thấy ${list.length} gói thầu!`);
+            return;
+          }
+        }
+
+        // Kịch bản 3 (nếu KB2 = 0): Search theo TÊN VẬT TƯ CỐT LÕI -> Lọc THÔNG SỐ sau
+        if (nameKw) {
+          const res = await fetch("/api/msc/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              keyword: nameKw,
+              item: targetItem,
+              save_evidence: true,
+              page_number: 0,
+              page_size: customPageSize,
+            }),
+          });
+          const resData = await res.json();
+          const list = resData?.analysis?.items || resData?.items || [];
+          if (list.length > 0) {
+            let candidateList = list;
+            if (specKw) {
+              const sLow = specKw.toLowerCase();
+              const matched = list.filter(
+                (r) =>
+                  (r.thong_so_kt || "").toLowerCase().includes(sLow) ||
+                  (r.danh_muc || "").toLowerCase().includes(sLow),
+              );
+              if (matched.length > 0) {
+                candidateList = matched;
+                setFilterKw(specKw);
+              }
+            }
+            const chosen = candidateList[0];
+            const rawP = parseFloat(chosen.don_gia_goc_egp || chosen.don_gia || 0);
+            const preTaxP = chosen.don_gia_truoc_thue
+              ? parseFloat(chosen.don_gia_truoc_thue)
+              : Math.round(rawP / 1.08);
+
+            setMscResponse(resData);
+            setSearchKey(nameKw);
+            setSelectedRecord(chosen);
+            setIsDeselected(false);
+            setPageNumber(0);
+
+            if (onAutoSave) {
+              onAutoSave({
+                analysis: resData.analysis || resData,
+                items: list,
+                keyword: nameKw,
+                used_keyword: nameKw,
+                tu_khoa_tra_cuu: nameKw,
+                page_number: 0,
+                selected_index: 0,
+                selected_record: chosen,
+                don_gia_tham_chieu: preTaxP,
+                don_gia_truoc_thue: preTaxP,
+                don_gia_goc_egp: rawP,
+                is_deselected: false,
+                scenario_used: 3,
+              });
+            }
+            toast.success(`[Kịch bản 3: Tên "${nameKw}"] Đã tìm thấy ${list.length} gói thầu!`);
+            return;
+          }
+        }
+
+        // Kịch bản 4 (nếu KB3 = 0): Dò theo THÔNG SỐ KỸ THUẬT / QUY CÁCH
+        if (specKw) {
+          const res = await fetch("/api/msc/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              keyword: specKw,
+              item: targetItem,
+              save_evidence: true,
+              page_number: 0,
+              page_size: customPageSize,
+            }),
+          });
+          const resData = await res.json();
+          const list = resData?.analysis?.items || resData?.items || [];
+          if (list.length > 0) {
+            const chosen = list[0];
+            const rawP = parseFloat(chosen.don_gia_goc_egp || chosen.don_gia || 0);
+            const preTaxP = chosen.don_gia_truoc_thue
+              ? parseFloat(chosen.don_gia_truoc_thue)
+              : Math.round(rawP / 1.08);
+
+            setMscResponse(resData);
+            setSearchKey(specKw);
+            setSelectedRecord(chosen);
+            setIsDeselected(false);
+            setPageNumber(0);
+
+            if (onAutoSave) {
+              onAutoSave({
+                analysis: resData.analysis || resData,
+                items: list,
+                keyword: specKw,
+                used_keyword: specKw,
+                tu_khoa_tra_cuu: specKw,
+                page_number: 0,
+                selected_index: 0,
+                selected_record: chosen,
+                don_gia_tham_chieu: preTaxP,
+                don_gia_truoc_thue: preTaxP,
+                don_gia_goc_egp: rawP,
+                is_deselected: false,
+                scenario_used: 4,
+              });
+            }
+            toast.success(`[Kịch bản 4: Thông số "${specKw}"] Đã tìm thấy ${list.length} gói thầu!`);
+            return;
+          }
+        }
+
+        // Nếu cả 4 kịch bản đều = 0 -> Tự động đánh dấu Loại trừ an toàn
+        setIsDeselected(true);
+        setSelectedRecord(null);
+        toast.info("Không tìm thấy kết quả e-GP sau 4 kịch bản. Tự động loại trừ Cơ sở 4.");
+        if (onAutoSave) {
+          onAutoSave({
+            is_deselected: true,
+            selected_record: "NONE",
+            don_gia_tham_chieu: 0,
+            don_gia_truoc_thue: 0,
+            don_gia_goc_egp: 0,
+            scenario_used: 0,
+            summary: {
+              status: "MSC_DESELECTED",
+              is_deselected: true,
+              summary_text: "Không tìm thấy dữ liệu tương đồng trên e-GP sau 4 kịch bản tra cứu (tự động loại trừ).",
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Lỗi thực thi thác đổ MSC:", err);
+      } finally {
+        setSearching(false);
+      }
+    },
+    [pageSize, onAutoSave, toast],
   );
 
   const autoSearchedRef = useRef({});
@@ -148,14 +472,18 @@ export default function PillarMsc({
       setPriceFilter("ALL");
     }
 
-    const smartKw = getSmartMscKw(
-      item?.ten_vt || "",
+    const smartKw = getDefaultMscKeyword(
+      item,
       data?.used_keyword || data?.keyword || data?.tu_khoa_tra_cuu,
     );
     setSearchKey(smartKw);
 
-    // Xử lý xác định dòng được chọn dựa trên dữ liệu đã lưu (saved evidence)
-    const currentItemsList = data?.analysis?.items || data?.items || [];
+    // Xử lý xác định bản ghi được chọn dựa trên dữ liệu đã lưu (saved evidence)
+    const currentItemsList =
+      data?.analysis?.items ||
+      data?.items ||
+      data?.danh_sach_ket_qua ||
+      [];
     const savedRecord = data?.selected_record;
 
     if (
@@ -164,37 +492,35 @@ export default function PillarMsc({
       data?.summary?.status === "MSC_DESELECTED" ||
       data?.summary?.is_deselected
     ) {
-      setSelectedIdx(null);
-    } else if (savedRecord && typeof savedRecord === "object") {
-      // Tìm xem bản ghi đã lưu nằm ở index mấy trong danh sách hiện tại
-      const foundIdx = currentItemsList.findIndex(
-        (r) =>
-          (r.ma_tbmt && r.ma_tbmt === savedRecord.ma_tbmt) ||
-          (r.don_gia &&
-            r.don_gia === savedRecord.don_gia &&
-            r.danh_muc === savedRecord.danh_muc),
-      );
-      setSelectedIdx(foundIdx !== -1 ? foundIdx : 0);
-    } else {
-      setSelectedIdx(currentItemsList.length > 0 ? 0 : null);
-    }
-
-    // Auto-search ONLY ONCE per item ID if no evidence data exists
-    if (
-      !data &&
-      item?.id &&
-      item?.ten_vt &&
-      smartKw &&
-      !autoSearchedRef.current[item.id]
+      setIsDeselected(true);
+      setSelectedRecord(null);
+    } else if (
+      typeof data?.selected_index === "number" &&
+      currentItemsList[data.selected_index]
     ) {
-      autoSearchedRef.current[item.id] = smartKw;
-      triggerSearch(smartKw, 0, pageSize);
+      // ƯU TIÊN 1: Đọc và chọn theo selected_index
+      setIsDeselected(false);
+      setSelectedRecord(currentItemsList[data.selected_index]);
+    } else if (savedRecord && typeof savedRecord === "object") {
+      // ƯU TIÊN 2: Đọc theo savedRecord object
+      setIsDeselected(false);
+      setSelectedRecord(savedRecord);
+    } else if (currentItemsList.length > 0) {
+      setIsDeselected(false);
+      setSelectedRecord(currentItemsList[0]);
+    } else {
+      setIsDeselected(false);
+      setSelectedRecord(null);
     }
-  }, [data, item?.id, item?.ten_vt]);
+  }, [data, item?.id, item?.ten_vt, pageSize, saved]);
 
   const analysis =
     mscResponse?.analysis || (mscResponse?.items ? mscResponse : null);
-  const itemsList = analysis?.items || mscResponse?.items || [];
+  const itemsList =
+    analysis?.items ||
+    mscResponse?.items ||
+    mscResponse?.danh_sach_ket_qua ||
+    [];
   const keywordUsed = analysis?.keyword || searchKey;
 
   const totalElements =
@@ -209,9 +535,13 @@ export default function PillarMsc({
 
   // Client-side filtering logic
   const filteredItems = itemsList.filter((r) => {
-    const dg = parseFloat(r.don_gia || 0);
-    if (priceFilter === "LOWER" && (dgTrinh <= 0 || dg > dgTrinh)) return false;
-    if (priceFilter === "HIGHER" && (dgTrinh <= 0 || dg <= dgTrinh))
+    const rawDg = parseFloat(r.don_gia_goc_egp || r.don_gia || 0);
+    const preTaxDg = r.don_gia_truoc_thue
+      ? parseFloat(r.don_gia_truoc_thue)
+      : Math.round(rawDg / 1.08);
+
+    if (priceFilter === "LOWER" && (dgTrinh <= 0 || preTaxDg > dgTrinh)) return false;
+    if (priceFilter === "HIGHER" && (dgTrinh <= 0 || preTaxDg <= dgTrinh))
       return false;
 
     if (filterKw.trim()) {
@@ -235,14 +565,17 @@ export default function PillarMsc({
     return true;
   });
 
-  // Determine selected record or minimum price record
-  const isDeselected = selectedIdx === null;
-  const selectedRecord = isDeselected
-    ? null
-    : filteredItems[selectedIdx] || itemsList[selectedIdx] || null;
-  const selectedPrice = selectedRecord
-    ? parseFloat(selectedRecord.don_gia || 0)
+  // Tính toán đơn giá trước thuế của bản ghi được chọn
+  const rawSelectedPrice = selectedRecord
+    ? parseFloat(selectedRecord.don_gia_goc_egp || selectedRecord.don_gia || 0)
     : 0;
+  const preTaxSelectedPrice = selectedRecord
+    ? (selectedRecord.don_gia_truoc_thue
+        ? parseFloat(selectedRecord.don_gia_truoc_thue)
+        : Math.round(rawSelectedPrice / 1.08))
+    : 0;
+
+  const selectedPrice = isDeselected ? 0 : preTaxSelectedPrice;
   const diffAmt = dgTrinh - selectedPrice;
   const diffPct =
     selectedPrice > 0 ? ((dgTrinh - selectedPrice) / selectedPrice) * 100 : 0;
@@ -271,35 +604,66 @@ export default function PillarMsc({
       ? `, Bên mời thầu: ${selectedRecord.ben_moi_thau}`
       : "";
     if (diffAmt <= 0) {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là ${fmt(selectedPrice)} đ (giá gốc e-GP gồm VAT 8%: ${fmt(rawSelectedPrice)} đ, Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
     } else {
-      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(selectedPrice)} đ (Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+      summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là ${fmt(selectedPrice)} đ (giá gốc e-GP gồm VAT 8%: ${fmt(rawSelectedPrice)} đ, Mã TBMT: ${selectedRecord.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${selectedRecord.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffPct.toFixed(1)}% (+${fmt(diffAmt)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
     }
   } else if (mscResponse && !searching) {
     summaryText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu} nhưng chưa ghi nhận kết quả trúng thầu tương tự.`;
   }
 
-  const handleSelectRecord = (index) => {
-    if (selectedIdx === index) {
+  const isRowSelected = (r, idx) => {
+    if (isDeselected) return false;
+
+    // Tầng 1: So khớp trực tiếp theo selected_index đã lưu nếu có
+    const savedIdx = data?.selected_index ?? mscResponse?.selected_index;
+    if (savedIdx !== undefined && savedIdx !== null && idx === Number(savedIdx)) {
+      return true;
+    }
+
+    if (!selectedRecord) return false;
+    if (r === selectedRecord) return true;
+
+    // Tầng 2: So khớp theo UUID định danh duy nhất của e-GP
+    if (r.id && selectedRecord.id && r.id === selectedRecord.id) {
+      return true;
+    }
+
+    // Tầng 3: So khớp chính xác cả bộ ba định danh (Mã TBMT + Tên danh mục + Đơn giá)
+    return (
+      Boolean(r.ma_tbmt && selectedRecord.ma_tbmt && r.ma_tbmt === selectedRecord.ma_tbmt) &&
+      Boolean(r.danh_muc && selectedRecord.danh_muc && r.danh_muc === selectedRecord.danh_muc) &&
+      Math.abs(Number(r.don_gia || 0) - Number(selectedRecord.don_gia || 0)) < 1
+    );
+  };
+
+  const handleToggleSelectRecord = (rec, idx) => {
+    if (isRowSelected(rec, idx)) {
       handleDeselectRecord();
       return;
     }
-    setSelectedIdx(index);
-    const rec = filteredItems[index] || itemsList[index];
-    const recPrice = rec ? parseFloat(rec.don_gia || 0) : 0;
-    const diffA = dgTrinh - recPrice;
-    const diffP = recPrice > 0 ? ((dgTrinh - recPrice) / recPrice) * 100 : 0;
+
+    const rawP = parseFloat(rec.don_gia_goc_egp || rec.don_gia || 0);
+    const preTaxP = rec.don_gia_truoc_thue
+      ? parseFloat(rec.don_gia_truoc_thue)
+      : Math.round(rawP / 1.08);
+
+    setSelectedRecord(rec);
+    setIsDeselected(false);
+    toast.success(`Đã chọn kết quả e-GP: ${fmt(preTaxP)} đ (trước thuế)!`);
+
     const benMoiThauStr = rec?.ben_moi_thau
       ? `, Bên mời thầu: ${rec.ben_moi_thau}`
       : "";
     let newSumText = "";
+    const diffA = dgTrinh - preTaxP;
+    const diffP = preTaxP > 0 ? ((dgTrinh - preTaxP) / preTaxP) * 100 : 0;
     if (diffA <= 0) {
-      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận mức giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là ${fmt(preTaxP)} đ (giá gốc e-GP gồm VAT 8%: ${fmt(rawP)} đ, Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc.`;
     } else {
-      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là ${fmt(recPrice)} đ (Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffP.toFixed(1)}% (+${fmt(diffA)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
+      newSumText = `Đã tra cứu từ khóa [${keywordUsed}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc ${thoiGianTraCuu}; ghi nhận đơn giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là ${fmt(preTaxP)} đ (giá gốc e-GP gồm VAT 8%: ${fmt(rawP)} đ, Mã TBMT: ${rec?.ma_tbmt || "—"}${benMoiThauStr}, Danh mục: ${rec?.danh_muc || "—"}). Đơn giá trình (${fmt(dgTrinh)} đ) hiện cao hơn ${diffP.toFixed(1)}% (+${fmt(diffA)} đ). Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí.`;
     }
 
-    toast.success(`Đã chọn kết quả e-GP làm căn cứ tham chiếu!`);
     if (onAutoSave) {
       onAutoSave({
         analysis,
@@ -308,15 +672,20 @@ export default function PillarMsc({
         keyword: searchKey,
         used_keyword: searchKey,
         tu_khoa_tra_cuu: searchKey,
+        page_number: pageNumber,
+        selected_index: idx !== undefined ? idx : 0,
         selected_record: rec,
-        don_gia_tham_chieu: recPrice,
+        don_gia_tham_chieu: preTaxP,
+        don_gia_truoc_thue: preTaxP,
+        don_gia_goc_egp: rawP,
         is_deselected: false,
       });
     }
   };
 
   const handleDeselectRecord = () => {
-    setSelectedIdx(null);
+    setSelectedRecord(null);
+    setIsDeselected(true);
     toast.info(
       "Đã hủy chọn gói thầu e-GP. Không áp dụng kết quả Mua Sắm Công làm căn cứ.",
     );
@@ -330,6 +699,8 @@ export default function PillarMsc({
         tu_khoa_tra_cuu: searchKey,
         selected_record: "NONE",
         don_gia_tham_chieu: 0,
+        don_gia_truoc_thue: 0,
+        don_gia_goc_egp: 0,
         is_deselected: true,
       });
     }
@@ -467,13 +838,91 @@ export default function PillarMsc({
           </button>
         </div>
 
-        {/* 4 Tầng Từ Khóa Đề Xuất (Keyword Candidates Chips Bar) */}
-        {candidates.length > 0 && (
-          <div className="flex items-center gap-2 pt-1 overflow-x-auto text-[11px]">
+        {/* Thanh kịch bản Thác Đổ & Từ Khóa Đề Xuất */}
+        <div className="flex flex-col gap-2 pt-1 text-[11px]">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-orange-950 shrink-0 flex items-center gap-1">
-              ⚡ Gợi Ý Từ Khóa:
+              ⚡ Kịch Bản Thác Đổ:
             </span>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => executeCascadeSearch(item)}
+              disabled={searching}
+              className="px-2.5 py-1 rounded-lg border font-bold transition flex items-center gap-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white shadow-xs cursor-pointer disabled:opacity-50"
+              title="Chạy tự động toàn bộ 4 kịch bản: Hãng -> Model -> Tên cốt lõi -> Specs"
+            >
+              🚀 Chạy Thác Đổ 4 Kịch Bản
+            </button>
+            {multiScenarios.brandKw && (
+              <button
+                onClick={() => {
+                  setSearchKey(multiScenarios.brandKw);
+                  triggerSearch(multiScenarios.brandKw, 0, pageSize);
+                }}
+                className={`px-2 py-0.5 rounded border text-[10.5px] font-medium transition cursor-pointer ${
+                  searchKey.toLowerCase() === multiScenarios.brandKw.toLowerCase()
+                    ? "bg-orange-600 text-white font-bold border-orange-700"
+                    : "bg-white text-slate-700 hover:bg-orange-50 border-slate-300"
+                }`}
+                title={`Kịch bản 1 (Hãng): ${multiScenarios.brandKw}`}
+              >
+                🏷️ KB1 (Hãng): {multiScenarios.brandKw}
+              </button>
+            )}
+            {multiScenarios.modelKw && (
+              <button
+                onClick={() => {
+                  setSearchKey(multiScenarios.modelKw);
+                  triggerSearch(multiScenarios.modelKw, 0, pageSize);
+                }}
+                className={`px-2 py-0.5 rounded border text-[10.5px] font-medium transition cursor-pointer ${
+                  searchKey.toLowerCase() === multiScenarios.modelKw.toLowerCase()
+                    ? "bg-orange-600 text-white font-bold border-orange-700"
+                    : "bg-white text-slate-700 hover:bg-orange-50 border-slate-300"
+                }`}
+                title={`Kịch bản 2 (Model): ${multiScenarios.modelKw}`}
+              >
+                🔢 KB2 (Model): {multiScenarios.modelKw}
+              </button>
+            )}
+            {multiScenarios.nameKw && (
+              <button
+                onClick={() => {
+                  setSearchKey(multiScenarios.nameKw);
+                  triggerSearch(multiScenarios.nameKw, 0, pageSize);
+                }}
+                className={`px-2 py-0.5 rounded border text-[10.5px] font-medium transition cursor-pointer ${
+                  searchKey.toLowerCase() === multiScenarios.nameKw.toLowerCase()
+                    ? "bg-orange-600 text-white font-bold border-orange-700"
+                    : "bg-white text-slate-700 hover:bg-orange-50 border-slate-300"
+                }`}
+                title={`Kịch bản 3 (Tên cốt lõi): ${multiScenarios.nameKw}`}
+              >
+                📄 KB3 (Tên): {multiScenarios.nameKw.slice(0, 20)}...
+              </button>
+            )}
+            {multiScenarios.specKw && (
+              <button
+                onClick={() => {
+                  setSearchKey(multiScenarios.specKw);
+                  triggerSearch(multiScenarios.specKw, 0, pageSize);
+                }}
+                className={`px-2 py-0.5 rounded border text-[10.5px] font-medium transition cursor-pointer ${
+                  searchKey.toLowerCase() === multiScenarios.specKw.toLowerCase()
+                    ? "bg-orange-600 text-white font-bold border-orange-700"
+                    : "bg-white text-slate-700 hover:bg-orange-50 border-slate-300"
+                }`}
+                title={`Kịch bản 4 (Thông số/Quy cách): ${multiScenarios.specKw}`}
+              >
+                ⚙️ KB4 (Specs): {multiScenarios.specKw}
+              </button>
+            )}
+          </div>
+
+          {candidates.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-orange-200/60">
+              <span className="font-semibold text-slate-500 shrink-0 text-[10.5px]">
+                Gợi ý khác:
+              </span>
               {candidates.map((c, idx) => (
                 <button
                   key={idx}
@@ -481,23 +930,20 @@ export default function PillarMsc({
                     setSearchKey(c.keyword);
                     triggerSearch(c.keyword, 0, pageSize);
                   }}
-                  className={`px-2.5 py-1 rounded-lg border font-semibold transition flex items-center gap-1 shadow-2xs ${
+                  className={`px-2 py-0.5 rounded border text-[10px] font-medium transition flex items-center gap-1 cursor-pointer ${
                     searchKey.toLowerCase() === c.keyword.toLowerCase()
                       ? "bg-orange-600 text-white border-orange-700 font-bold"
-                      : "bg-white text-slate-700 border-slate-300 hover:bg-orange-100 hover:border-orange-300"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-orange-100"
                   }`}
                   title={`${c.label}: "${c.keyword}"`}
                 >
                   <span>{c.icon}</span>
                   <span>{c.keyword}</span>
-                  <span className="text-[9px] opacity-75 px-1 py-0.2 rounded bg-black/10">
-                    {c.tag}
-                  </span>
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Pagination Bar & Fetch All Button */}
@@ -735,8 +1181,8 @@ export default function PillarMsc({
                 <th className="py-2.5 px-3 border-r w-20 text-right">
                   Khối Lượng
                 </th>
-                <th className="py-2.5 px-3 border-r w-32 text-right font-mono bg-orange-100/50">
-                  Giá Dự Thầu (Trúng)
+                <th className="py-2.5 px-3 border-r w-36 text-right font-mono bg-orange-100/50">
+                  Đơn Giá Trước Thuế
                 </th>
                 <th className="py-2.5 px-3 border-r">Xuất Xứ</th>
                 <th className="py-2.5 px-3">Hãng Sản Xuất</th>
@@ -744,9 +1190,12 @@ export default function PillarMsc({
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredItems.map((r, i) => {
-                const isSelected = !isDeselected && i === selectedIdx;
-                const dg = parseFloat(r.don_gia || 0);
-                const diff = dgTrinh > 0 ? ((dg - dgTrinh) / dgTrinh) * 100 : 0;
+                const isSelected = isRowSelected(r, i);
+                const rawDg = parseFloat(r.don_gia_goc_egp || r.don_gia || 0);
+                const preTaxDg = r.don_gia_truoc_thue
+                  ? parseFloat(r.don_gia_truoc_thue)
+                  : Math.round(rawDg / 1.08);
+                const diff = dgTrinh > 0 ? ((preTaxDg - dgTrinh) / dgTrinh) * 100 : 0;
 
                 // Smart Title-Spec Splitter logic
                 let rawName =
@@ -843,7 +1292,7 @@ export default function PillarMsc({
                   >
                     <td className="py-2 px-2 border-r text-center">
                       <button
-                        onClick={() => handleSelectRecord(i)}
+                        onClick={() => handleToggleSelectRecord(r, i)}
                         className={`text-[10px] px-2 py-1 rounded font-bold transition flex items-center justify-center gap-1 mx-auto cursor-pointer ${
                           isSelected
                             ? "bg-orange-600 hover:bg-orange-700 text-white shadow-xs ring-2 ring-orange-300"
@@ -925,7 +1374,12 @@ export default function PillarMsc({
                       {fmt(r.so_luong || 1)}
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-extrabold border-r text-orange-950 bg-orange-50/30">
-                      {fmt(dg)} đ
+                      <div className="text-xs font-bold text-orange-950">
+                        {fmt(preTaxDg)} đ
+                      </div>
+                      <div className="text-[9.5px] font-normal text-slate-500">
+                        Gốc e-GP: {fmt(rawDg)} đ (VAT 8%)
+                      </div>
                       {diff !== 0 && (
                         <div
                           className={`text-[9.5px] font-bold ${diff > 0 ? "text-red-600" : "text-emerald-700"}`}
@@ -962,7 +1416,25 @@ export default function PillarMsc({
       <SaveFooter
         saving={saving}
         saved={saved}
-        onSave={() =>
+        onSave={() => {
+          let currentIdx = -1;
+          if (selectedRecord && itemsList.length > 0) {
+            currentIdx = itemsList.findIndex((r) => {
+              if (r === selectedRecord) return true;
+              if (r.id && selectedRecord.id && r.id === selectedRecord.id) return true;
+              return (
+                r.ma_tbmt === selectedRecord.ma_tbmt &&
+                r.danh_muc === selectedRecord.danh_muc &&
+                Math.abs(Number(r.don_gia || 0) - Number(selectedRecord.don_gia || 0)) < 1
+              );
+            });
+          }
+          const finalSelectedIdx = isDeselected
+            ? -1
+            : currentIdx >= 0
+            ? currentIdx
+            : (typeof data?.selected_index === "number" ? data.selected_index : 0);
+
           onSave({
             analysis,
             items: itemsList,
@@ -970,10 +1442,15 @@ export default function PillarMsc({
             keyword: searchKey,
             used_keyword: searchKey,
             tu_khoa_tra_cuu: searchKey,
+            page_number: pageNumber,
+            selected_index: finalSelectedIdx,
             selected_record: isDeselected ? "NONE" : selectedRecord,
+            don_gia_tham_chieu: isDeselected ? 0 : preTaxSelectedPrice,
+            don_gia_truoc_thue: isDeselected ? 0 : preTaxSelectedPrice,
+            don_gia_goc_egp: isDeselected ? 0 : rawSelectedPrice,
             is_deselected: isDeselected,
-          })
-        }
+          });
+        }}
         nextLabel="Cơ sở 5 (TMĐT)"
         prevLabel="Cơ sở 3 (IMIS)"
       />

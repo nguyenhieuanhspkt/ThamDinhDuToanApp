@@ -229,33 +229,57 @@ export function normalizeMscEvidence(raw, item = {}) {
 
   const rec = activeRecord || {};
 
-  const price = isDeselected
-    ? 0
-    : parseFloat(
-        rec.don_gia ||
-        rec.gia_trung_thau ||
-        rec.donGia ||
-        raw.don_gia_tham_chieu ||
-        raw.min_price ||
-        0
-      );
+  const rawPrice = parseFloat(
+    rec.don_gia_goc_egp ||
+    rec.don_gia ||
+    rec.donGiaDuThau ||
+    rec.gia_trung_thau ||
+    rec.donGia ||
+    raw.don_gia_goc_egp ||
+    raw.min_price ||
+    0
+  );
 
-  const itemName = rec.danh_muc || rec.ten_goi_thau || rec.ten_vt || "";
-  const supplier = rec.nha_thau_trung || rec.ben_moi_thau || rec.nhaThau || "";
-  const specs = rec.thong_so_kt || rec.thongSoKt || "";
-  const contractInfo = rec.ma_tbmt ? `TBMT: ${rec.ma_tbmt}` : "";
+  // QUY ĐỔI ĐƠN GIÁ TRƯỚC THUẾ (VAT 8% -> chia 1.08):
+  const preTaxPrice = raw.don_gia_truoc_thue
+    ? parseFloat(raw.don_gia_truoc_thue)
+    : rec.don_gia_truoc_thue
+      ? parseFloat(rec.don_gia_truoc_thue)
+      : raw.don_gia_tham_chieu && raw.don_gia_goc_egp && raw.don_gia_tham_chieu !== raw.don_gia_goc_egp
+        ? parseFloat(raw.don_gia_tham_chieu)
+        : rawPrice > 0
+          ? Math.round(rawPrice / 1.08)
+          : 0;
+
+  const price = isDeselected ? 0 : preTaxPrice;
+
+  const itemName = rec.danh_muc || rec.danhMucHangHoa || rec.ten_hang_hoa || rec.ten_goi_thau || rec.ten_vt || "";
+  const supplier = rec.nha_thau_trung || (Array.isArray(rec.winningName) ? rec.winningName[0] : rec.winningName) || rec.ben_moi_thau || rec.nhaThau || "";
+  const specs = rec.thong_so_kt || rec.thongSoKt || rec.cauHinh || rec.cau_hinh || rec.moTa || "";
+  const contractInfo = rec.ma_tbmt || rec.maTbmt ? `TBMT: ${rec.ma_tbmt || rec.maTbmt}` : "";
 
   const detail = isDeselected
     ? (raw.summary_text || "Đã loại trừ CSDL Mua Sắm Công")
-    : (raw.summary_text || raw.summary?.summary_text || (price > 0 ? `Mua sắm công: ${fmt(price)} (${supplier || "e-GP"})` : "Đã tra cứu Cổng Mua Sắm Công"));
+    : (raw.summary_text || raw.summary?.summary_text || (price > 0 ? `Mua sắm công (Trước VAT 8%): ${fmt(price)} [Gốc e-GP: ${fmt(rawPrice)} - ${supplier || "e-GP"}]` : "Đã tra cứu Cổng Mua Sắm Công"));
 
   return {
     price,
+    rawPrice,
+    preTaxPrice,
     itemName,
     specs,
     supplier,
     contractInfo,
     detail,
+    keyword_used: raw.tu_khoa_tra_cuu || raw.keyword || raw.used_keyword || "",
+    page_number: raw.page_number !== undefined ? Number(raw.page_number) : 0,
+    selected_index:
+      raw.selected_index !== undefined
+        ? Number(raw.selected_index)
+        : raw.selected_idx !== undefined
+          ? Number(raw.selected_idx)
+          : -1,
+    selected_record: activeRecord,
     isDeselected: Boolean(isDeselected),
     results,
     activeRecord: rec,
@@ -398,8 +422,14 @@ export function buildCompletedAuditSteps(evidence = {}, item = {}) {
       specs: msc.specs,
       detail: msc.detail,
       price: msc.price,
+      raw_price: msc.rawPrice,
       _orig_price: msc.price,
+      _orig_raw_price: msc.rawPrice,
       _orig_detail: msc.detail,
+      keyword_used: msc.keyword_used,
+      page_number: msc.page_number,
+      selected_index: msc.selected_index,
+      selected_record: msc.selected_record,
       is_deselected: msc.isDeselected || msc.price === 0,
     },
     {
@@ -429,3 +459,58 @@ export function buildCompletedAuditSteps(evidence = {}, item = {}) {
     },
   ];
 }
+
+/**
+ * 7. PURE CALCULATION ENGINE: Tính toán Đơn giá duyệt, Cơ sở chiến thắng & Tiền tiết kiệm
+ * Nguồn chân lý duy nhất (Single Source of Truth) dùng chung 100% cho Modal, View 3 Inspector và Grid.
+ */
+export function resolveEffectiveAuditPrice(steps, dgTrinh, soLuong = 1, manualPrice = null, manualPillar = null) {
+  const qty = parseFloat(soLuong) || 1;
+  const dgT = parseFloat(dgTrinh) || 0;
+
+  // 1. Lọc các cơ sở hợp lệ (trong 5 cơ sở đầu tiên, không bị loại trừ và có đơn giá > 0)
+  const validPillars = (steps || [])
+    .slice(0, 5)
+    .filter((st) => !st.is_deselected && parseFloat(st.price) > 0)
+    .map((st) => ({
+      name: st.name,
+      price: parseFloat(st.price),
+      key: st.key,
+    }));
+
+  // Sắp xếp tìm đơn giá thấp nhất hợp lệ
+  validPillars.sort((a, b) => a.price - b.price);
+  const best = validPillars[0];
+
+  // 2. Chốt đơn giá hiệu dụng:
+  // - Ưu tiên 1: Giá do user bấm "⚡ Chọn Giá" thủ công (nếu có)
+  // - Ưu tiên 2: Cơ sở có giá thấp nhất còn lại
+  // - Ưu tiên 3: Nếu loại trừ hết toàn bộ 5 cơ sở -> Giữ nguyên đơn giá trình
+  const approvedPrice =
+    manualPrice !== null && manualPrice !== undefined
+      ? parseFloat(manualPrice)
+      : best
+        ? best.price
+        : dgT;
+
+  const winningPillar =
+    manualPillar !== null && manualPillar !== undefined
+      ? manualPillar
+      : best
+        ? best.name
+        : "Giữ theo Đơn Giá Trình";
+
+  const totalSavings = Math.max(0, (dgT - approvedPrice) * qty);
+  const pctGiam = dgT > 0 ? ((dgT - approvedPrice) / dgT) * 100 : 0;
+  const thanhTien = approvedPrice * qty;
+
+  return {
+    approvedPrice,
+    winningPillar,
+    totalSavings,
+    pctGiam,
+    thanhTien,
+    hasValidBasis: validPillars.length > 0,
+  };
+}
+

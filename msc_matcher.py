@@ -276,6 +276,7 @@ def search_muasamcong(keyword, page_number=0, page_size=20):
 
         for it in raw_items:
             price = float(it.get("donGiaDuThau") or 0.0)
+            pre_tax_price = round(price / 1.08) if price > 0 else 0.0
             ben_moi_thau = (
                 it.get("tenCdtBmt") or 
                 it.get("tenBenMoiThau") or 
@@ -303,7 +304,9 @@ def search_muasamcong(keyword, page_number=0, page_size=20):
                 "danh_muc": (it.get("danhMucHangHoa") or "").strip().replace('_x000D_', ''),
                 "dvt": it.get("donViTinh", ""),
                 "so_luong": float(it.get("khoiLuongDouble") or 1.0),
-                "don_gia": price,
+                "don_gia": pre_tax_price,
+                "don_gia_truoc_thue": pre_tax_price,
+                "don_gia_goc_egp": price,
                 "xuat_xu": (it.get("xuatXu") or "").strip().replace('_x000D_', ''),
                 "hang_sx": hang_sx,
                 "ben_moi_thau": ben_moi_thau,
@@ -329,6 +332,7 @@ def search_muasamcong(keyword, page_number=0, page_size=20):
 def analyze_msc_comparison(item, msc_results):
     """
     So sánh đơn giá trình của mục với kết quả Mua Sắm Công và sinh báo cáo bằng chứng kèm mốc thời gian và phân trang.
+    Đơn giá so sánh được quy đổi trước thuế VAT 8% (chia 1.08).
     """
     dg_trinh = float(item.get("don_gia_trinh") or 0.0)
     items = msc_results.get("items", [])
@@ -351,7 +355,7 @@ def analyze_msc_comparison(item, msc_results):
             "summary_text": f"Đã tra cứu từ khóa [{keyword}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc {thoi_gian_tra_cuu} nhưng chưa ghi nhận kết quả trúng thầu tương tự."
         }
 
-    valid_prices = [it for it in items if it["don_gia"] > 0]
+    valid_prices = [it for it in items if it.get("don_gia", 0) > 0]
     if not valid_prices:
         return {
             "has_data": False,
@@ -367,6 +371,7 @@ def analyze_msc_comparison(item, msc_results):
     valid_prices.sort(key=lambda x: x["don_gia"])
     min_msc = valid_prices[0]
     min_price = min_msc["don_gia"]
+    raw_min_price = min_msc.get("don_gia_goc_egp", min_price)
 
     diff_amt = dg_trinh - min_price
     diff_pct = ((dg_trinh - min_price) / min_price * 100) if min_price > 0 else 0.0
@@ -374,13 +379,15 @@ def analyze_msc_comparison(item, msc_results):
     if diff_amt <= 0:
         summary_text = (
             f"Đã tra cứu từ khóa [{keyword}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc {thoi_gian_tra_cuu}; "
-            f"ghi nhận mức giá trúng thầu tham chiếu thấp nhất là {min_price:,.0f} đ (Mã TBMT: {min_msc['ma_tbmt']}). "
+            f"ghi nhận mức giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là {min_price:,.0f} đ "
+            f"(giá gốc e-GP gồm VAT: {raw_min_price:,.0f} đ, Mã TBMT: {min_msc['ma_tbmt']}). "
             f"Đơn giá trình ({dg_trinh:,.0f} đ) thấp hơn hoặc tương đương giá trúng thầu công khai trên toàn quốc."
         )
     else:
         summary_text = (
             f"Đã tra cứu từ khóa [{keyword}] trên Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn) lúc {thoi_gian_tra_cuu}; "
-            f"ghi nhận đơn giá trúng thầu tham chiếu thấp nhất là {min_price:,.0f} đ (Mã TBMT: {min_msc['ma_tbmt']}). "
+            f"ghi nhận đơn giá trúng thầu tham chiếu quy đổi trước thuế VAT 8% là {min_price:,.0f} đ "
+            f"(giá gốc e-GP gồm VAT: {raw_min_price:,.0f} đ, Mã TBMT: {min_msc['ma_tbmt']}). "
             f"Đơn giá trình ({dg_trinh:,.0f} đ) hiện cao hơn {diff_pct:.1f}% (+{diff_amt:,.0f} đ). "
             f"Tổ Thẩm định đề nghị xem xét tham chiếu giá Mua sắm công để tối ưu chi phí."
         )
@@ -394,6 +401,9 @@ def analyze_msc_comparison(item, msc_results):
         "total_pages": total_pages,
         "thoi_gian_tra_cuu": thoi_gian_tra_cuu,
         "min_price": min_price,
+        "don_gia_truoc_thue": min_price,
+        "don_gia_goc_egp": raw_min_price,
+        "selected_record": min_msc,
         "min_msc": min_msc,
         "diff_amt": diff_amt,
         "diff_pct": diff_pct,

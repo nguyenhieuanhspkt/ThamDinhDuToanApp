@@ -247,3 +247,112 @@ export const computeLandedCost = (rawVnd, surchargePct = 20) => {
   if (!rawVnd || rawVnd <= 0) return 0;
   return Math.round(rawVnd * (1 + (surchargePct || 0) / 100));
 };
+
+export const extractBrandFromItem = (item) => {
+  if (!item) return "";
+
+  // 1. Quét qua các trường thuộc tính phổ biến trong dự toán / ERP
+  const rawHang =
+    item.hsx_xx ||
+    item.hang_sx ||
+    item.hangSanXuat ||
+    item.nha_san_xuat ||
+    item.nsx ||
+    item.maker ||
+    item.manufacturer ||
+    item.brand ||
+    "";
+
+  if (rawHang && typeof rawHang === "string") {
+    // Thường có dạng "Tên Hãng/ Nước Xuất Xứ", lấy phần tên hãng đằng trước
+    let brand = rawHang.split(/[\/\,\;\(]/)[0].trim();
+    if (
+      brand &&
+      brand.length >= 2 &&
+      !/^(chưa|chua|không|khong|n\/a|none|null|\-|\?)$/i.test(brand) &&
+      !/chưa\s*có|không\s*rõ/i.test(brand)
+    ) {
+      return brand;
+    }
+  }
+
+  const text = `${item.ten_vt || ""} ${item.thong_so_kt || ""}`;
+
+  // 2. Bóc tách bằng Regex ngữ nghĩa: bắt mọi biến thể Nhà sản xuất, NSX, NXS (gõ nhầm), Maker, Manufacturer, Mfr, Brand...
+  const brandRegex =
+    /(?:Nhà\s*sản\s*xuất|Hãng(?:\s*SX|\s*sản\s*xuất)?|HSX|NSX|NXS|Maker|Manufacturer|Mfr|Brand)[\s:=-]+([A-Za-z0-9&.\- ]+?)(?:[\/;,(\n]|\s+xuất\s*xứ|\s+nước|\s+model|\s+p\/n|$)/i;
+  const match = text.match(brandRegex);
+  if (match && match[1]) {
+    let extracted = match[1].replace(/[\.\,\;\:\/\-]+$/, "").trim();
+    if (
+      extracted.length >= 2 &&
+      !/^(chưa|chua|không|khong|n\/a|none|null|\-|\?)$/i.test(extracted) &&
+      !/chưa\s*có|không\s*rõ/i.test(extracted)
+    ) {
+      return extracted;
+    }
+  }
+
+  // 3. Tìm thương hiệu công nghiệp quốc tế phổ biến từ tên hoặc thông số (ngay cả khi không có chữ NSX/Maker đứng trước)
+  const knownBrands = [
+    "Swagelok", "FlowTek", "Flow-Tek", "Bray", "Parker", "Fisher", "Emerson",
+    "Siemens", "ABB", "Schneider", "Yokogawa", "Endress+Hauser", "Danfoss",
+    "KSB", "Sulzer", "Omron", "Festo", "SMC", "Spirax Sarco", "TLV", "Rotork",
+    "Limitorque", "Honeywell", "GE", "Mitsubishi", "WIKA", "Rosemount", "Masoneilan",
+    "Kungho", "Gea-Bgr", "Merrick", "Eunchang", "LS", "Unicon", "Rema Tiptop",
+    "Baosteel", "Autonics", "HBK", "Imatek", "Intorq", "Apollo"
+  ];
+  for (const b of knownBrands) {
+    const reg = new RegExp(`\\b${b.replace("+", "\\+")}\\b`, "i");
+    if (reg.test(text)) return b;
+  }
+
+  return "";
+};
+
+export const extractModelFromItem = (item) => {
+  if (!item) return "";
+  const text = `${item.ten_vt || ""} ${item.thong_so_kt || ""}`;
+
+  // 1. Model: XXX hoặc Part no: XXX
+  const explicitModel = text.match(/(?:Model|Part\s*(?:no|number)|Mã\s*hiệu|P\/N|Type)[\s:]*([A-Za-z0-9\-\/\._]+)/i);
+  if (explicitModel && explicitModel[1] && explicitModel[1].length >= 3) {
+    return explicitModel[1].trim();
+  }
+
+  // 2. Các mã kỹ thuật có dấu gạch ngang (VD: SS-600-6, 920830-113A0532, 600250-70900533, Series 92)
+  const codeMatch = text.match(/\b([A-Z]{1,4}-[A-Z0-9\-]{2,15}|[0-9]{5,10}-[0-9A-Z\-]{3,12}|Series\s*[0-9A-Z]+)\b/i);
+  if (codeMatch && codeMatch[1]) {
+    return codeMatch[1].trim();
+  }
+
+  return "";
+};
+
+export const extractMultiScenarioKeywords = (item) => {
+  const brand = extractBrandFromItem(item);
+  const model = extractModelFromItem(item);
+  const rawName = item?.ten_vt || "";
+  const nameCore = extractCleanImisKeyword(rawName);
+
+  const text = `${rawName} ${item?.thong_so_kt || ""}`;
+  const specMatch = text.match(/\b(\d+(?:\.\d+)?\s*(?:mm|inch|\"|in|DN\d+|bar|kV|kW|MW|V|A|OD\s*\d+))\b/i);
+  const spec = specMatch ? specMatch[1].trim() : "";
+
+  return {
+    brandKw: brand,
+    modelKw: model,
+    nameKw: nameCore || rawName.split("\n")[0].split("-")[0].trim(),
+    specKw: spec,
+  };
+};
+
+export const getDefaultMscKeyword = (item, savedKw) => {
+  if (savedKw && savedKw !== item?.ten_vt) return savedKw;
+  const brand = extractBrandFromItem(item);
+  if (brand) return brand;
+  const model = extractModelFromItem(item);
+  if (model) return model;
+  return getDefaultImisKeyword(item?.ten_vt || "");
+};
+

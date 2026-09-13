@@ -18,16 +18,39 @@ import {
   ArrowUp,
   ArrowDown,
   ExternalLink,
+  DollarSign,
+  Calendar,
+  TrendingDown,
+  ShieldAlert,
+  ShieldCheck,
+  RotateCcw,
+  HelpCircle,
 } from "lucide-react";
 import AuditProgressModal from "../modals/AuditProgressModal.jsx";
 import { buildCompletedAuditSteps } from "../../utils/evidenceAdapter.js";
+import { computeTimeDelta, getDefaultMscKeyword } from "../inspector/utils/keywordHelpers.js";
 
 export default function GridMatrixView({ onSelectInspectorItem }) {
   const [groupByPycvt, setGroupByPycvt] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("standard"); // 'standard' | 'coso_dongia'
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem("preferred_grid_view_mode") || "savings";
+    } catch {
+      return "savings";
+    }
+  });
+  const [savingsFilter, setSavingsFilter] = useState("ALL"); // 'ALL' | 'OVER_12M' | 'TOP_SAVINGS'
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("preferred_grid_view_mode", viewMode);
+    } catch (e) {
+      console.warn("Could not save viewMode to localStorage:", e);
+    }
+  }, [viewMode]);
   const [stats, setStats] = useState({
     total_items: 0,
     total_trinh: 0,
@@ -38,8 +61,8 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const [evidenceStatus, setEvidenceStatus] = useState({});
   const [filterSaved, setFilterSaved] = useState("ALL"); // 'ALL' | 'SAVED' | 'UNSAVED'
 
-  // Sắp xếp theo đơn giá/thành tiền/STT (tăng dần/giảm dần)
-  const [sortField, setSortField] = useState(null); // 'stt' | 'dg_trinh' | 'tt_trinh' | 'dg_thong_nhat' | 'tt_thong_nhat' | 'lowest_price'
+  // Sắp xếp theo đơn giá/thành tiền/STT/tiết kiệm (tăng dần/giảm dần)
+  const [sortField, setSortField] = useState(null); // 'stt' | 'dg_trinh' | 'tt_trinh' | 'dg_thong_nhat' | 'tt_thong_nhat' | 'lowest_price' | 'gia_tri_giam'
   const [sortOrder, setSortOrder] = useState("asc"); // 'asc' | 'desc'
 
   // States cho 1-click 5 cơ sở & keyword management
@@ -312,13 +335,14 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         body: JSON.stringify(imisData),
       });
 
-      // BƯỚC 4: Khối 4 - Mua sắm công e-GP - Truyền `save_evidence: true` để backend tự lưu
+      // BƯỚC 4: Khối 4 - Mua sắm công e-GP - Dùng từ khóa Hãng thông minh và lưu chứng cứ
       setAuditModal((prev) => ({ ...prev, activeStep: 4 }));
+      const mscKw = getDefaultMscKeyword(it, itemKeywords[itemId]);
       const resMsc = await fetch(`/api/msc/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          keyword: generalKw,
+          keyword: mscKw || generalKw,
           item: it,
           save_evidence: true,
         }),
@@ -626,6 +650,133 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     };
   };
 
+  // Phân tích và minh bạch hóa Căn cứ Giảm giá & Thời gian mua sắm
+  const parseSavingsBasis = (it, qMatches) => {
+    const origIdx = items.indexOf(it);
+    const itemId = it.id || origIdx + 1;
+    const itemMatch = (qMatches && qMatches[itemId]) || {};
+    const coSo = it.co_so_thong_nhat || itemMatch.co_so_don_gia || it.ghi_chu_co_so_don_gia || "";
+    const danhGia = it.danh_gia_ttd || "";
+
+    // 1. Nhận diện nguồn căn cứ (Logic trực tiếp 1+1=2 từ co_so_thong_nhat)
+    const cs = coSo.toLowerCase().trim();
+    let sourceBadge = "Nguồn Tham Chiếu";
+    let sourceBadgeColor = "bg-slate-100 text-slate-800 border-slate-300";
+    let sourceIcon = "📌";
+
+    if (cs.includes("cơ sở 5") || cs.includes("tmđt") || cs.includes("web") || cs.includes("ecom") || cs.includes("thương mại điện tử")) {
+      sourceBadge = "Cơ sở 5: TMĐT / Web (DDP)";
+      sourceBadgeColor = "bg-amber-100 text-amber-900 border-amber-300";
+      sourceIcon = "🌐";
+    } else if (cs.includes("cơ sở 4") || cs.includes("mua sắm công") || cs.includes("msc") || cs.includes("e-gp")) {
+      sourceBadge = "Cơ sở 4: Mua Sắm Công";
+      sourceBadgeColor = "bg-indigo-100 text-indigo-900 border-indigo-300";
+      sourceIcon = "🏛️";
+    } else if (cs.includes("cơ sở 3") || cs.includes("imis")) {
+      sourceBadge = "Cơ sở 3: EVN IMIS";
+      sourceBadgeColor = "bg-teal-100 text-teal-900 border-teal-300";
+      sourceIcon = "⚡";
+    } else if (cs.includes("cơ sở 2") || cs.includes("erp")) {
+      sourceBadge = "Cơ sở 2: ERP Vĩnh Tân 4";
+      sourceBadgeColor = "bg-blue-100 text-blue-900 border-blue-300";
+      sourceIcon = "🏭";
+    } else if (cs.includes("cơ sở 1") || cs.includes("báo giá") || cs.includes("quotes") || (!cs && itemMatch.lowest_vendor)) {
+      sourceBadge = "Cơ sở 1: Báo Giá Gốc";
+      sourceBadgeColor = "bg-purple-100 text-purple-900 border-purple-300";
+      sourceIcon = "📑";
+    } else if (cs.includes("giữ theo") || cs.includes("đơn giá trình") || cs.includes("giữ giá")) {
+      sourceBadge = "Giữ Đơn Giá Trình";
+      sourceBadgeColor = "bg-slate-100 text-slate-700 border-slate-300";
+      sourceIcon = "🔒";
+    }
+
+    // 2. Chi tiết hợp đồng, nhà thầu, mã/tên VT trong nguồn
+    let contractDetail = "";
+    const hdMatch = danhGia.match(/(?:HĐ|hợp đồng|QĐ|quyết định)[\s:]*([^\n\r,\.\(\)]+)/i);
+    if (hdMatch && sourceBadge.includes("Cơ sở 2")) {
+      contractDetail = hdMatch[0].trim();
+    } else if (itemMatch.lowest_vendor || it.lowest_quote_vendor || it.ten_nha_thau_thap_nhat) {
+      contractDetail = `Nhà thầu: ${itemMatch.lowest_vendor || it.lowest_quote_vendor || it.ten_nha_thau_thap_nhat}`;
+    }
+
+    // 3. Thời gian mua sắm căn cứ
+    let rawDate = it.ngay_ky_hd || it.ngay_bao_gia || it.ngayChungTu || it.ngay_hd || "";
+    if (!rawDate) {
+      const dateMatch = danhGia.match(/(?:ngày|ký ngày|vào ngày)\s*(\d{1,2}[\/\.\-]\d{1,2}[\/\.\-]\d{4})/i);
+      if (dateMatch) {
+        rawDate = dateMatch[1];
+      } else {
+        const yearMatch = danhGia.match(/(?:năm\s*|\/)(\d{4})/i);
+        if (yearMatch && parseInt(yearMatch[1]) >= 2015 && parseInt(yearMatch[1]) <= 2026) {
+          rawDate = `01/01/${yearMatch[1]}`;
+        }
+      }
+    }
+
+    const timeDelta = computeTimeDelta(rawDate);
+
+    return {
+      sourceBadge,
+      sourceBadgeColor,
+      sourceIcon,
+      contractDetail,
+      rawDate,
+      timeDelta,
+      danhGia,
+      coSo
+    };
+  };
+
+  const handleKeepTrinhPrice = async (item, origIdx) => {
+    const itemId = item.id || origIdx + 1;
+    const dgTrinh = parseFloat(item.don_gia_trinh) || 0;
+    const sl = parseFloat(item.so_luong) || 1;
+    const ttTrinh = parseFloat(item.thanh_tien_trinh) || sl * dgTrinh;
+
+    const updatedItems = items.map((it, idx) => {
+      const thisId = it.id || idx + 1;
+      if (thisId === itemId) {
+        return {
+          ...it,
+          don_gia_thong_nhat: dgTrinh,
+          thanh_tien_thong_nhat: ttTrinh,
+          co_so_thong_nhat: "Thẩm định: Giữ theo Đơn giá trình (Người dùng xác nhận)",
+          danh_gia_ttd: `${it.danh_gia_ttd || ""}\n\n[USER REFINED]: Đã xác nhận giữ nguyên đơn giá trình ${fmt(dgTrinh)} đ.`
+        };
+      }
+      return it;
+    });
+
+    setItems(updatedItems);
+
+    const total_trinh = updatedItems.reduce(
+      (acc, it) => acc + (parseFloat(it.thanh_tien_trinh) || it.so_luong * it.don_gia_trinh || 0),
+      0
+    );
+    const total_thong_nhat = updatedItems.reduce(
+      (acc, it) =>
+        acc +
+        (parseFloat(it.thanh_tien_thong_nhat) || (it.so_luong || 1) * (it.don_gia_thong_nhat || 0) || 0),
+      0
+    );
+    setStats({ total_items: updatedItems.length, total_trinh, total_thong_nhat });
+
+    try {
+      const res = await fetch("/api/dossier");
+      if (res.ok) {
+        const dData = await res.json();
+        dData.items = updatedItems;
+        await fetch("/api/dossier", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(dData),
+        });
+      }
+    } catch (e) {
+      console.error("Lỗi đồng bộ giữ giá trình lên server:", e);
+    }
+  };
+
   const isItemSaved = (it, origIdx) => {
     const itemId = it.id || origIdx + 1;
     const st = evidenceStatus[String(itemId)];
@@ -642,6 +793,22 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     const saved = isItemSaved(it, origIdx);
     if (filterSaved === "SAVED" && !saved) return false;
     if (filterSaved === "UNSAVED" && saved) return false;
+
+    // Lọc chuyên sâu cho View Tiết Kiệm (viewMode === 'savings')
+    if (viewMode === "savings") {
+      const dgT = parseFloat(it.don_gia_trinh) || 0;
+      const dgTN = parseFloat(it.don_gia_thong_nhat) || dgT;
+      const sl = parseFloat(it.so_luong) || 1;
+      const savingVal = (dgT - dgTN) * sl;
+      if (savingVal <= 0) return false;
+
+      if (savingsFilter === "OVER_12M") {
+        const basis = parseSavingsBasis(it, quoteMatches);
+        if (!basis.timeDelta.isOver12Months) return false;
+      } else if (savingsFilter === "TOP_SAVINGS") {
+        if (savingVal < 50000000) return false; // Chỉ lấy mục giảm trên 50 triệu
+      }
+    }
 
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -688,7 +855,11 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   };
 
   const sortedFilteredItems = useMemo(() => {
-    if (!sortField) return filteredItems;
+    // Nếu ở chế độ 'savings' và người dùng chưa bấm sort gì, mặc định sort theo giá trị giảm nhiều nhất
+    const effectiveSortField = sortField || (viewMode === "savings" ? "gia_tri_giam" : null);
+    const effectiveSortOrder = sortField ? sortOrder : (viewMode === "savings" ? "desc" : "asc");
+
+    if (!effectiveSortField) return filteredItems;
     return [...filteredItems].sort((a, b) => {
       const origIdxA = items.indexOf(a);
       const origIdxB = items.indexOf(b);
@@ -698,30 +869,38 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       let valA = 0;
       let valB = 0;
 
-      if (sortField === "stt") {
+      if (effectiveSortField === "stt") {
         valA = parseFloat(a.stt) || origIdxA + 1;
         valB = parseFloat(b.stt) || origIdxB + 1;
-      } else if (sortField === "dg_trinh") {
+      } else if (effectiveSortField === "dg_trinh") {
         valA = parseFloat(a.don_gia_trinh) || 0;
         valB = parseFloat(b.don_gia_trinh) || 0;
-      } else if (sortField === "tt_trinh") {
+      } else if (effectiveSortField === "tt_trinh") {
         valA =
           parseFloat(a.thanh_tien_trinh) ||
           slA * (parseFloat(a.don_gia_trinh) || 0);
         valB =
           parseFloat(b.thanh_tien_trinh) ||
           slB * (parseFloat(b.don_gia_trinh) || 0);
-      } else if (sortField === "dg_thong_nhat") {
+      } else if (effectiveSortField === "dg_thong_nhat") {
         valA = parseFloat(a.don_gia_thong_nhat) || 0;
         valB = parseFloat(b.don_gia_thong_nhat) || 0;
-      } else if (sortField === "tt_thong_nhat") {
+      } else if (effectiveSortField === "tt_thong_nhat") {
         valA =
           parseFloat(a.thanh_tien_thong_nhat) ||
           slA * (parseFloat(a.don_gia_thong_nhat) || 0);
         valB =
           parseFloat(b.thanh_tien_thong_nhat) ||
           slB * (parseFloat(b.don_gia_thong_nhat) || 0);
-      } else if (sortField === "lowest_price") {
+      } else if (effectiveSortField === "gia_tri_giam") {
+        const dgTrinhA = parseFloat(a.don_gia_trinh) || 0;
+        const dgTnA = parseFloat(a.don_gia_thong_nhat) || dgTrinhA;
+        valA = (dgTrinhA - dgTnA) * slA;
+
+        const dgTrinhB = parseFloat(b.don_gia_trinh) || 0;
+        const dgTnB = parseFloat(b.don_gia_thong_nhat) || dgTrinhB;
+        valB = (dgTrinhB - dgTnB) * slB;
+      } else if (effectiveSortField === "lowest_price") {
         const idA = a.id || origIdxA + 1;
         const idB = b.id || origIdxB + 1;
         valA = parseFloat(
@@ -738,11 +917,11 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         );
       }
 
-      if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-      if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+      if (valA < valB) return effectiveSortOrder === "asc" ? -1 : 1;
+      if (valA > valB) return effectiveSortOrder === "asc" ? 1 : -1;
       return (a.stt || origIdxA + 1) - (b.stt || origIdxB + 1);
     });
-  }, [filteredItems, sortField, sortOrder, items, quoteMatches]);
+  }, [filteredItems, sortField, sortOrder, viewMode, items, quoteMatches]);
   const groupedItems = useMemo(() => {
     if (!groupByPycvt) return { "Tất cả": sortedFilteredItems };
 
@@ -808,9 +987,14 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
           color="purple"
           sub={
             stats.total_thong_nhat > 0
-              ? `(-${pct_giam.toFixed(1)}% so với trình)`
+              ? `(-${pct_giam.toFixed(1)}% so với trình) • Nhấp để xem`
               : null
           }
+          onClick={() => {
+            setViewMode((prev) => (prev === "savings" ? "standard" : "savings"));
+          }}
+          active={viewMode === "savings"}
+          activeBadge={viewMode === "savings" ? "Đang xem" : "Xem chi tiết"}
         />
       </div>
 
@@ -822,9 +1006,11 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <div className="flex items-center gap-2">
               <Table2 className="w-4 h-4 text-teal-700" />
               <span className="font-bold text-xs text-slate-800 uppercase tracking-wide">
-                {viewMode === "standard"
-                  ? "Bảng Ma Trận Dự Toán Thẩm Định — Chuẩn 2026"
-                  : "View 1: Cơ Sở Đơn Giá"}
+                {viewMode === "savings"
+                  ? "Bảng Ma Trận Dự Toán — View Tiết Kiệm & Giảm Trừ"
+                  : viewMode === "coso_dongia"
+                  ? "View 1: Cơ Sở Đơn Giá"
+                  : "Bảng Ma Trận Dự Toán Thẩm Định — Chuẩn 2026"}
               </span>
               <span className="bg-teal-100 text-teal-800 text-[10.5px] px-2 py-0.5 rounded-full font-bold">
                 {filteredItems.length}/{items.length} mục
@@ -881,7 +1067,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-xs font-bold ml-2">
               <button
                 onClick={() => setViewMode("standard")}
-                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${
                   viewMode === "standard"
                     ? "bg-teal-700 text-white shadow-xs"
                     : "text-slate-700 hover:bg-slate-300/60"
@@ -892,7 +1078,7 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
               </button>
               <button
                 onClick={() => setViewMode("coso_dongia")}
-                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${
                   viewMode === "coso_dongia"
                     ? "bg-teal-700 text-white shadow-xs"
                     : "text-slate-700 hover:bg-slate-300/60"
@@ -902,7 +1088,64 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                 <Layers className="w-3 h-3 text-amber-300" /> View 1: Cơ Sở Đơn
                 Giá
               </button>
+              <button
+                onClick={() => setViewMode("savings")}
+                className={`px-2.5 py-1 rounded-md transition flex items-center gap-1.5 cursor-pointer ${
+                  viewMode === "savings"
+                    ? "bg-purple-700 text-white shadow-xs ring-1 ring-purple-400"
+                    : "text-purple-900 hover:bg-purple-100/70"
+                }`}
+                title="View Quản Lý Tiết Kiệm: Minh bạch căn cứ, thời gian và quyền tinh chỉnh trực tiếp"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                <span>View Tiết Kiệm</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  viewMode === "savings" ? "bg-purple-900 text-amber-300" : "bg-purple-200 text-purple-900"
+                }`}>
+                  {items.filter(it => (parseFloat(it.don_gia_trinh || 0) - parseFloat(it.don_gia_thong_nhat || it.don_gia_trinh || 0)) > 0).length} mục
+                </span>
+              </button>
             </div>
+
+            {/* Bộ lọc phụ riêng khi ở chế độ View Tiết Kiệm */}
+            {viewMode === "savings" && (
+              <div className="flex items-center gap-1 bg-purple-100/80 p-0.5 rounded-lg border border-purple-300 text-xs font-bold ml-1 animate-fadeIn">
+                <button
+                  onClick={() => setSavingsFilter("ALL")}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer text-[10.5px] ${
+                    savingsFilter === "ALL"
+                      ? "bg-purple-700 text-white shadow-2xs"
+                      : "text-purple-800 hover:bg-purple-200/60"
+                  }`}
+                >
+                  Tất Cả Mục Giảm
+                </button>
+                <button
+                  onClick={() => setSavingsFilter("TOP_SAVINGS")}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer text-[10.5px] flex items-center gap-1 ${
+                    savingsFilter === "TOP_SAVINGS"
+                      ? "bg-purple-700 text-white shadow-2xs"
+                      : "text-purple-800 hover:bg-purple-200/60"
+                  }`}
+                  title="Chỉ xem các mục có số tiền giảm trừ lớn trên 50 triệu đồng"
+                >
+                  <TrendingDown className="w-3 h-3 text-amber-300" />
+                  Top Giảm &gt; 50 Tr
+                </button>
+                <button
+                  onClick={() => setSavingsFilter("OVER_12M")}
+                  className={`px-2 py-0.5 rounded-md transition cursor-pointer text-[10.5px] flex items-center gap-1 ${
+                    savingsFilter === "OVER_12M"
+                      ? "bg-amber-600 text-white shadow-2xs"
+                      : "text-amber-800 hover:bg-amber-100"
+                  }`}
+                  title="Lọc các căn cứ thời gian mua sắm đã quá 12 tháng (cần lưu ý trượt giá)"
+                >
+                  <Calendar className="w-3 h-3" />
+                  Căn Cứ &gt; 12 Tháng
+                </button>
+              </div>
+            )}
 
             {/* Quick Price Sort Toolbar */}
             <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg border border-slate-300 text-xs font-bold ml-2">
@@ -1068,7 +1311,51 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                 </th>
 
                 {/* Conditional View Columns */}
-                {viewMode === "standard" ? (
+                {viewMode === "savings" ? (
+                  <>
+                    <th className="py-3 px-3 w-80 border-r border-slate-200 bg-purple-100/90 text-purple-950 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-purple-700" />
+                        <span>10. Căn Cứ Giảm Giá (Bản Chất Nguồn)</span>
+                      </div>
+                    </th>
+                    <th className="py-3 px-3 w-56 border-r border-slate-200 bg-amber-100/80 text-amber-950 font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-amber-800" />
+                        <span>11. Thời Gian Căn Cứ & Hiệu Lực</span>
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort("dg_thong_nhat")}
+                      className={`py-3 px-3 text-right w-36 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === "dg_thong_nhat"
+                          ? "bg-emerald-200 text-emerald-950 font-black ring-1 ring-emerald-400 inset-0 shadow-inner"
+                          : "bg-emerald-50 text-emerald-950 hover:bg-emerald-100/70"
+                      }`}
+                      title="Nhấp để sắp xếp theo Đơn giá thống nhất"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>12. ĐG Duyệt</span>
+                        {renderSortIcon("dg_thong_nhat")}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort("gia_tri_giam")}
+                      className={`py-3 px-3 text-right w-44 border-r border-slate-200 cursor-pointer select-none transition group/th ${
+                        sortField === "gia_tri_giam" || (!sortField && viewMode === "savings")
+                          ? "bg-emerald-100 text-emerald-950 font-black ring-1 ring-emerald-400 inset-0 shadow-inner"
+                          : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100/70"
+                      }`}
+                      title="Nhấp để sắp xếp theo Tiền Tiết Kiệm (Mặc định giảm nhiều ➔ giảm ít)"
+                    >
+                      <div className="flex items-center justify-end gap-1 font-mono">
+                        <TrendingDown className="w-3.5 h-3.5 text-emerald-700" />
+                        <span>13. Tiền Tiết Kiệm</span>
+                        {renderSortIcon("gia_tri_giam")}
+                      </div>
+                    </th>
+                  </>
+                ) : viewMode === "standard" ? (
                   <>
                     <th
                       onClick={() => handleSort("tt_trinh")}
@@ -1352,7 +1639,117 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                               </td>
 
                               {/* Conditional View Columns */}
-                              {viewMode === "standard" ? (
+                              {viewMode === "savings" ? (
+                                (() => {
+                                  const basis = parseSavingsBasis(it, quoteMatches);
+                                  const savingVal = (dgTrinh - dgTN) * sl;
+                                  return (
+                                    <>
+                                      {/* Cột 10: Căn Cứ Giảm Giá (Bản Chất Nguồn) */}
+                                      <td className="py-2.5 px-3 border-r border-slate-200 bg-purple-50/15 text-[11.5px] align-top">
+                                        <div className="flex flex-col gap-1.5">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-extrabold border shadow-2xs ${basis.sourceBadgeColor}`}>
+                                              <span>{basis.sourceIcon}</span>
+                                              <span>{basis.sourceBadge}</span>
+                                            </span>
+                                            {basis.contractDetail && (
+                                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                {basis.contractDetail}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {/* Trích xuất nhận định bản chất căn cứ */}
+                                          <p className="text-slate-700 text-[11px] leading-snug line-clamp-2 italic" title={basis.danhGia || basis.coSo}>
+                                            "{basis.danhGia ? (basis.danhGia.split('\n')[0] || basis.danhGia.substring(0, 100)) : (basis.coSo || 'Tham chiếu theo dữ liệu đối soát')}"
+                                          </p>
+
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenExistingAudit(it)}
+                                              className="inline-flex items-center gap-1 text-[10.5px] text-purple-700 hover:text-purple-950 font-bold hover:underline transition self-start cursor-pointer"
+                                            >
+                                              <FileText className="w-3 h-3 text-purple-600 shrink-0" />
+                                              <span>Xem nguồn đối soát</span>
+                                              <ExternalLink className="w-2.5 h-2.5 opacity-70 shrink-0" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Cột 11: Thời Gian Căn Cứ & Hiệu Lực */}
+                                      <td className="py-2.5 px-3 border-r border-slate-200 bg-amber-50/15 text-[11px] align-top">
+                                        <div className="flex flex-col gap-1.5">
+                                          {basis.rawDate ? (
+                                            <div className="flex items-center gap-1 font-mono font-bold text-slate-800 text-[11.5px]">
+                                              <Calendar className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                                              <span>{basis.rawDate}</span>
+                                            </div>
+                                          ) : (
+                                            <span className="text-slate-400 italic text-[10.5px]">Chưa rõ ngày ký</span>
+                                          )}
+
+                                          {basis.rawDate && (
+                                            <div>
+                                              {basis.timeDelta.months <= 12 ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs">
+                                                  <ShieldCheck className="w-3 h-3 text-emerald-700 shrink-0" />
+                                                  Trong hạn 12T ({basis.timeDelta.months} th)
+                                                </span>
+                                              ) : basis.timeDelta.months <= 24 ? (
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                                                    <Clock className="w-3 h-3 text-amber-700 shrink-0" />
+                                                    Quá 12T ({basis.timeDelta.months} th - {basis.timeDelta.years} năm)
+                                                  </span>
+                                                  <span className="text-[9.5px] text-amber-700 italic">⚠️ Lưu ý trượt giá</span>
+                                                </div>
+                                              ) : (
+                                                <div className="flex flex-col gap-0.5">
+                                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-900 border border-rose-300 shadow-2xs">
+                                                    <ShieldAlert className="w-3 h-3 text-rose-700 shrink-0" />
+                                                    Cũ &gt; 2 năm ({basis.timeDelta.years} năm)
+                                                  </span>
+                                                  <span className="text-[9.5px] text-rose-700 font-semibold italic">🔴 Cân nhắc trượt giá</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+
+                                      {/* Cột 12: ĐG Duyệt */}
+                                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-950 border-r border-slate-200 bg-emerald-50/20">
+                                        <div className="flex flex-col items-end">
+                                          <span className="text-[12.5px] text-emerald-950 font-black">
+                                            {fmt(dgTN)} đ
+                                          </span>
+                                          <span className="text-[10px] text-slate-500 font-normal">
+                                            TT: {fmt(ttTN)} đ
+                                          </span>
+                                        </div>
+                                      </td>
+
+                                      {/* Cột 13: Tiền Tiết Kiệm */}
+                                      <td className="py-2.5 px-3 text-right font-mono border-r border-slate-200 bg-emerald-100/40">
+                                        <div className="flex flex-col items-end gap-1">
+                                          <span className="text-[13px] font-black text-emerald-800 tracking-tight">
+                                            -{fmt(savingVal)} đ
+                                          </span>
+                                          {pctGiam !== null && (
+                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-700 text-white shadow-2xs">
+                                              <TrendingDown className="w-2.5 h-2.5" />
+                                              -{pctGiam.toFixed(1)}%
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </>
+                                  );
+                                })()
+                              ) : viewMode === "standard" ? (
                                 <>
                                   <td className="py-2.5 px-3 text-right font-mono font-extrabold text-[#003366] border-r border-slate-200 bg-blue-50/10 group-hover:bg-teal-50">
                                     {fmt(ttTrinh)} đ
@@ -1505,67 +1902,116 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                               {/* Action — Sticky Right */}
                               <td className="py-2.5 px-2 text-center sticky right-0 bg-white group-hover:bg-teal-50 border-l border-slate-200 shadow-sm">
                                 <div className="flex flex-col items-center gap-1.5">
-                                  {isItemSaved(it, origIdx) ? (
-                                    <span className="w-full text-center py-0.5 bg-emerald-100 text-emerald-900 rounded text-[9.5px] font-bold border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />{" "}
-                                      Đã Lưu CSDL
-                                    </span>
+                                  {viewMode === "savings" ? (
+                                    <>
+                                      <button
+                                        onClick={() => handleRun5Pillars(itemId, true, true)}
+                                        disabled={isRunningThis}
+                                        title="Quét lại 5 cơ sở cho riêng vật tư này (vượt qua bộ nhớ đệm)"
+                                        className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                                      >
+                                        {isRunningThis ? (
+                                          <>
+                                            <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
+                                            <span>Đang quét...</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <RotateCcw className="w-3 h-3 text-purple-200" />
+                                            <span>Quét Lại</span>
+                                          </>
+                                        )}
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleKeepTrinhPrice(it, origIdx)}
+                                        title="Hủy giảm giá, xác nhận giữ nguyên đơn giá trình cho vật tư này"
+                                        className="w-full px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg text-[10px] font-bold transition border border-amber-300 shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
+                                      >
+                                        <MinusCircle className="w-3 h-3 text-amber-700" />
+                                        <span>Giữ Giá Trình</span>
+                                      </button>
+
+                                      <div className="flex items-center gap-1 w-full">
+                                        <button
+                                          onClick={() => handleOpenExistingAudit(it)}
+                                          className="flex-1 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded text-[9.5px] font-bold transition border border-emerald-300"
+                                        >
+                                          Báo Cáo
+                                        </button>
+                                        <button
+                                          onClick={() => onSelectInspectorItem(origIdx)}
+                                          className="flex-1 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9.5px] font-bold transition border border-slate-300"
+                                        >
+                                          Soi
+                                        </button>
+                                      </div>
+                                    </>
                                   ) : (
-                                    <span className="w-full text-center py-0.5 bg-slate-100 text-slate-500 rounded text-[9.5px] font-semibold border border-slate-200 flex items-center justify-center gap-1">
-                                      <Clock className="w-3 h-3 text-slate-400" />{" "}
-                                      Chưa Lưu CSDL
-                                    </span>
-                                  )}
+                                    <>
+                                      {isItemSaved(it, origIdx) ? (
+                                        <span className="w-full text-center py-0.5 bg-emerald-100 text-emerald-900 rounded text-[9.5px] font-bold border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-700" />{" "}
+                                          Đã Lưu CSDL
+                                        </span>
+                                      ) : (
+                                        <span className="w-full text-center py-0.5 bg-slate-100 text-slate-500 rounded text-[9.5px] font-semibold border border-slate-200 flex items-center justify-center gap-1">
+                                          <Clock className="w-3 h-3 text-slate-400" />{" "}
+                                          Chưa Lưu CSDL
+                                        </span>
+                                      )}
 
-                                  <button
-                                    onClick={() =>
-                                      handleRun5Pillars(itemId, true)
-                                    }
-                                    disabled={isRunningThis}
-                                    className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10.5px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
-                                  >
-                                    {isRunningThis ? (
-                                      <>
-                                        <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
-                                        <span>Đang tra...</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
-                                        <span>⚡ Tra 5 Cơ Sở</span>
-                                      </>
-                                    )}
-                                  </button>
-
-                                  <div className="flex items-center gap-1 w-full">
-                                    {hasTN && (
                                       <button
                                         onClick={() =>
-                                          handleOpenExistingAudit(it)
+                                          handleRun5Pillars(itemId, true)
                                         }
-                                        className="flex-1 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded text-[9.5px] font-bold transition border border-emerald-300"
+                                        disabled={isRunningThis}
+                                        className="w-full px-2 py-1 bg-purple-700 hover:bg-purple-800 disabled:opacity-50 text-white rounded-lg text-[10.5px] font-extrabold transition shadow-2xs flex items-center justify-center gap-1 cursor-pointer"
                                       >
-                                        Báo Cáo
+                                        {isRunningThis ? (
+                                          <>
+                                            <Loader2 className="w-3 h-3 animate-spin text-purple-200" />
+                                            <span>Đang tra...</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Zap className="w-3 h-3 text-amber-300 fill-amber-300" />
+                                            <span>⚡ Tra 5 Cơ Sở</span>
+                                          </>
+                                        )}
                                       </button>
-                                    )}
-                                    <button
-                                      onClick={() =>
-                                        onSelectInspectorItem(origIdx)
-                                      }
-                                      className="flex-1 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9.5px] font-bold transition border border-slate-300"
-                                    >
-                                      Soi Chi Tiết
-                                    </button>
-                                  </div>
 
-                                  {hasTN && (
-                                    <button
-                                      onClick={() => handleExportPdf(itemId)}
-                                      className="w-full px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[9.5px] font-bold transition border border-rose-300 flex items-center justify-center gap-1"
-                                    >
-                                      <FileDown className="w-3 h-3 text-rose-600" />{" "}
-                                      Xuất PDF 2 Trang
-                                    </button>
+                                      <div className="flex items-center gap-1 w-full">
+                                        {hasTN && (
+                                          <button
+                                            onClick={() =>
+                                              handleOpenExistingAudit(it)
+                                            }
+                                            className="flex-1 px-1.5 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded text-[9.5px] font-bold transition border border-emerald-300"
+                                          >
+                                            Báo Cáo
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() =>
+                                            onSelectInspectorItem(origIdx)
+                                          }
+                                          className="flex-1 px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[9.5px] font-bold transition border border-slate-300"
+                                        >
+                                          Soi Chi Tiết
+                                        </button>
+                                      </div>
+
+                                      {hasTN && (
+                                        <button
+                                          onClick={() => handleExportPdf(itemId)}
+                                          className="w-full px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-[9.5px] font-bold transition border border-rose-300 flex items-center justify-center gap-1"
+                                        >
+                                          <FileDown className="w-3 h-3 text-rose-600" />{" "}
+                                          Xuất PDF 2 Trang
+                                        </button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -1600,26 +2046,54 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
         }}
         onItemUpdated={(updatedItem) => {
           if (!updatedItem) return;
+          const targetId = updatedItem.id;
           setItems((prev) =>
-            prev.map((it) =>
-              it.id === updatedItem.id ? { ...it, ...updatedItem } : it,
+            prev.map((it, idx) =>
+              it.id === targetId || idx + 1 === targetId
+                ? { ...it, ...updatedItem }
+                : it,
             ),
           );
-          setAuditModal((prev) =>
-            prev.item?.id === updatedItem.id
-              ? {
-                  ...prev,
-                  item: { ...prev.item, ...updatedItem },
-                  auditData: {
-                    ...prev.auditData,
-                    result: {
-                      ...(prev.auditData?.result || {}),
-                      ...updatedItem,
-                    },
-                  },
-                }
-              : prev,
-          );
+          setAuditModal((prev) => {
+            const isMatch =
+              prev.item?.id === targetId || prev.auditData?.item_id === targetId;
+            if (!isMatch) return prev;
+            return {
+              ...prev,
+              item: { ...prev.item, ...updatedItem },
+              auditData: {
+                ...prev.auditData,
+                don_gia_thong_nhat: updatedItem.don_gia_thong_nhat,
+                co_so_thong_nhat: updatedItem.co_so_thong_nhat,
+                result: {
+                  ...(prev.auditData?.result || {}),
+                  ...updatedItem,
+                },
+              },
+            };
+          });
+
+          // Sync ngầm dossier xuống server
+          (async () => {
+            try {
+              const res = await fetch("/api/dossier");
+              if (res.ok) {
+                const dData = await res.json();
+                dData.items = (dData.items || []).map((it, idx) =>
+                  it.id === targetId || idx + 1 === targetId
+                    ? { ...it, ...updatedItem }
+                    : it,
+                );
+                await fetch("/api/dossier", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(dData),
+                });
+              }
+            } catch (err) {
+              console.error("Lỗi sync dossier:", err);
+            }
+          })();
         }}
       />
     </div>
@@ -1627,21 +2101,31 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 }
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, color, sub, progress }) {
+function StatCard({ label, value, color, sub, progress, onClick, active, activeBadge }) {
   const colors = {
-    slate: "border-slate-200  text-slate-800",
-    teal: "border-teal-300   text-teal-900 bg-teal-50/40",
-    blue: "border-blue-200   text-[#003366]",
+    slate: "border-slate-200 text-slate-800",
+    teal: "border-teal-300 text-teal-900 bg-teal-50/40",
+    blue: "border-blue-200 text-[#003366]",
     emerald: "border-emerald-200 text-emerald-700",
-    purple: "border-purple-200  text-purple-700",
+    purple: "border-purple-200 text-purple-700",
   };
   return (
     <div
-      className={`bg-white p-3.5 rounded-xl border shadow-sm ${colors[color] || colors.slate}`}
+      onClick={onClick}
+      className={`bg-white p-3.5 rounded-xl border shadow-sm transition relative select-none ${colors[color] || colors.slate} ${
+        onClick ? "cursor-pointer hover:shadow-md hover:scale-[1.01]" : ""
+      } ${active ? "ring-2 ring-purple-600 shadow-md bg-purple-50/50" : ""}`}
     >
-      <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
-        {label}
-      </span>
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+          {label}
+        </span>
+        {activeBadge && (
+          <span className="text-[9.5px] px-1.5 py-0.2 rounded font-extrabold bg-purple-600 text-white shadow-2xs">
+            {activeBadge}
+          </span>
+        )}
+      </div>
       <p className="text-lg font-extrabold font-mono mt-0.5">{value}</p>
       {sub && (
         <p

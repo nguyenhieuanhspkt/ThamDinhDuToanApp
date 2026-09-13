@@ -1026,13 +1026,22 @@ def api_msc_search():
         item_dir = os.path.join(p_dir, f"item_{item_id}")
         os.makedirs(item_dir, exist_ok=True)
         
+        raw_min = comp.get("don_gia_goc_egp", comp.get("min_price", 0))
+        pre_tax_min = comp.get("don_gia_truoc_thue", comp.get("min_price", 0))
         evidence_data = {
             "item_id": item_id,
             "tu_khoa_tra_cuu": keyword,
+            "page_number": page_num,
+            "page_size": page_sz,
+            "selected_index": req.get("selected_index", 0),
+            "total_elements": comp.get("total", len(comp.get("items", []))),
             "thoi_gian_tra_cuu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "nguon": "Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn)",
             "don_gia_trinh": item.get("don_gia_trinh", 0),
-            "don_gia_tham_chieu": comp.get("min_price", 0),
+            "don_gia_tham_chieu": pre_tax_min,
+            "don_gia_truoc_thue": pre_tax_min,
+            "don_gia_goc_egp": raw_min,
+            "selected_record": comp.get("selected_record") or (comp.get("items")[0] if comp.get("items") else None),
             "chenh_lech_so_tien": comp.get("diff_amt", 0),
             "chenh_lech_phan_tram": comp.get("diff_pct", 0),
             "danh_sach_ket_qua": comp.get("items", [])
@@ -1133,10 +1142,15 @@ def cascade_sync_synthesis(item_id, item_dir, step_type, saved_payload):
                         p4_price = 0
                     else:
                         sel = mscd.get("selected_record")
+                        raw_p4 = 0
                         if isinstance(sel, dict):
-                            p4_price = float(sel.get("donGia") or sel.get("don_gia") or sel.get("trung_thau_don_gia") or 0)
+                            raw_p4 = float(sel.get("don_gia_goc_egp") or sel.get("donGia") or sel.get("don_gia") or sel.get("trung_thau_don_gia") or 0)
+                            p4_price = float(sel.get("don_gia_truoc_thue") or mscd.get("don_gia_truoc_thue") or (round(raw_p4 / 1.08) if raw_p4 > 0 else 0))
                         elif sel != "NONE":
-                            p4_price = float(mscd.get("don_gia_tham_chieu") or mscd.get("min_price") or 0)
+                            p4_price = float(mscd.get("don_gia_truoc_thue") or mscd.get("don_gia_tham_chieu") or 0)
+                            if p4_price == 0:
+                                raw_p4 = float(mscd.get("don_gia_goc_egp") or mscd.get("min_price") or 0)
+                                p4_price = round(raw_p4 / 1.08) if raw_p4 > 0 else 0
                     p4_desc = mscd.get("summary_text", "")
             except Exception: pass
 
@@ -1886,11 +1900,39 @@ def api_run_5_pillars(item_id):
                 p4_desc = f"e-GP MSC: {p4_price:,.0f} đ/{unit_str} (Kết quả trúng thầu)".replace(",", ".")
             else:
                 p4_desc = f"Đã tra cứu từ khóa [{clean_msc_kw}] trên Mạng Đấu thầu Quốc gia nhưng chưa ghi nhận kết quả trúng thầu tương tự."
+            
+            # Tìm chỉ số index của min_msc trong danh sách kết quả
+            msc_items = comp.get("items", [])
+            selected_idx = 0
+            min_rec = msc_items[0] if msc_items else None
+            if p4_price > 0 and msc_items:
+                for idx, it in enumerate(msc_items):
+                    it_price = float(it.get("don_gia_truoc_thue") or it.get("don_gia") or 0)
+                    if abs(it_price - p4_price) < 1.0:
+                        selected_idx = idx
+                        min_rec = it
+                        break
+
+            raw_selected_p = float(min_rec.get("don_gia_goc_egp", p4_price)) if min_rec else p4_price
+
             msc_payload = {
-                "results": comp.get("items", []),
+                "item_id": item_id,
+                "tu_khoa_tra_cuu": clean_msc_kw,
+                "page_number": 0,
+                "page_size": 20,
+                "selected_index": selected_idx if msc_items else -1,
+                "selected_record": min_rec,
+                "total_elements": comp.get("total", len(msc_items)),
+                "thoi_gian_tra_cuu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "nguon": "Mạng Đấu thầu Quốc gia (muasamcong.mpi.gov.vn)",
+                "don_gia_trinh": target_item.get("don_gia_trinh", 0),
+                "don_gia_tham_chieu": p4_price,
+                "don_gia_truoc_thue": p4_price,
+                "don_gia_goc_egp": raw_selected_p,
+                "danh_sach_ket_qua": msc_items,
+                "results": msc_items,
                 "summary": comp.get("summary", {}),
                 "summary_text": p4_desc,
-                "keyword": clean_msc_kw,
                 "analysis": comp
             }
             write_evidence("chung_cu_muasamcong.json", msc_payload)
