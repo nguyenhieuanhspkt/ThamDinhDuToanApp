@@ -22,6 +22,13 @@ import pdf_report_generator
 import onedrive_sync
 from api_export_executive_report import executive_bp
 
+from models import (
+    QuotesEvidence, ErpEvidence, ImisEvidence, MscEvidence,
+    EcomEvidence, SynthesisEvidence, DossierItem, ProjectDossier
+)
+from storage import default_repo, write_json_atomic, read_json_safe
+from services import PipelineService, QuoteService, ErpService, ImisService, MscService, AiSynthesisService
+
 app = Flask(__name__, static_folder='frontend/dist', static_url_path='')
 app.config['JSON_AS_ASCII'] = False
 CORS(app)
@@ -1348,8 +1355,8 @@ def api_save_evidence_step(item_id=None, step_type=None):
         pillars_data = final_payload.get("pillars", {})
         print(f"--- [DEBUG SYNTHESIS - PILLARS] p4 data inside synthesis: {pillars_data.get('p4', 'Not found')} ---")
 
-    with open(fpath, "w", encoding="utf-8") as f:
-        json.dump(final_payload, f, ensure_ascii=False, indent=2)
+    # Ghi file an toàn qua cơ chế Atomic Write của FileRepository & Models
+    default_repo.save_item_evidence(item_id, step_type, final_payload)
 
     syn_data = None
     # 1. Nếu lưu các khối chứng cứ thành phần (quotes, erp, imis, muasamcong, ecom):
@@ -1357,24 +1364,20 @@ def api_save_evidence_step(item_id=None, step_type=None):
     if step_type in ["quotes", "erp", "imis", "muasamcong", "ecom"]:
         syn_data = cascade_sync_synthesis(item_id, item_dir, step_type, final_payload)
 
-    # 2. Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án
+    # 2. Nếu là bước synthesis (Phê duyệt 5 cơ sở), đồng bộ ngay vào CSDL Hồ sơ / Dự án qua DossierItem
     elif step_type == "synthesis" or "approved_price" in payload:
         try:
             approved_p = float(payload.get("approved_price") if payload.get("approved_price") is not None else 0)
             sum_text = payload.get("summary_text") or ""
-            dossier = load_dossier_data()
-            for it in dossier.get("items", []):
-                if it.get("id") == item_id or dossier.get("items", []).index(it) + 1 == item_id:
-                    it["don_gia_thong_nhat"] = approved_p
-                    qty = float(it.get("so_luong") or 1)
-                    it["thanh_tien_thong_nhat"] = approved_p * qty
-                    dg_trinh = float(it.get("don_gia_trinh") or 0)
-                    it["gia_tri_giam"] = (dg_trinh - approved_p) * qty
-                    it["danh_gia_ttd"] = sum_text
-                    if payload.get("co_so_thong_nhat"):
-                        it["co_so_thong_nhat"] = payload["co_so_thong_nhat"]
-                    break
-            save_dossier_data(dossier)
+            dossier_model = default_repo.load_dossier()
+            target_it = dossier_model.get_item(item_id)
+            if target_it:
+                target_it.don_gia_thong_nhat = approved_p
+                target_it.danh_gia_ttd = sum_text
+                if payload.get("co_so_thong_nhat"):
+                    target_it.co_so_thong_nhat = payload["co_so_thong_nhat"]
+                target_it.recalculate_totals()
+                default_repo.save_dossier(dossier_model)
             syn_data = final_payload
         except Exception as e:
             print(f"Lỗi đồng bộ hồ sơ dự án khi lưu synthesis: {e}")
@@ -1391,7 +1394,7 @@ def api_save_evidence_step(item_id=None, step_type=None):
 @app.route("/api/evidence/get-item-evidence/<int:item_id>", methods=["GET"])
 @app.route("/api/items/<int:item_id>/evidence/<step_type>", methods=["GET"])
 def api_get_item_evidence(item_id=None, step_type=None):
-    """Đọc toàn bộ chứng cứ 5 Cơ sở đã lưu của 1 mục vật tư (Đồng bộ tuyệt đối theo Project đang active)."""
+    """Đọc toàn bộ chứng cứ 5 Cơ sở đã lưu của 1 mục vật tư (Đồng bộ tuyệt đối qua FileRepository & Models)."""
     if item_id is None:
         try:
             item_id = int(request.args.get("item_id"))
@@ -1402,41 +1405,22 @@ def api_get_item_evidence(item_id=None, step_type=None):
     if not item_id:
         return jsonify({"success": False, "message": "Thiếu item_id"}), 400
         
-    # SỬ DỤNG HÀM get_project_files_dir() ĐỂ LẤY ĐÚNG THƯ MỤC CỦA DỰ ÁN ĐANG ACTIVE (VD: data/projects/..._files)
-    p_dir = get_project_files_dir()
-    item_dir = os.path.join(p_dir, f"item_{item_id}")
-    fallback_dir = os.path.join(DATA_DIR, "current_dossier_files", f"item_{item_id}")
-    
-    def resolve_step_file(step_name):
-        # ƯU TIÊN 1: Kiểm tra trong thư mục của project active trước
-        f1 = os.path.join(item_dir, f"chung_cu_{step_name}.json")
-        if os.path.exists(f1):
-            return f1
-        # ƯU TIÊN 2: Fallback sang thư mục chung cũ nếu project active chưa có
-        f2 = os.path.join(fallback_dir, f"chung_cu_{step_name}.json")
-        if os.path.exists(f2):
-            return f2
-        return None
-    
     if step_type:
-        fpath = resolve_step_file(step_type)
+        fpath = default_repo.resolve_evidence_file(item_id, step_type)
         if fpath and os.path.exists(fpath):
-            try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    content = json.load(f)
-                    return jsonify({"success": True, "data": content, "payload": content})
-            except Exception as e:
-                return jsonify({"success": False, "message": str(e)}), 500
+            evidence_model = default_repo.load_item_evidence(item_id, step_type)
+            data = evidence_model.to_dict()
+            return jsonify({"success": True, "data": data, "payload": data})
         return jsonify({"success": True, "data": None, "payload": None})
         
     evidence = {}
     steps = ["quotes", "erp", "imis", "muasamcong", "ecom", "synthesis"]
     for s in steps:
-        fpath = resolve_step_file(s)
+        fpath = default_repo.resolve_evidence_file(item_id, s)
         if fpath and os.path.exists(fpath):
             try:
-                with open(fpath, "r", encoding="utf-8") as f:
-                    evidence[s] = json.load(f)
+                ev_model = default_repo.load_item_evidence(item_id, s)
+                evidence[s] = ev_model.to_dict()
             except Exception:
                 evidence[s] = None
         else:
