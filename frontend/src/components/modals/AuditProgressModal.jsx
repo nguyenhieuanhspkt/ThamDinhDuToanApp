@@ -77,17 +77,32 @@ function AuditProgressModalContent({
     setManualOverride(null);
   }, [auditSignature]);
 
-  // SINGLE SOURCE OF TRUTH: Tính toán Đơn giá duyệt, Cơ sở chiến thắng & Tiết kiệm theo thời gian thực
+  // SINGLE SOURCE OF TRUTH: Sử dụng trực tiếp giá trị chuẩn từ Cha truyền xuống (item.don_gia_thong_nhat, item.gia_tri_giam)
   const currentResolution = useMemo(() => {
     const currentList = editableSteps.length > 0 ? editableSteps : steps;
+    const itemTnPrice =
+      parseFloat(item?.don_gia_thong_nhat || auditData?.result?.don_gia_thong_nhat) ||
+      null;
+    const itemSavings =
+      item?.gia_tri_giam !== undefined && item?.gia_tri_giam !== null
+        ? parseFloat(item.gia_tri_giam)
+        : auditData?.result?.gia_tri_giam !== undefined
+          ? parseFloat(auditData.result.gia_tri_giam)
+          : null;
+    const itemCoSo =
+      item?.co_so_thong_nhat || auditData?.result?.co_so_thong_nhat || null;
+
     return resolveEffectiveAuditPrice(
       currentList,
       dgTrinh,
       qty,
       manualOverride?.price,
-      manualOverride?.pillar
+      manualOverride?.pillar,
+      itemTnPrice,
+      itemCoSo,
+      itemSavings
     );
-  }, [editableSteps, steps, dgTrinh, qty, manualOverride]);
+  }, [editableSteps, steps, dgTrinh, qty, manualOverride, item, auditData]);
 
   const currentPrice = currentResolution.approvedPrice;
   const currentWinning = currentResolution.winningPillar;

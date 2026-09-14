@@ -464,11 +464,64 @@ export function buildCompletedAuditSteps(evidence = {}, item = {}) {
  * 7. PURE CALCULATION ENGINE: Tính toán Đơn giá duyệt, Cơ sở chiến thắng & Tiền tiết kiệm
  * Nguồn chân lý duy nhất (Single Source of Truth) dùng chung 100% cho Modal, View 3 Inspector và Grid.
  */
-export function resolveEffectiveAuditPrice(steps, dgTrinh, soLuong = 1, manualPrice = null, manualPillar = null) {
+export function resolveEffectiveAuditPrice(
+  steps,
+  dgTrinh,
+  soLuong = 1,
+  manualPrice = null,
+  manualPillar = null,
+  defaultApprovedPrice = null,
+  defaultWinningPillar = null,
+  defaultSavings = null
+) {
   const qty = parseFloat(soLuong) || 1;
   const dgT = parseFloat(dgTrinh) || 0;
 
-  // 1. Lọc các cơ sở hợp lệ (trong 5 cơ sở đầu tiên, không bị loại trừ và có đơn giá > 0)
+  // 1. Ưu tiên 1: Giá do user bấm "⚡ Chọn Giá" thủ công trong phiên modal
+  if (manualPrice !== null && manualPrice !== undefined) {
+    const p = parseFloat(manualPrice) || 0;
+    const approvedPrice = p;
+    const winningPillar = manualPillar || "Tự chọn thủ công";
+    const totalSavings = Math.max(0, (dgT - approvedPrice) * qty);
+    const pctGiam = dgT > 0 ? ((dgT - approvedPrice) / dgT) * 100 : 0;
+    const thanhTien = approvedPrice * qty;
+    return {
+      approvedPrice,
+      winningPillar,
+      totalSavings,
+      pctGiam,
+      thanhTien,
+      hasValidBasis: true,
+    };
+  }
+
+  // 2. Ưu tiên 2: Sử dụng 1 biến chuẩn từ Cha (Grid / Hồ sơ đã lưu) nếu mục đã được thẩm định chốt giá
+  if (
+    defaultApprovedPrice !== null &&
+    defaultApprovedPrice !== undefined &&
+    parseFloat(defaultApprovedPrice) > 0
+  ) {
+    const approvedPrice = parseFloat(defaultApprovedPrice);
+    const winningPillar = defaultWinningPillar || "Cơ sở đã thẩm định";
+    const totalSavings =
+      defaultSavings !== null &&
+      defaultSavings !== undefined &&
+      parseFloat(defaultSavings) >= 0
+        ? parseFloat(defaultSavings)
+        : Math.max(0, (dgT - approvedPrice) * qty);
+    const pctGiam = dgT > 0 ? ((dgT - approvedPrice) / dgT) * 100 : 0;
+    const thanhTien = approvedPrice * qty;
+    return {
+      approvedPrice,
+      winningPillar,
+      totalSavings,
+      pctGiam,
+      thanhTien,
+      hasValidBasis: true,
+    };
+  }
+
+  // 3. Ưu tiên 3: Lọc các cơ sở hợp lệ trong 5 cơ sở (đối với mục chưa từng chốt giá)
   const validPillars = (steps || [])
     .slice(0, 5)
     .filter((st) => !st.is_deselected && parseFloat(st.price) > 0)
@@ -482,24 +535,8 @@ export function resolveEffectiveAuditPrice(steps, dgTrinh, soLuong = 1, manualPr
   validPillars.sort((a, b) => a.price - b.price);
   const best = validPillars[0];
 
-  // 2. Chốt đơn giá hiệu dụng:
-  // - Ưu tiên 1: Giá do user bấm "⚡ Chọn Giá" thủ công (nếu có)
-  // - Ưu tiên 2: Cơ sở có giá thấp nhất còn lại
-  // - Ưu tiên 3: Nếu loại trừ hết toàn bộ 5 cơ sở -> Giữ nguyên đơn giá trình
-  const approvedPrice =
-    manualPrice !== null && manualPrice !== undefined
-      ? parseFloat(manualPrice)
-      : best
-        ? best.price
-        : dgT;
-
-  const winningPillar =
-    manualPillar !== null && manualPillar !== undefined
-      ? manualPillar
-      : best
-        ? best.name
-        : "Giữ theo Đơn Giá Trình";
-
+  const approvedPrice = best ? best.price : dgT;
+  const winningPillar = best ? best.name : "Giữ theo Đơn Giá Trình";
   const totalSavings = Math.max(0, (dgT - approvedPrice) * qty);
   const pctGiam = dgT > 0 ? ((dgT - approvedPrice) / dgT) * 100 : 0;
   const thanhTien = approvedPrice * qty;

@@ -46,7 +46,7 @@ class DossierItem(BaseEntity):
         self.don_gia_trinh: float = float(don_gia_trinh or 0.0)
         self.thanh_tien_trinh: float = float(thanh_tien_trinh or (self.don_gia_trinh * self.so_luong))
         self.don_gia_thong_nhat: float = float(don_gia_thong_nhat or 0.0)
-        self.thanh_tien_thong_nhat: float = float(thanh_tien_thong_nhat or 0.0)
+        self.thanh_tien_thong_nhat: float = float(thanh_tien_thong_nhat or (self.don_gia_thong_nhat * self.so_luong))
         self.gia_tri_giam: float = float(gia_tri_giam or 0.0)
         self.co_so_thong_nhat: str = str(co_so_thong_nhat or "")
         self.danh_gia_ttd: str = str(danh_gia_ttd or "")
@@ -59,13 +59,24 @@ class DossierItem(BaseEntity):
         self.search_keyword: str = str(search_keyword or "")
         self._extra_fields = kwargs
 
-        # Luôn tự động tính toán lại thành tiền và giá trị giảm chuẩn xác
-        self.recalculate_totals()
+        # Đảm bảo tính toàn vẹn dữ liệu: Mục chưa duyệt đơn giá thì tiết kiệm bắt buộc = 0 đ
+        if not self.has_approved_price:
+            self.gia_tri_giam = 0.0
+            self.thanh_tien_thong_nhat = 0.0
+        elif self.gia_tri_giam <= 0 and self.don_gia_trinh > self.don_gia_thong_nhat:
+            self.gia_tri_giam = max(0.0, (self.don_gia_trinh - self.don_gia_thong_nhat) * self.so_luong)
 
     @property
     def has_approved_price(self) -> bool:
         """Kiểm tra vật tư đã được chốt đơn giá duyệt hay chưa."""
         return self.don_gia_thong_nhat > 0
+
+    @property
+    def pct_giam(self) -> float:
+        """Tỷ lệ phần trăm giảm trừ tiết kiệm so với giá trình."""
+        if self.don_gia_trinh > 0 and self.gia_tri_giam > 0:
+            return round((self.gia_tri_giam / self.thanh_tien_trinh) * 100, 1)
+        return 0.0
 
     def recalculate_totals(self) -> None:
         """
@@ -88,3 +99,10 @@ class DossierItem(BaseEntity):
             self.don_gia_thong_nhat = 0.0
             self.thanh_tien_thong_nhat = 0.0
             self.gia_tri_giam = 0.0
+
+    def to_dict(self) -> dict:
+        """Xuất dictionary chuẩn hóa bao gồm các trường tính toán sẵn cho Frontend."""
+        res = super().to_dict()
+        res["pct_giam"] = self.pct_giam
+        res["has_approved_price"] = self.has_approved_price
+        return res
