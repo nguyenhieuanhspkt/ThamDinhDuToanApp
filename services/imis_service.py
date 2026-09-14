@@ -76,3 +76,37 @@ class ImisService:
             selected_record=selected_record,
             is_deselected=False,
         )
+
+    @staticmethod
+    def get_config_status() -> Dict[str, Any]:
+        """Lấy thông tin tình trạng kết nối Token API EVN IMIS."""
+        return imis_core.get_imis_config_status()
+
+    @staticmethod
+    def refresh_token() -> Dict[str, Any]:
+        """
+        Chủ động gia hạn Token IMIS.
+        Trả về dictionary chuẩn hóa {"success": bool, "message": str, "info": dict}.
+        """
+        ok, msg = imis_core.refresh_imis_token()
+        info = imis_core.get_imis_config_status()
+        return {"success": bool(ok), "message": msg, "info": info}
+
+    @staticmethod
+    def login(username: str, password: str, remember: bool = True) -> Dict[str, Any]:
+        """
+        Xác thực đăng nhập tài khoản EVN IMIS và cập nhật Token mới.
+        Trả về dictionary chuẩn hóa {"success": bool, "message": str, "info": dict}.
+        """
+        u = str(username or "").strip()
+        p = str(password or "")
+        if not u or not p:
+            return {
+                "success": False,
+                "message": "Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu",
+                "info": imis_core.get_imis_config_status(),
+            }
+
+        ok, msg = imis_core.login_imis(u, p, remember_me=bool(remember))
+        info = imis_core.get_imis_config_status()
+        return {"success": bool(ok), "message": msg, "info": info}

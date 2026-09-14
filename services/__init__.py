@@ -10,6 +10,7 @@ from services.imis_service import ImisService
 from services.msc_service import MscService
 from services.ai_synthesis_service import AiSynthesisService
 from services.pipeline_service import PipelineService
+from services.excel_service import ExcelService
 
 __all__ = [
     "QuoteService",
@@ -18,4 +19,5 @@ __all__ = [
     "MscService",
     "AiSynthesisService",
     "PipelineService",
+    "ExcelService",
 ]

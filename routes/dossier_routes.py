@@ -13,6 +13,7 @@ import shutil
 from flask import Blueprint, jsonify, request, send_file
 
 from models import DossierItem, ProjectDossier
+from services.excel_service import ExcelService
 from storage import default_repo, read_json_safe, write_json_atomic
 
 dossier_bp = Blueprint("dossier_bp", __name__)
@@ -287,6 +288,27 @@ def api_serve_project_file(rel_path):
         return send_file(full_path)
     return jsonify({"error": "File not found"}), 404
 
+@dossier_bp.route("/api/items/<int:item_id>/ai-markdown", methods=["POST"])
+def api_save_ai_markdown(item_id):
+    """Lưu trữ bài phân tích AI dạng Markdown cho 1 mục vật tư."""
+    req = request.get_json() or {}
+    md_content = req.get("markdown", "")
+
+    dossier = default_repo.load_dossier()
+    item = dossier.get_item(item_id)
+    if item:
+        if not hasattr(item, "_extra_fields"):
+            item._extra_fields = {}
+        item._extra_fields["ai_analysis_md"] = md_content
+        default_repo.save_dossier(dossier)
+
+    item_dir = default_repo.get_item_dir(item_id)
+    md_file = os.path.join(item_dir, "phan_tich_ai.md")
+    with open(md_file, "w", encoding="utf-8") as f:
+        f.write(md_content)
+
+    return jsonify({"success": True, "message": "Đã lưu bản phân tích AI"})
+
 
 @dossier_bp.route("/api/items/<int:item_id>/delete-attachment", methods=["POST"])
 def api_delete_attachment(item_id):
@@ -312,3 +334,36 @@ def api_delete_attachment(item_id):
             pass
 
     return jsonify({"success": True})
+
+
+# ==============================================================================
+# XUẤT / NHẬP DỮ LIỆU BẢNG TÍNH EXCEL
+# ==============================================================================
+
+@dossier_bp.route("/api/import-excel", methods=["POST"])
+def api_import_excel():
+    """Nạp file Excel dự toán mẫu hoặc tự do vào ứng dụng."""
+    if "file" not in request.files:
+        return jsonify({"success": False, "message": "Không tìm thấy file tải lên"}), 400
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"success": False, "message": "Chưa chọn file"}), 400
+
+    res = ExcelService.import_excel(file, repo=default_repo)
+    status_code = 200 if res.get("success") else 500
+    return jsonify(res), status_code
+
+
+@dossier_bp.route("/api/export-excel", methods=["GET"])
+def api_export_excel():
+    """Xuất file Excel bảng thẩm định dự toán hoàn chỉnh."""
+    export_path = ExcelService.export_excel(repo=default_repo)
+    return send_file(export_path, as_attachment=True, download_name="Bang_Tham_Dinh_Du_Toan.xlsx")
+
+
+@dossier_bp.route("/api/download-template", methods=["GET"])
+def api_download_template():
+    """Tải file Excel mẫu chuẩn 13 cột của EVN Vĩnh Tân 4."""
+    template_path = ExcelService.download_template()
+    return send_file(template_path, as_attachment=True, download_name="Mau_Bang_Du_Toan_13_Cot.xlsx")
+

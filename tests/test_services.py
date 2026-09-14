@@ -23,6 +23,7 @@ from models import (
 from services import (
     AiSynthesisService,
     ErpService,
+    ExcelService,
     ImisService,
     MscService,
     QuoteService,
@@ -79,6 +80,67 @@ class TestServices(unittest.TestCase):
         self.assertEqual(evidence.item_id, 6)
         self.assertGreater(evidence.coverage_score, 0)
         self.assertGreater(len(evidence.summary_text), 0)
+
+    def test_imis_service_config_status(self):
+        """Kiểm tra ImisService.get_config_status trả về đầy đủ các trường trạng thái."""
+        status = ImisService.get_config_status()
+        self.assertIsInstance(status, dict)
+        self.assertIn("is_connected", status)
+        self.assertIn("status", status)
+        self.assertIn("message", status)
+
+    def test_imis_service_login_validation(self):
+        """Kiểm tra ImisService.login khi thiếu thông tin trả về lỗi có cấu trúc chuẩn."""
+        res = ImisService.login("", "")
+        self.assertIsInstance(res, dict)
+        self.assertFalse(res["success"])
+        self.assertIn("Vui lòng nhập đầy đủ", res["message"])
+        self.assertIn("info", res)
+
+    def test_erp_service_config_status(self):
+        """Kiểm tra ErpService.get_config_status trả về đầy đủ các trường trạng thái CSDL ERP."""
+        status = ErpService.get_config_status()
+        self.assertIsInstance(status, dict)
+        self.assertIn("is_configured", status)
+        self.assertIn("file_path", status)
+        self.assertIn("file_exists", status)
+        self.assertIn("mapping", status)
+
+    def test_erp_service_preview_and_save(self):
+        """Kiểm tra preview_columns và save_config khi đường dẫn hợp lệ hoặc không tồn tại."""
+        # 1. Preview file không tồn tại
+        res_fake = ErpService.preview_columns("C:\\FileKhongTonTai_Test.xlsx")
+        self.assertFalse(res_fake.get("success", True))
+
+        # 2. Save config với file không tồn tại
+        res_save_fail = ErpService.save_config("C:\\FileKhongTonTai_Test.xlsx", {})
+        self.assertFalse(res_save_fail.get("success"))
+
+    def test_excel_service_template_and_export(self):
+        """Kiểm tra sinh template Excel và xuất file Excel dự toán."""
+        # 1. Download template
+        tpl_path = ExcelService.download_template()
+        self.assertTrue(os.path.exists(tpl_path))
+        self.assertGreater(os.path.getsize(tpl_path), 1000)
+
+        # 2. Export excel
+        exp_path = ExcelService.export_excel()
+        self.assertTrue(os.path.exists(exp_path))
+        self.assertGreater(os.path.getsize(exp_path), 1000)
+
+    def test_quote_service_batch_and_folders(self):
+        """Kiểm tra QuoteService quét hàng loạt và duyệt thư mục."""
+        items = [
+            DossierItem(id=1, ten_vt="GEFA Ball Valve", don_gia_trinh=61250000),
+            DossierItem(id=2, ten_vt="Khớp nối mềm", don_gia_trinh=5000000),
+        ]
+        res_batch = QuoteService.match_all_dossier_items(items)
+        self.assertTrue(res_batch.get("success"))
+        self.assertEqual(res_batch.get("total_items"), 2)
+
+        res_browse = QuoteService.browse_folders("C:\\")
+        self.assertTrue(res_browse.get("success"))
+        self.assertIn("subdirs", res_browse)
 
 
 if __name__ == "__main__":

@@ -155,6 +155,62 @@ def api_attach_matched_pdf():
     return jsonify({"success": True, "rel_path": rel_path, "filename": filename})
 
 
+@pillar_bp.route("/api/quotes/match-all-dossier-items", methods=["GET", "POST"])
+def api_match_all_dossier_items():
+    """Tự động đối chiếu toàn bộ danh mục vật tư trong dự án với các file Báo giá gốc."""
+    dossier = default_repo.load_dossier()
+    p_dir = default_repo.get_project_files_dir()
+    approved_file = os.path.join(p_dir, "bao_gia_project.json")
+    folder = None
+    if os.path.exists(approved_file):
+        try:
+            with open(approved_file, "r", encoding="utf-8") as f:
+                folder = json.load(f).get("folder_nguon")
+        except Exception:
+            pass
+    overrides = get_project_quote_overrides()
+    res = QuoteService.match_all_dossier_items(dossier.items, folder_path=folder, overrides=overrides)
+    return jsonify(res)
+
+
+@pillar_bp.route("/api/quotes/dossier", methods=["GET", "POST"])
+def api_quotes_dossier():
+    """Lấy danh sách tất cả các file trong thư mục báo giá, phân loại và trạng thái phê duyệt."""
+    req = (request.get_json(silent=True) if request.is_json else None) or {}
+    folder = req.get("folder_path") or request.args.get("folder_path")
+    p_dir = default_repo.get_project_files_dir()
+    overrides = get_project_quote_overrides()
+    res = QuoteService.get_quotes_dossier(folder_path=folder, project_files_dir=p_dir, overrides=overrides)
+    return jsonify(res)
+
+
+@pillar_bp.route("/api/quotes/approve-all", methods=["POST"])
+def api_quotes_approve_all():
+    """Phê duyệt bộ dữ liệu báo giá đã số hóa vào CSDL chính thức của dự án."""
+    req = request.get_json(silent=True) or {}
+    folder = req.get("folder_path")
+    p_dir = default_repo.get_project_files_dir()
+    overrides = get_project_quote_overrides()
+    res = QuoteService.approve_all_quotes(folder_path=folder, project_files_dir=p_dir, overrides=overrides)
+    return jsonify(res)
+
+
+@pillar_bp.route("/api/quotes/browse-folders", methods=["GET", "POST"])
+def api_quotes_browse_folders():
+    """Duyệt danh sách thư mục con để hiển thị cây thư mục trên UI."""
+    req = (request.get_json(silent=True) if request.is_json else None) or {}
+    base_path = req.get("path", "").strip() or request.args.get("path", "").strip()
+    res = QuoteService.browse_folders(base_path)
+    return jsonify(res)
+
+
+@pillar_bp.route("/api/quotes/native-browse-folder", methods=["GET", "POST"])
+def api_quotes_native_browse_folder():
+    """Mở cửa sổ Windows Explorer Native Folder Picker Dialog chuẩn của hệ điều hành."""
+    res = QuoteService.native_browse_folder()
+    return jsonify(res)
+
+
 # ==============================================================================
 # KHỐI 2: ERP VĨNH TÂN 4
 # ==============================================================================
@@ -162,25 +218,60 @@ def api_attach_matched_pdf():
 @pillar_bp.route("/api/erp/config-status", methods=["GET"])
 def api_erp_config_status():
     """Kiểm tra trạng thái cấu hình CSDL ERP."""
-    return jsonify(imis_core.get_erp_config_status())
+    return jsonify(ErpService.get_config_status())
 
 
 @pillar_bp.route("/api/erp/preview-columns", methods=["POST"])
 def api_erp_preview_columns():
-    """Xem trước danh sách cột từ file Excel ERP tải lên."""
+    """Đọc tiêu đề cột của file Excel ERP (hỗ trợ cả JSON file_path và file upload)."""
+    # 1. Hỗ trợ gửi file upload trực tiếp
+    if "file" in request.files:
+        file = request.files["file"]
+        temp_path = os.path.join(default_repo.data_dir, "_temp_erp_preview.xlsx")
+        file.save(temp_path)
+        try:
+            res = ErpService.preview_columns(temp_path)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify(res)
+        except Exception as e:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return jsonify({"success": False, "message": str(e)}), 500
+
+    # 2. Hỗ trợ gửi JSON body { "file_path": "..." }
+    req = request.get_json(silent=True) or {}
+    file_path = req.get("file_path", "").strip() or request.form.get("file_path", "").strip()
+    if not file_path:
+        return jsonify({"success": False, "message": "Vui lòng cung cấp file hoặc đường dẫn file_path."}), 400
+
+    res = ErpService.preview_columns(file_path)
+    return jsonify(res)
+
+
+@pillar_bp.route("/api/erp/upload", methods=["POST"])
+def api_erp_upload_file():
+    """Tải lên file Excel CSDL ERP mới từ giao diện web."""
     if "file" not in request.files:
-        return jsonify({"success": False, "message": "Không có file được tải lên"}), 400
+        return jsonify({"success": False, "message": "Không tìm thấy file"}), 400
     file = request.files["file"]
-    temp_path = os.path.join(default_repo.data_dir, "_temp_erp_preview.xlsx")
-    file.save(temp_path)
-    try:
-        headers = imis_core.get_excel_headers(temp_path)
-        os.remove(temp_path)
-        return jsonify({"success": True, "headers": headers})
-    except Exception as e:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        return jsonify({"success": False, "message": str(e)}), 500
+    config_dir = os.path.join(default_repo.data_dir, "config")
+    res = ErpService.upload_file(file, target_dir=config_dir)
+    status_code = 200 if res.get("success", True) else 400
+    return jsonify(res), status_code
+
+
+@pillar_bp.route("/api/erp/save-config", methods=["POST"])
+def api_erp_save_config():
+    """Lưu cấu hình vị trí file Excel ERP và mapping 13 cột pháp lý."""
+    req = request.get_json() or {}
+    file_path = req.get("file_path", "").strip()
+    mapping = req.get("mapping", {})
+    header_row = int(req.get("header_row", 1))
+
+    res = ErpService.save_config(file_path, mapping, header_row=header_row)
+    status_code = 200 if res.get("success") else 400
+    return jsonify(res), status_code
 
 
 @pillar_bp.route("/api/erp/search", methods=["POST"])
@@ -219,13 +310,13 @@ def api_search_erp():
 @pillar_bp.route("/api/imis/config-status", methods=["GET"])
 def api_imis_config_status():
     """Lấy thông tin tình trạng Token và đăng nhập IMIS."""
-    return jsonify(imis_core.get_imis_config_status())
+    return jsonify(ImisService.get_config_status())
 
 
 @pillar_bp.route("/api/refresh-token", methods=["POST"])
 def api_refresh_token():
     """Chủ động gia hạn Token IMIS."""
-    res = imis_core.refresh_imis_token()
+    res = ImisService.refresh_token()
     return jsonify(res)
 
 
@@ -235,8 +326,8 @@ def api_imis_login():
     req = request.get_json() or {}
     username = req.get("username", "").strip()
     password = req.get("password", "").strip()
-    remember = bool(req.get("remember_me", False))
-    res = imis_core.login_imis(username, password, remember_me=remember)
+    remember = bool(req.get("remember", req.get("remember_me", True)))
+    res = ImisService.login(username, password, remember=remember)
     return jsonify(res)
 
 
@@ -314,3 +405,33 @@ def api_msc_search():
         default_repo.save_item_evidence(item_id, "muasamcong", evidence)
 
     return jsonify({"success": True, "analysis": evidence.to_dict()})
+
+
+@pillar_bp.route("/api/search-item-sources", methods=["POST"])
+def api_search_sources():
+    """Tra cứu tổng hợp các nguồn CSDL (IMIS & ERP) theo từ khóa."""
+    req = request.get_json() or {}
+    kw = req.get("keyword", "").strip()
+    tu_ngay = req.get("tu_ngay", "2023-01-01")
+    den_ngay = req.get("den_ngay")
+    ma_vt = req.get("ma_vt", "")
+    item = req.get("item", kw)
+    dg_trinh = float(req.get("dg_trinh") or 0)
+    selected_record = req.get("selected_record")
+    use_average = req.get("use_average", False)
+
+    if not kw:
+        return jsonify({"imis": [], "erp": [], "summary": None, "summary_text": ""})
+
+    result = imis_core.search_item_sources(kw, tu_ngay=tu_ngay, den_ngay=den_ngay, ma_vt=ma_vt)
+    imis_recs = result.get("imis", [])
+
+    used_kw = result.get("used_keyword") or kw
+    summary_data = imis_core.generate_imis_summary_text(
+        item, imis_recs, dg_trinh=dg_trinh, selected_record=selected_record, use_average=use_average,
+        tu_ngay=tu_ngay, den_ngay=den_ngay, search_keyword=used_kw
+    )
+    result["summary"] = summary_data
+    result["summary_text"] = summary_data.get("summary_text", "")
+    return jsonify(result)
+
