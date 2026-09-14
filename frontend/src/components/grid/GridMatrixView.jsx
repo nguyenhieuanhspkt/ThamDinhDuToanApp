@@ -89,23 +89,35 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
       const list = data.items || [];
       setItems(list);
 
-      const total_trinh = list.reduce(
-        (acc, it) =>
-          acc +
-          (parseFloat(it.thanh_tien_trinh) ||
-            it.so_luong * it.don_gia_trinh ||
-            0),
-        0,
-      );
-      const total_thong_nhat = list.reduce(
-        (acc, it) =>
-          acc +
-          (parseFloat(it.thanh_tien_thong_nhat) ||
-            (it.so_luong || 1) * (it.don_gia_thong_nhat || 0) ||
-            0),
-        0,
-      );
-      setStats({ total_items: list.length, total_trinh, total_thong_nhat });
+      let total_trinh = 0;
+      let total_thong_nhat = 0;
+      let total_giam_tru = 0;
+
+      list.forEach((it) => {
+        const sl = parseFloat(it.so_luong) || 1;
+        const dgTrinh = parseFloat(it.don_gia_trinh) || 0;
+        const ttTrinh =
+          parseFloat(it.thanh_tien_trinh) || sl * dgTrinh || 0;
+        total_trinh += ttTrinh;
+
+        const dgTN = parseFloat(it.don_gia_thong_nhat) || 0;
+        const hasTN = dgTN > 0;
+        const ttTN = hasTN
+          ? parseFloat(it.thanh_tien_thong_nhat) || sl * dgTN
+          : ttTrinh; // Mục chưa duyệt tạm giữ nguyên giá trình (tiết kiệm = 0)
+        total_thong_nhat += ttTN;
+
+        if (hasTN && dgTrinh > dgTN) {
+          total_giam_tru += (dgTrinh - dgTN) * sl;
+        }
+      });
+
+      setStats({
+        total_items: list.length,
+        total_trinh,
+        total_thong_nhat,
+        total_giam_tru,
+      });
 
       const kwMap = {};
       list.forEach((it, idx) => {
@@ -797,9 +809,9 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     // Lọc chuyên sâu cho View Tiết Kiệm (viewMode === 'savings')
     if (viewMode === "savings") {
       const dgT = parseFloat(it.don_gia_trinh) || 0;
-      const dgTN = parseFloat(it.don_gia_thong_nhat) || dgT;
+      const dgTN = parseFloat(it.don_gia_thong_nhat) || 0;
       const sl = parseFloat(it.so_luong) || 1;
-      const savingVal = (dgT - dgTN) * sl;
+      const savingVal = dgTN > 0 && dgT > dgTN ? (dgT - dgTN) * sl : 0;
       if (savingVal <= 0) return false;
 
       if (savingsFilter === "OVER_12M") {
@@ -894,12 +906,12 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
           slB * (parseFloat(b.don_gia_thong_nhat) || 0);
       } else if (effectiveSortField === "gia_tri_giam") {
         const dgTrinhA = parseFloat(a.don_gia_trinh) || 0;
-        const dgTnA = parseFloat(a.don_gia_thong_nhat) || dgTrinhA;
-        valA = (dgTrinhA - dgTnA) * slA;
+        const dgTnA = parseFloat(a.don_gia_thong_nhat) || 0;
+        valA = dgTnA > 0 && dgTrinhA > dgTnA ? (dgTrinhA - dgTnA) * slA : 0;
 
         const dgTrinhB = parseFloat(b.don_gia_trinh) || 0;
-        const dgTnB = parseFloat(b.don_gia_thong_nhat) || dgTrinhB;
-        valB = (dgTrinhB - dgTnB) * slB;
+        const dgTnB = parseFloat(b.don_gia_thong_nhat) || 0;
+        valB = dgTnB > 0 && dgTrinhB > dgTnB ? (dgTrinhB - dgTnB) * slB : 0;
       } else if (effectiveSortField === "lowest_price") {
         const idA = a.id || origIdxA + 1;
         const idB = b.id || origIdxB + 1;
@@ -944,7 +956,10 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
     });
   };
   // Summary stats
-  const giam_tru = stats.total_trinh - stats.total_thong_nhat;
+  const giam_tru =
+    stats.total_giam_tru !== undefined
+      ? stats.total_giam_tru
+      : Math.max(0, stats.total_trinh - stats.total_thong_nhat);
   const pct_giam =
     stats.total_trinh > 0 ? (giam_tru / stats.total_trinh) * 100 : 0;
 
@@ -1642,7 +1657,10 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                               {viewMode === "savings" ? (
                                 (() => {
                                   const basis = parseSavingsBasis(it, quoteMatches);
-                                  const savingVal = (dgTrinh - dgTN) * sl;
+                                  const savingVal =
+                                    hasTN && dgTrinh > dgTN
+                                      ? (dgTrinh - dgTN) * sl
+                                      : 0;
                                   return (
                                     <>
                                       {/* Cột 10: Căn Cứ Giảm Giá (Bản Chất Nguồn) */}
@@ -1723,25 +1741,45 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                                       {/* Cột 12: ĐG Duyệt */}
                                       <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-950 border-r border-slate-200 bg-emerald-50/20">
                                         <div className="flex flex-col items-end">
-                                          <span className="text-[12.5px] text-emerald-950 font-black">
-                                            {fmt(dgTN)} đ
-                                          </span>
-                                          <span className="text-[10px] text-slate-500 font-normal">
-                                            TT: {fmt(ttTN)} đ
-                                          </span>
+                                          {hasTN ? (
+                                            <>
+                                              <span className="text-[12.5px] text-emerald-950 font-black">
+                                                {fmt(dgTN)} đ
+                                              </span>
+                                              <span className="text-[10px] text-slate-500 font-normal">
+                                                TT: {fmt(ttTN)} đ
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <span className="text-slate-400 text-[11px] italic">
+                                              Chưa TĐ
+                                            </span>
+                                          )}
                                         </div>
                                       </td>
 
                                       {/* Cột 13: Tiền Tiết Kiệm */}
                                       <td className="py-2.5 px-3 text-right font-mono border-r border-slate-200 bg-emerald-100/40">
                                         <div className="flex flex-col items-end gap-1">
-                                          <span className="text-[13px] font-black text-emerald-800 tracking-tight">
-                                            -{fmt(savingVal)} đ
-                                          </span>
-                                          {pctGiam !== null && (
-                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-700 text-white shadow-2xs">
-                                              <TrendingDown className="w-2.5 h-2.5" />
-                                              -{pctGiam.toFixed(1)}%
+                                          {!hasTN ? (
+                                            <span className="text-slate-400 text-[12px] italic">
+                                              —
+                                            </span>
+                                          ) : savingVal > 0 ? (
+                                            <>
+                                              <span className="text-[13px] font-black text-emerald-800 tracking-tight">
+                                                -{fmt(savingVal)} đ
+                                              </span>
+                                              {pctGiam !== null && (
+                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-700 text-white shadow-2xs">
+                                                  <TrendingDown className="w-2.5 h-2.5" />
+                                                  -{pctGiam.toFixed(1)}%
+                                                </span>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                              0 đ (Giữ giá)
                                             </span>
                                           )}
                                         </div>

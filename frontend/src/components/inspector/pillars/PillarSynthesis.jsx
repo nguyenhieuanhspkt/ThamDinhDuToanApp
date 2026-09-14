@@ -252,8 +252,11 @@ export default function PillarSynthesis({
   }
 
   // Selection state for final approved price & transparent AI results
+  const dossierPrice = parseFloat(item?.don_gia_thong_nhat || 0);
   const [approvedPrice, setApprovedPrice] = useState(
-    data?.approved_price || (minBaseline > 0 ? minBaseline : dgTrinh),
+    (dossierPrice > 0 ? dossierPrice : null) ||
+      data?.approved_price ||
+      (minBaseline > 0 ? minBaseline : dgTrinh),
   );
   const [editingText, setEditingText] = useState(data?.summary_text || "");
   const [runningAi, setRunningAi] = useState(false);
@@ -314,7 +317,10 @@ export default function PillarSynthesis({
       (isErpDeselected && data?.co_so_thong_nhat?.includes("ERP")) ||
       (isMscDeselected && data?.co_so_thong_nhat?.includes("Mua Sắm Công"));
 
-    if (
+    const itemPrice = parseFloat(item?.don_gia_thong_nhat || 0);
+    if (itemPrice > 0 && !isSavedPriceOutdated) {
+      setApprovedPrice(itemPrice);
+    } else if (
       data?.approved_price &&
       !isSavedPriceOutdated &&
       (validPrices.includes(data.approved_price) ||
@@ -327,6 +333,7 @@ export default function PillarSynthesis({
       setApprovedPrice(dgTrinh);
     }
   }, [
+    item?.don_gia_thong_nhat,
     data?.approved_price,
     data?.co_so_thong_nhat,
     minBaseline,
