@@ -30,7 +30,7 @@ import AuditProgressModal from "../modals/AuditProgressModal.jsx";
 import { buildCompletedAuditSteps } from "../../utils/evidenceAdapter.js";
 import { computeTimeDelta, getDefaultMscKeyword } from "../inspector/utils/keywordHelpers.js";
 
-export default function GridMatrixView({ onSelectInspectorItem }) {
+export default function GridMatrixView({ onSelectInspectorItem, onNavigateToReducedAudit }) {
   const [groupByPycvt, setGroupByPycvt] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const [items, setItems] = useState([]);
@@ -1200,6 +1200,17 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
                   {items.filter(it => (parseFloat(it.don_gia_trinh || 0) - parseFloat(it.don_gia_thong_nhat || it.don_gia_trinh || 0)) > 0).length} mục
                 </span>
               </button>
+
+              {onNavigateToReducedAudit && (
+                <button
+                  onClick={onNavigateToReducedAudit}
+                  className="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 cursor-pointer ml-1"
+                  title="Chuyển sang Giao diện Đối Soát Giảm (Sheet 4) để rà soát quy cách, thời hạn 12 tháng và loại trừ nhanh"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-200" />
+                  <span>4. Đối Soát Giảm</span>
+                </button>
+              )}
             </div>
 
             {/* Bộ lọc phụ riêng khi ở chế độ View Tiết Kiệm */}

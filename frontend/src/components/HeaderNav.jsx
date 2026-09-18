@@ -13,6 +13,7 @@ import {
   Database,
   Globe,
   Cloud,
+  ShieldAlert,
 } from "lucide-react";
 import { useToast } from "./ui/Toast";
 
@@ -223,6 +224,17 @@ export default function HeaderNav({
             }`}
           >
             <Search className="w-3.5 h-3.5 text-amber-300" /> 3. Duyệt Chi Tiết
+          </button>
+          <button
+            onClick={() => setActiveView("reduced-audit")}
+            className={`px-3 py-1 rounded-md transition flex items-center gap-1.5 ${
+              activeView === "reduced-audit"
+                ? "bg-amber-600 text-white shadow-xs"
+                : "text-slate-300 hover:text-white hover:bg-slate-800"
+            }`}
+            title="Đối soát so sánh quy cách, thời hạn 12 tháng và loại trừ tiết kiệm nhanh"
+          >
+            <ShieldAlert className="w-3.5 h-3.5 text-amber-300" /> 4. Đối Soát Giảm
           </button>
         </div>
       </div>

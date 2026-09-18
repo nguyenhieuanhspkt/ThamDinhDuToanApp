@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import HeaderNav from './components/HeaderNav.jsx';
 import QuotesWorkspace from './components/workspace/QuotesWorkspace.jsx';
 import GridMatrixView from './components/grid/GridMatrixView.jsx';
+import ReducedAuditView from './components/grid/ReducedAuditView.jsx';
 import ItemInspectorView from './components/inspector/ItemInspectorView.jsx';
 import ProjectManagerModal from './components/modals/ProjectManagerModal.jsx';
 import ERPConfigModal from './components/modals/ERPConfigModal.jsx';
@@ -216,7 +217,11 @@ export default function App() {
           )}
 
           {activeView === 'grid' && (
-            <GridMatrixView key={refreshKey} onSelectInspectorItem={handleSelectInspectorItem} />
+            <GridMatrixView
+              key={refreshKey}
+              onSelectInspectorItem={handleSelectInspectorItem}
+              onNavigateToReducedAudit={() => setActiveView('reduced-audit')}
+            />
           )}
 
           {activeView === 'inspector' && (
@@ -230,6 +235,14 @@ export default function App() {
               onOpenMscConfig={() => setIsMscConfigOpen(true)}
               imisStatus={imisStatus}
               mscStatus={mscStatus}
+            />
+          )}
+
+          {activeView === 'reduced-audit' && (
+            <ReducedAuditView
+              onSelectInspectorItem={handleSelectInspectorItem}
+              onBackToGrid={() => setActiveView('grid')}
+              onDataChanged={() => setRefreshKey((prev) => prev + 1)}
             />
           )}
         </ErrorBoundary>
