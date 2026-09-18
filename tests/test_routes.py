@@ -36,7 +36,7 @@ class TestApiRoutes(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         items = data.get("items", [])
-        self.assertEqual(len(items), 112)
+        self.assertEqual(len(items), 111)
 
     def test_api_projects(self):
         """Kiểm tra Endpoint /api/projects."""

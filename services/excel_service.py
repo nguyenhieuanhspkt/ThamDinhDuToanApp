@@ -177,8 +177,9 @@ class ExcelService:
     @staticmethod
     def export_excel(dossier: Optional[ProjectDossier] = None, repo: Optional[FileRepository] = None) -> str:
         """
-        Xuất file Excel bảng thẩm định dự toán đầy đủ tiêu đề, màu sắc, công thức và độ rộng cột.
-        Trả về đường dẫn tệp file Excel đã lưu.
+        Xuất file Excel bảng thẩm định dự toán chuẩn hóa 13 cột theo đúng giao diện hệ thống UI,
+        kèm đầy đủ cơ sở đối soát pháp lý, ý kiến thẩm định, công thức và độ rộng cột tối ưu.
+        Trả về đường dẫn tệp file Excel đã lưu (Bang_Tham_Dinh_Du_Toan.xlsx).
         """
         active_repo = repo or default_repo
         cur_dossier = dossier or active_repo.load_dossier()
@@ -186,103 +187,194 @@ class ExcelService:
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Tham_Dinh_Du_Toan"
+        ws.title = "Bang_Tham_Dinh_13_Cot"
+        ws.sheet_view.showGridLines = True
+        ws.freeze_panes = 'A6'
 
-        # Header Styles
+        font_title_gov = Font(name="Times New Roman", size=10, bold=True, color="333333")
+        font_title_main = Font(name="Times New Roman", size=13, bold=True, color="003366")
+        font_sub = Font(name="Times New Roman", size=10, italic=True, color="555555")
         font_header = Font(name="Times New Roman", size=10, bold=True, color="FFFFFF")
-        fill_header_ttd = PatternFill(start_color="003366", end_color="003366", fill_type="solid")
-        fill_header_khvt = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
-        fill_header_res = PatternFill(start_color="E65100", end_color="E65100", fill_type="solid")
+        font_data = Font(name="Times New Roman", size=10)
+        font_data_bold = Font(name="Times New Roman", size=10, bold=True)
+        font_saving = Font(name="Times New Roman", size=10, bold=True, color="15803D")
+        font_warning = Font(name="Times New Roman", size=10, bold=True, color="B91C1C")
+
+        fill_header_main = PatternFill(start_color="003366", end_color="003366", fill_type="solid")
+        fill_header_res = PatternFill(start_color="105E3C", end_color="105E3C", fill_type="solid")
+        fill_header_cs = PatternFill(start_color="78350F", end_color="78350F", fill_type="solid")
+        fill_navy_light = PatternFill(start_color="EBF3FA", end_color="EBF3FA", fill_type="solid")
+        fill_green_light = PatternFill(start_color="ECFDF5", end_color="ECFDF5", fill_type="solid")
+        fill_yellow_light = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+        fill_summary = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+
         border_thin = Border(
-            left=Side(style="thin", color="D0D0D0"),
-            right=Side(style="thin", color="D0D0D0"),
-            top=Side(style="thin", color="D0D0D0"),
-            bottom=Side(style="thin", color="D0D0D0")
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1")
         )
 
-        # Title Rows
-        ws.append([cur_dossier.dossier_name or "BẢNG TỔNG HỢP Ý KIẾN THẨM ĐỊNH DỰ TOÁN"])
-        ws.append(["Tổ Thẩm định Dự toán - Nhà máy Nhiệt điện Vĩnh Tân 4"])
-        ws.append([])
+        def _normalize_pillar(co_so_text, is_pending=False):
+            if is_pending:
+                return 'Chờ ý kiến Lãnh đạo'
+            if not co_so_text:
+                return 'Cơ sở 1: Báo giá cạnh tranh'
+            cs = str(co_so_text).lower()
+            if 'erp' in cs or 'vĩnh tân' in cs:
+                return 'Cơ sở 2: Lịch sử mua sắm ERP VT4'
+            elif 'imis' in cs:
+                return 'Cơ sở 3: CSDL EVN IMIS'
+            elif 'mua sắm công' in cs or 'e-gp' in cs:
+                return 'Cơ sở 4: Mua sắm công (e-GP)'
+            elif 'tmđt' in cs or 'web' in cs or 'thị trường' in cs or 'ecommerce' in cs:
+                return 'Cơ sở 5: Tham khảo TMĐT / Web'
+            elif 'báo giá' in cs or 'quotes' in cs or 'đàm phán' in cs or 'chào' in cs or '1.' in cs:
+                return 'Cơ sở 1: Báo giá cạnh tranh'
+            return 'Cơ sở 1: Báo giá cạnh tranh'
 
+        # Tiêu đề trang trọng
+        ws['A1'] = "TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM - NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4"; ws['A1'].font = font_title_gov
+        ws['A2'] = "TỔ THẨM ĐỊNH DỰ TOÁN"; ws['A2'].font = Font(name="Times New Roman", size=10, bold=True, color="003366", underline="single")
+
+        ws.merge_cells('A3:O3')
+        ws['A3'] = "BẢNG TỔNG HỢP KẾT QUẢ THẨM ĐỊNH DỰ TOÁN MUA SẮM VẬT TƯ"
+        ws['A3'].font = font_title_main
+        ws['A3'].alignment = Alignment(horizontal="center", vertical="center")
+
+        ws.merge_cells('A4:O4')
+        creator = cur_dossier.creator or "Nguyễn Anh Hiếu"
+        ws['A4'] = f"Hồ sơ: {cur_dossier.dossier_name} | Người thực hiện: {creator} | Quy mô: {len(items)} mục"
+        ws['A4'].font = font_sub
+        ws['A4'].alignment = Alignment(horizontal="center", vertical="center")
+
+        # 13 Cột Chuẩn UI + 2 Cột Thẩm Định Pháp Lý
         headers = [
-            "STT", "Mã Vật Tư", "Tên Quy Cách Kỹ Thuật", "ĐVT", "Số Lượng",
-            "Đơn Giá Đề Nghị (Trình)", "Thành Tiền Đề Nghị",
-            "ĐÁNH GIÁ CỦA TỔ THẨM ĐỊNH (TTĐ)",
-            "Ý KIẾN PHẢN BIỆN CỦA PHÒNG KHVT",
-            "Đơn Giá Thống Nhất", "Thành Tiền Thống Nhất", "Giá Trị Giảm",
-            "Cơ Sở Thống Nhất"
+            "1. STT", "2. PYCVT", "3. Tên Vật Tư", "4. Thông Số Kỹ Thuật", "5. ĐVT", "6. SL",
+            "7. Hãng SX / Xuất Xứ", "8. Mã ERP", "9. ĐG Trình (VNĐ)", "10. TT Trình (VNĐ)",
+            "11. ĐG Thống Nhất (VNĐ)", "12. TT Thống Nhất (VNĐ)", "13. Tiền Tiết Kiệm (VNĐ)",
+            "14. Cơ Sở Đơn Giá Thẩm Định", "15. Ý Kiến Đánh Giá Của Tổ Thẩm Định"
         ]
-        ws.append(headers)
 
-        row_header_idx = 4
-        for col_idx in range(1, len(headers) + 1):
-            cell = ws.cell(row=row_header_idx, column=col_idx)
-            cell.font = font_header
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            if col_idx in (8,):
-                cell.fill = fill_header_ttd
-            elif col_idx in (9,):
-                cell.fill = fill_header_khvt
-            elif col_idx in (10, 11, 12, 13):
-                cell.fill = fill_header_res
+        row_hdr = 5
+        for c_idx, h_text in enumerate(headers, 1):
+            c = ws.cell(row=row_hdr, column=c_idx, value=h_text)
+            c.font = font_header
+            c.border = border_thin
+            c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            if c_idx in (11, 12, 13):
+                c.fill = fill_header_res
+            elif c_idx == 14:
+                c.fill = fill_header_cs
             else:
-                cell.fill = fill_header_ttd
+                c.fill = fill_header_main
+        ws.row_dimensions[row_hdr].height = 28
 
-        font_data = Font(name="Times New Roman", size=10)
+        cur_r = 6
         for idx, it in enumerate(items, 1):
             it_dict = it.to_dict() if isinstance(it, DossierItem) else it
-            dg_trinh = float(it_dict.get("don_gia_trinh") or 0)
-            sl = float(it_dict.get("so_luong") or 0)
-            tt_trinh = round(sl * dg_trinh, 0)
-            dg_tn = float(it_dict.get("don_gia_thong_nhat") or dg_trinh)
-            tt_tn = round(sl * dg_tn, 0)
-            giam = max(0.0, float(it_dict.get("gia_tri_giam") or (tt_trinh - tt_tn)))
+            sl = float(it_dict.get('so_luong', 1))
+            dgt = float(it_dict.get('don_gia_trinh', 0))
+            tt_tr = float(it_dict.get('thanh_tien_trinh', sl * dgt))
+            dgtn = float(it_dict.get('don_gia_thong_nhat', 0))
+            tt_tn = float(it_dict.get('thanh_tien_thong_nhat', 0))
+            giam = float(it_dict.get('gia_tri_giam', 0))
+            is_pend = (dgtn == 0)
+
+            pillar_txt = _normalize_pillar(it_dict.get('co_so_thong_nhat', ''), is_pend)
+            danh_gia_txt = it_dict.get('danh_gia_ttd', '')
+            if len(danh_gia_txt) > 220:
+                danh_gia_txt = danh_gia_txt[:220] + '...'
+
+            dgtn_disp = dgtn if not is_pend else "Chờ chỉ đạo"
+            tttn_disp = tt_tn if not is_pend else "Chờ duyệt"
+            giam_disp = giam if not is_pend else "—"
 
             row_vals = [
                 idx,
-                it_dict.get("ma_vt", ""),
-                it_dict.get("ten_vt", ""),
-                it_dict.get("dvt", ""),
+                it_dict.get('pycvt', ''),
+                it_dict.get('ten_vt_goc') or it_dict.get('ten_vt', ''),
+                it_dict.get('thong_so_kt') or it_dict.get('tskt', '') or it_dict.get('part_no', ''),
+                it_dict.get('dvt', 'Cái'),
                 sl,
-                dg_trinh,
-                tt_trinh,
-                it_dict.get("danh_gia_ttd", ""),
-                it_dict.get("phan_bien_khvt", ""),
-                dg_tn,
-                tt_tn,
-                giam,
-                it_dict.get("co_so_thong_nhat", "")
+                it_dict.get('hsx_xx', ''),
+                it_dict.get('ma_vt', ''),
+                dgt,
+                tt_tr,
+                dgtn_disp,
+                tttn_disp,
+                giam_disp,
+                pillar_txt,
+                danh_gia_txt
             ]
-            ws.append(row_vals)
-            cur_row = row_header_idx + idx
-            for col_idx in range(1, len(headers) + 1):
-                c = ws.cell(row=cur_row, column=col_idx)
+
+            for c_idx, val in enumerate(row_vals, 1):
+                c = ws.cell(row=cur_r, column=c_idx, value=val)
                 c.font = font_data
                 c.border = border_thin
-                if col_idx in (5, 6, 7, 10, 11, 12):
-                    c.number_format = '#,##0'
-                if col_idx in (1, 4):
+                if is_pend:
+                    c.fill = fill_yellow_light
+                elif giam > 0:
+                    c.fill = fill_green_light
+                else:
+                    c.fill = fill_navy_light
+
+                if c_idx in (1, 2, 5):
                     c.alignment = Alignment(horizontal="center", vertical="top")
-                elif col_idx in (8, 9, 13):
+                elif c_idx in (7, 8, 14):
+                    c.alignment = Alignment(horizontal="center", vertical="top", wrap_text=True)
+                elif c_idx in (3, 4, 15):
                     c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
                 else:
-                    c.alignment = Alignment(vertical="top")
+                    c.alignment = Alignment(horizontal="right", vertical="top")
 
-        # Độ rộng cột
-        ws.column_dimensions['A'].width = 6
-        ws.column_dimensions['B'].width = 22
-        ws.column_dimensions['C'].width = 36
-        ws.column_dimensions['D'].width = 8
-        ws.column_dimensions['E'].width = 8
-        ws.column_dimensions['F'].width = 16
-        ws.column_dimensions['G'].width = 18
-        ws.column_dimensions['H'].width = 38
-        ws.column_dimensions['I'].width = 38
-        ws.column_dimensions['J'].width = 16
-        ws.column_dimensions['K'].width = 18
-        ws.column_dimensions['L'].width = 16
-        ws.column_dimensions['M'].width = 38
+                if c_idx in (6, 9, 10):
+                    if isinstance(val, (int, float)):
+                        c.number_format = '#,##0'
+                elif c_idx in (11, 12, 13):
+                    if isinstance(val, (int, float)):
+                        c.number_format = '#,##0'
+                    if c_idx == 13 and isinstance(val, (int, float)) and val > 0:
+                        c.font = font_saving
+
+                if is_pend and c_idx in (11, 12, 13, 14):
+                    c.font = font_warning
+
+            ws.row_dimensions[cur_r].height = 24
+            cur_r += 1
+
+        # Summary Row
+        ws.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=9)
+        ws.cell(row=cur_r, column=1, value=f"TỔNG CỘNG TOÀN BỘ ({len(items)} MỤC):").font = font_data_bold
+        ws.cell(row=cur_r, column=1).alignment = Alignment(horizontal="right", vertical="center")
+
+        sum_trinh_all = sum(float(it.to_dict().get('thanh_tien_trinh', 0) if isinstance(it, DossierItem) else it.get('thanh_tien_trinh', 0)) for it in items)
+        sum_tn_all = sum(float(it.to_dict().get('thanh_tien_thong_nhat', 0) if isinstance(it, DossierItem) else it.get('thanh_tien_thong_nhat', 0)) for it in items if float(it.to_dict().get('don_gia_thong_nhat', 0) if isinstance(it, DossierItem) else it.get('don_gia_thong_nhat', 0)) > 0)
+        sum_giam_all = sum(float(it.to_dict().get('gia_tri_giam', 0) if isinstance(it, DossierItem) else it.get('gia_tri_giam', 0)) for it in items)
+
+        ws.cell(row=cur_r, column=10, value=sum_trinh_all).font = font_data_bold; ws.cell(row=cur_r, column=10).number_format = '#,##0'
+        ws.cell(row=cur_r, column=11, value="—").font = font_data_bold; ws.cell(row=cur_r, column=11).alignment = Alignment(horizontal="center", vertical="center")
+        ws.cell(row=cur_r, column=12, value=sum_tn_all).font = font_data_bold; ws.cell(row=cur_r, column=12).number_format = '#,##0'
+        ws.cell(row=cur_r, column=13, value=sum_giam_all).font = font_saving; ws.cell(row=cur_r, column=13).number_format = '#,##0'
+
+        for c_idx in range(1, 16):
+            cell = ws.cell(row=cur_r, column=c_idx)
+            cell.border = border_thin
+            cell.fill = fill_summary
+        ws.row_dimensions[cur_r].height = 26
+        cur_r += 3
+
+        # Signatures
+        ws.cell(row=cur_r, column=3, value="NGƯỜI LẬP BẢNG / THƯ KÝ TỔ TTĐ").font = font_data_bold
+        ws.cell(row=cur_r, column=12, value="TỔ TRƯỞNG TỔ THẨM ĐỊNH DỰ TOÁN").font = font_data_bold
+        ws.cell(row=cur_r+1, column=3, value="(Ký và ghi rõ họ tên)").font = font_sub
+        ws.cell(row=cur_r+1, column=12, value="(Ký và ghi rõ họ tên)").font = font_sub
+        ws.cell(row=cur_r+5, column=3, value=creator).font = font_data_bold
+        ws.cell(row=cur_r+5, column=12, value="...................................................").font = font_data_bold
+
+        col_widths = [('A',6), ('B',14), ('C',28), ('D',32), ('E',8), ('F',8), ('G',18), ('H',18), ('I',16), ('J',18), ('K',16), ('L',18), ('M',16), ('N',28), ('O',36)]
+        for col_letter, w in col_widths:
+            ws.column_dimensions[col_letter].width = w
 
         export_path = os.path.join(active_repo.data_dir, "Bang_Tham_Dinh_Du_Toan.xlsx")
         wb.save(export_path)

@@ -69,6 +69,19 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
   const [itemKeywords, setItemKeywords] = useState({});
   const [runningItemIds, setRunningItemIds] = useState(new Set());
   const [runningAllPillars, setRunningAllPillars] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({
+    isOpen: false,
+    status: "idle",
+    current: 0,
+    total: 0,
+    percent: 0,
+    current_item: "",
+    elapsed_seconds: 0,
+    message: "",
+    exact_match_count: 0,
+    spec_exclusion_count: 0,
+    total_savings: 0,
+  });
 
   // State cho AuditProgressModal (Minh bạch hóa 5 cơ sở)
   const [auditModal, setAuditModal] = useState({
@@ -432,16 +445,83 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
 
   const handleRunAll5Pillars = async () => {
     setRunningAllPillars(true);
+    setBatchProgress({
+      isOpen: true,
+      status: "running",
+      current: 0,
+      total: items.length,
+      percent: 0,
+      current_item: "Khởi động đối soát kỹ thuật đa luồng trên Server...",
+      elapsed_seconds: 0,
+      message: "Đang kết nối Fast Server Pipeline...",
+      exact_match_count: 0,
+      spec_exclusion_count: 0,
+      total_savings: 0,
+    });
+
     try {
-      for (const it of filteredItems) {
-        const itemId = it.id || items.indexOf(it) + 1;
-        // Chạy tuần tự 5 cơ sở nhanh (không gọi AI LLM để tối đa hóa tốc độ)
-        await handleRun5Pillars(itemId, false, false);
+      const startRes = await fetch("/api/pipeline/run-all-fast", { method: "POST" });
+      const startData = await startRes.json();
+      if (!startData.success && startData.status !== "running") {
+        setBatchProgress((prev) => ({
+          ...prev,
+          status: "error",
+          message: startData.message || "Lỗi khởi chạy tiến trình",
+        }));
+        setRunningAllPillars(false);
+        return;
       }
+
+      // Vòng lặp polling tiến độ từ server mỗi 500ms
+      const pollInterval = setInterval(async () => {
+        try {
+          const progRes = await fetch("/api/pipeline/progress");
+          const progData = await progRes.json();
+          if (progData.success && progData.progress) {
+            const p = progData.progress;
+            setBatchProgress((prev) => ({
+              ...prev,
+              status: p.status,
+              current: p.current,
+              total: p.total,
+              percent: p.percent,
+              current_item: p.current_item,
+              elapsed_seconds: p.elapsed_seconds,
+              message: p.message,
+              exact_match_count: p.exact_match_count || 0,
+              spec_exclusion_count: p.spec_exclusion_count || 0,
+              total_savings: p.total_savings || 0,
+            }));
+
+            if (p.status === "completed" || p.status === "stopped" || p.status === "error") {
+              clearInterval(pollInterval);
+              setRunningAllPillars(false);
+              await fetchGridData();
+              if (typeof loadAllEvidenceStatus === "function") {
+                await loadAllEvidenceStatus();
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Lỗi kiểm tra tiến độ tra cứu nhanh:", err);
+        }
+      }, 500);
     } catch (e) {
-      console.error("Lỗi chạy tất cả 5 cơ sở:", e);
-    } finally {
+      console.error("Lỗi khởi chạy batch fast pipeline:", e);
+      setBatchProgress((prev) => ({
+        ...prev,
+        status: "error",
+        message: String(e),
+      }));
       setRunningAllPillars(false);
+    }
+  };
+
+  const handleStopBatch = async () => {
+    try {
+      await fetch("/api/pipeline/stop", { method: "POST" });
+    } catch (e) {
+      console.error("Lỗi gửi lệnh dừng batch:", e);
     }
   };
 
@@ -1265,6 +1345,93 @@ export default function GridMatrixView({ onSelectInspectorItem }) {
             </button>
           </div>
         </div>
+
+        {/* Realtime Batch Progress Card */}
+        {batchProgress.isOpen && (
+          <div className="mx-4 my-2 p-3.5 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white rounded-xl shadow-xl border border-purple-500/30 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                {batchProgress.status === "running" ? (
+                  <div className="p-2 bg-purple-500/20 rounded-lg border border-purple-400/30">
+                    <Loader2 className="w-5 h-5 text-purple-300 animate-spin" />
+                  </div>
+                ) : batchProgress.status === "completed" ? (
+                  <div className="p-2 bg-emerald-500/20 rounded-lg border border-emerald-400/30">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  </div>
+                ) : (
+                  <div className="p-2 bg-amber-500/20 rounded-lg border border-amber-400/30">
+                    <AlertCircle className="w-5 h-5 text-amber-400" />
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm tracking-wide text-white">
+                      ⚡ Tra Cứu Nhanh & Kiểm Soát Quy Cách Kỹ Thuật (Server Multi-thread)
+                    </span>
+                    <span className="text-[11px] bg-purple-500/40 text-purple-200 px-2.5 py-0.5 rounded-full font-mono font-bold">
+                      {batchProgress.percent}% ({batchProgress.current}/{batchProgress.total} mục)
+                    </span>
+                    {batchProgress.elapsed_seconds > 0 && (
+                      <span className="text-[11px] text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded-full font-mono">
+                        ⏱️ {batchProgress.elapsed_seconds}s
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-purple-200/90 mt-0.5 truncate max-w-2xl">
+                    {batchProgress.status === "running" && batchProgress.current_item
+                      ? `Đang đối soát: ${batchProgress.current_item}`
+                      : batchProgress.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {batchProgress.status === "running" && (
+                  <button
+                    onClick={handleStopBatch}
+                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer shadow-sm"
+                  >
+                    ✕ Dừng
+                  </button>
+                )}
+                {batchProgress.status !== "running" && (
+                  <button
+                    onClick={() => setBatchProgress((prev) => ({ ...prev, isOpen: false }))}
+                    className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer shadow-sm"
+                  >
+                    Đóng
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden p-0.5 border border-purple-500/20 mb-2">
+              <div
+                className="bg-gradient-to-r from-purple-500 via-indigo-400 to-emerald-400 h-full rounded-full transition-all duration-300 shadow-sm"
+                style={{ width: `${batchProgress.percent}%` }}
+              />
+            </div>
+
+            {/* Stats row */}
+            <div className="flex items-center gap-4 text-xs text-slate-300 pt-1.5 border-t border-white/10 flex-wrap">
+              <div className="flex items-center gap-1.5 text-emerald-300">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span>Khớp đúng Model/Quy cách: <strong>{batchProgress.exact_match_count}</strong> mục</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-amber-300">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span>Phân tích lý do kỹ thuật (khác quy cách/OEM): <strong>{batchProgress.spec_exclusion_count}</strong> mục</span>
+              </div>
+              {batchProgress.total_savings > 0 && (
+                <div className="flex items-center gap-1.5 text-emerald-300 font-bold ml-auto">
+                  <span>💰 Tổng mức giảm tiết kiệm: {batchProgress.total_savings.toLocaleString("vi-VN")} đ</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Scrollable Table */}
         <div className="flex-1 overflow-auto">

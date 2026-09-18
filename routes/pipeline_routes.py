@@ -44,3 +44,31 @@ def api_run_5_pillars(item_id):
     if not res.get("success"):
         return jsonify(res), 400
     return jsonify(res)
+
+
+@pipeline_bp.route("/api/pipeline/run-all-fast", methods=["POST"])
+def api_run_all_fast():
+    """
+    Kích hoạt tra cứu nhanh toàn bộ 111 mục trên server đa luồng.
+    Tự động đối soát quy cách, model và nêu rõ lý do kỹ thuật.
+    """
+    from services import FastBatchPipelineService
+    res = FastBatchPipelineService.run_batch_async(repo=default_repo, max_workers=6)
+    return jsonify(res)
+
+
+@pipeline_bp.route("/api/pipeline/progress", methods=["GET"])
+def api_get_pipeline_progress():
+    """Lấy trạng thái và tiến độ tra cứu nhanh realtime."""
+    from services import FastBatchPipelineService
+    prog = FastBatchPipelineService.get_progress()
+    return jsonify({"success": True, "progress": prog})
+
+
+@pipeline_bp.route("/api/pipeline/stop", methods=["POST"])
+def api_stop_pipeline():
+    """Dừng tiến trình tra cứu nhanh đang chạy."""
+    from services import FastBatchPipelineService
+    res = FastBatchPipelineService.stop_batch()
+    return jsonify(res)
+

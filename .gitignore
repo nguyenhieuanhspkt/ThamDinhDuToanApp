@@ -27,6 +27,8 @@ data/projects/*.json
 data/*_files/
 data/*.pdf
 data/*.png
+data/*backup*.json
+data/temp*
 
 # --- CÁC FILE TESSERACT OCR BINARY ---
 *.traineddata

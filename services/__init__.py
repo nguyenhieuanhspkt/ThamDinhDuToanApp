@@ -11,6 +11,8 @@ from services.msc_service import MscService
 from services.ai_synthesis_service import AiSynthesisService
 from services.pipeline_service import PipelineService
 from services.excel_service import ExcelService
+from services.spec_verification_engine import SpecVerificationEngine
+from services.fast_batch_pipeline_service import FastBatchPipelineService
 
 __all__ = [
     "QuoteService",
@@ -20,4 +22,6 @@ __all__ = [
     "AiSynthesisService",
     "PipelineService",
     "ExcelService",
+    "SpecVerificationEngine",
+    "FastBatchPipelineService",
 ]

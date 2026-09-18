@@ -82,7 +82,7 @@ class TestFileRepository(unittest.TestCase):
     def test_load_dossier(self):
         """Kiểm tra nạp toàn bộ hồ sơ hiện tại qua Repository."""
         dossier = self.repo.load_dossier()
-        self.assertEqual(dossier.total_items, 112)
+        self.assertEqual(dossier.total_items, 111)
         self.assertGreater(dossier.total_savings, 0)
 
 

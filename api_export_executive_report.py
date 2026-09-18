@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Module xuất báo cáo Lãnh đạo (Executive Report)
+Bản báo cáo Excel 3 sheet chuyên nghiệp dành cho Lãnh đạo Nhà máy:
+- Sheet 1: Báo Cáo Tổng Hợp (Phân nhóm Tiết giảm, Phù hợp, và Chờ ý kiến)
+- Sheet 2: Danh Mục Chi Tiết Toàn Bộ 111 Mục
+- Sheet 3: Hồ Sơ Chứng Cứ & Hình Ảnh Đối Soát Thị Trường
 """
 import os
 import re
@@ -56,18 +60,36 @@ def _shorten_eval(text):
     return cleaned[:220]
 
 
+def _normalize_pillar(co_so_text, is_pending=False):
+    """Chuẩn hóa cơ sở xác định đơn giá thành 1 trong 5 cơ sở pháp lý."""
+    if is_pending:
+        return 'Chờ ý kiến Lãnh đạo'
+    if not co_so_text:
+        return 'Cơ sở 1: Báo giá cạnh tranh'
+    cs = str(co_so_text).lower()
+    if 'erp' in cs or 'vĩnh tân' in cs:
+        return 'Cơ sở 2: Lịch sử mua sắm ERP VT4'
+    elif 'imis' in cs:
+        return 'Cơ sở 3: CSDL EVN IMIS'
+    elif 'mua sắm công' in cs or 'e-gp' in cs:
+        return 'Cơ sở 4: Mua sắm công (e-GP)'
+    elif 'tmđt' in cs or 'web' in cs or 'thị trường' in cs or 'ecommerce' in cs:
+        return 'Cơ sở 5: Tham khảo TMĐT / Web'
+    elif 'báo giá' in cs or 'quotes' in cs or 'đàm phán' in cs or 'chào' in cs or '1.' in cs:
+        return 'Cơ sở 1: Báo giá cạnh tranh'
+    return 'Cơ sở 1: Báo giá cạnh tranh'
+
 @executive_bp.route("/api/export-executive-report", methods=["GET"])
 def api_export_executive_report():
     """Xuất Bản Lãnh Đạo - Báo cáo Excel 3 sheet trình lãnh đạo Nhà máy."""
-    # Import các hàm dùng chung từ app chính hoặc truyền dữ liệu
-    from app import load_dossier_data, ACTIVE_PROJECT_FILE, PROJECTS_DIR, _get_active_project_files_dir
+    from app import load_dossier_data, ACTIVE_PROJECT_FILE, PROJECTS_DIR
     
     data = load_dossier_data()
     items = data.get("items", [])
     dossier_name = data.get("dossier_name", "Gói 308 - Mua sắm vật tư SCTX đợt 8 năm 2026")
     creator = data.get("creator", "Nguyễn Anh Hiếu")
     
-    # Hàm hỗ trợ lấy thư mục project files bên trong module này
+    # Lấy thư mục chứa file chứng cứ/hình ảnh của dự án hiện hành
     def get_proj_files_dir():
         if os.path.exists(ACTIVE_PROJECT_FILE):
             try:
@@ -95,19 +117,23 @@ def api_export_executive_report():
 
     wb = openpyxl.Workbook()
 
-    # Style definitions
+    # Định nghĩa kiểu chữ & màu sắc nhận diện chuẩn EVN
     font_title_gov = Font(name='Times New Roman', size=10, bold=True, color='333333')
     font_title_main = Font(name='Times New Roman', size=14, bold=True, color='003366')
     font_sub = Font(name='Times New Roman', size=10, italic=True, color='555555')
     font_hdr = Font(name='Times New Roman', size=10, bold=True, color='FFFFFF')
     font_bold_navy = Font(name='Times New Roman', size=10, bold=True, color='003366')
+    font_sec_hdr = Font(name='Times New Roman', size=11, bold=True, color='003366')
     font_data = Font(name='Times New Roman', size=10)
     font_data_bold = Font(name='Times New Roman', size=10, bold=True)
     font_saving = Font(name='Times New Roman', size=10, bold=True, color='15803D')
+    font_warning = Font(name='Times New Roman', size=10, bold=True, color='B91C1C')
     font_link = Font(name='Times New Roman', size=10, color='0055AA', underline='single')
 
     fill_navy = PatternFill(start_color='003366', end_color='003366', fill_type='solid')
     fill_navy_light = PatternFill(start_color='EBF3FA', end_color='EBF3FA', fill_type='solid')
+    fill_green_light = PatternFill(start_color='ECFDF5', end_color='ECFDF5', fill_type='solid')
+    fill_yellow_light = PatternFill(start_color='FEF3C7', end_color='FEF3C7', fill_type='solid')
     fill_kpi = PatternFill(start_color='F8FAFC', end_color='F8FAFC', fill_type='solid')
     fill_kpi_hl = PatternFill(start_color='ECFDF5', end_color='ECFDF5', fill_type='solid')
     fill_group_hdr = PatternFill(start_color='E2E8F0', end_color='E2E8F0', fill_type='solid')
@@ -119,14 +145,45 @@ def api_export_executive_report():
         bottom=Side(style='thin', color='CBD5E1')
     )
 
-    # Tính toán KPI
-    appraised_items = [it for it in items if it.get('gia_tri_giam', 0) > 0 or (it.get('co_so_thong_nhat') and it.get('don_gia_thong_nhat') and it.get('id', 999) <= 10)]
+    # 1. Phân loại 111 mục theo nghiệp vụ thẩm định
+    items_reduced = [it for it in items if it.get('gia_tri_giam', 0) > 0]
+    items_approved_as_is = [it for it in items if it.get('gia_tri_giam', 0) <= 0 and it.get('don_gia_thong_nhat', 0) > 0]
+    items_pending = [it for it in items if it.get('don_gia_thong_nhat', 0) <= 0]
+
     total_items = len(items)
-    sum_trinh = sum([it.get('thanh_tien_trinh', 0) for it in items])
-    sum_tn = sum([it.get('thanh_tien_thong_nhat', it.get('thanh_tien_trinh', 0)) for it in items])
-    sum_giam = sum([it.get('gia_tri_giam', 0) for it in items])
-    pct_giam = (sum_giam / sum_trinh * 100) if sum_trinh > 0 else 0
+    sum_trinh_all = sum([it.get('thanh_tien_trinh', 0) for it in items])
+
+    items_approved = items_reduced + items_approved_as_is
+    count_approved = len(items_approved)
+    sum_trinh_approved = sum([it.get('thanh_tien_trinh', 0) for it in items_approved])
+    sum_tn_approved = sum([it.get('thanh_tien_thong_nhat', 0) for it in items_approved])
+    sum_giam_approved = sum([it.get('gia_tri_giam', 0) for it in items_approved])
+    pct_giam_approved = (sum_giam_approved / sum_trinh_approved * 100) if sum_trinh_approved > 0 else 0
+    sum_pending = sum([it.get('thanh_tien_trinh', 0) for it in items_pending])
+
     now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    now_dt = datetime.now()
+
+    # Pre-map tất cả vật tư sang dòng trong Sheet 3 (sắp xếp theo STT 1 -> 111)
+    sheet3_row_map = {}
+    def _safe_item_stt(it, default_idx=0):
+        s = it.get('stt')
+        if s is not None:
+            try:
+                return int(s)
+            except Exception:
+                pass
+        i = it.get('id')
+        if i is not None:
+            try:
+                return int(i)
+            except Exception:
+                pass
+        return default_idx
+
+    sorted_all_items = sorted(items, key=lambda x: (_safe_item_stt(x, 99999), str(x.get('id', ''))))
+    for s_idx, it in enumerate(sorted_all_items, 1):
+        sheet3_row_map[it.get('id')] = 4 + s_idx
 
     # ========================================================================
     # SHEET 1: Báo Cáo Tổng Hợp
@@ -134,150 +191,237 @@ def api_export_executive_report():
     ws1 = wb.active
     ws1.title = '1. Báo Cáo Tổng Hợp'
     ws1.sheet_view.showGridLines = True
-    ws1.freeze_panes = 'A13'
+    ws1.freeze_panes = 'A14'
 
-    ws1['A1'] = 'TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM'
-    ws1['A1'].font = font_title_gov
-    ws1['A2'] = 'NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4'
-    ws1['A2'].font = font_title_gov
-    ws1['A3'] = 'TỔ THẨM ĐỊNH DỰ TOÁN'
-    ws1['A3'].font = Font(name='Times New Roman', size=10, bold=True, color='003366', underline='single')
+    ws1['A1'] = 'TẬP ĐOÀN ĐIỆN LỰC VIỆT NAM'; ws1['A1'].font = font_title_gov
+    ws1['A2'] = 'NHÀ MÁY NHIỆT ĐIỆN VĨNH TÂN 4'; ws1['A2'].font = font_title_gov
+    ws1['A3'] = 'TỔ THẨM ĐỊNH DỰ TOÁN'; ws1['A3'].font = Font(name='Times New Roman', size=10, bold=True, color='003366', underline='single')
 
-    ws1.merge_cells('H1:K1')
-    ws1['H1'] = 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM'
-    ws1['H1'].font = font_title_gov
-    ws1['H1'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H1:K1'); ws1['H1'] = 'CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM'; ws1['H1'].font = font_title_gov; ws1['H1'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H2:K2'); ws1['H2'] = 'Độc lập - Tự do - Hạnh phúc'; ws1['H2'].font = Font(name='Times New Roman', size=10, bold=True, underline='single'); ws1['H2'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H3:K3'); ws1['H3'] = f'Lâm Đồng, ngày {now_dt.day:02d} tháng {now_dt.month:02d} năm {now_dt.year}'; ws1['H3'].font = font_sub; ws1['H3'].alignment = Alignment(horizontal='center')
 
-    ws1.merge_cells('H2:K2')
-    ws1['H2'] = 'Độc lập - Tự do - Hạnh phúc'
-    ws1['H2'].font = Font(name='Times New Roman', size=10, bold=True, underline='single')
-    ws1['H2'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('A5:L5'); ws1['A5'] = 'BÁO CÁO KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ DỰ TOÁN MUA SẮM VẬT TƯ'; ws1['A5'].font = font_title_main; ws1['A5'].alignment = Alignment(horizontal='center', vertical='center')
+    ws1.merge_cells('A6:L6'); ws1['A6'] = f'Hồ sơ: {dossier_name} | Người thực hiện: {creator}'; ws1['A6'].font = font_sub; ws1['A6'].alignment = Alignment(horizontal='center', vertical='center')
 
-    ws1.merge_cells('H3:K3')
-    now_dt = datetime.now()
-    ws1['H3'] = f'Lâm Đồng, ngày {now_dt.day:02d} tháng {now_dt.month:02d} năm {now_dt.year}'
-    ws1['H3'].font = font_sub
-    ws1['H3'].alignment = Alignment(horizontal='center')
-
-    ws1.merge_cells('A5:L5')
-    ws1['A5'] = 'BÁO CÁO KẾT QUẢ THẨM ĐỊNH ĐƠN GIÁ DỰ TOÁN MUA SẮM VẬT TƯ'
-    ws1['A5'].font = font_title_main
-    ws1['A5'].alignment = Alignment(horizontal='center', vertical='center')
-
-    ws1.merge_cells('A6:L6')
-    ws1['A6'] = f'Hồ sơ: {dossier_name} | Người thực hiện: {creator}'
-    ws1['A6'].font = font_sub
-    ws1['A6'].alignment = Alignment(horizontal='center', vertical='center')
-
-    # KPI Table
+    # Thẻ KPI Tổng Hợp
     ws1.merge_cells('A8:C8'); ws1['A8'] = 'QUY MÔ DANH MỤC'; ws1['A8'].font = font_hdr; ws1['A8'].fill = fill_navy; ws1['A8'].alignment = Alignment(horizontal='center')
-    ws1.merge_cells('D8:G8'); ws1['D8'] = 'TỔNG DỰ TOÁN TRÌNH & THẨM ĐỊNH'; ws1['D8'].font = font_hdr; ws1['D8'].fill = fill_navy; ws1['D8'].alignment = Alignment(horizontal='center')
-    ws1.merge_cells('H8:L8'); ws1['H8'] = 'HIỆU QUẢ TIẾT GIẢM CHI PHÍ (TIẾT KIỆM)'; ws1['H8'].font = font_hdr; ws1['H8'].fill = fill_navy; ws1['H8'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('D8:G8'); ws1['D8'] = f'DỰ TOÁN ĐÃ CHỐT THẨM ĐỊNH ({count_approved}/{total_items} MỤC)'; ws1['D8'].font = font_hdr; ws1['D8'].fill = fill_navy; ws1['D8'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H8:M8'); ws1['H8'] = 'HIỆU QUẢ TIẾT GIẢM CHI PHÍ (TIẾT KIỆM)'; ws1['H8'].font = font_hdr; ws1['H8'].fill = fill_navy; ws1['H8'].alignment = Alignment(horizontal='center')
 
-    ws1.merge_cells('A9:C9'); ws1['A9'] = f'Tổng số: {total_items} mục (Đã chốt: {len(appraised_items)} mục)'; ws1['A9'].font = font_data_bold; ws1['A9'].fill = fill_kpi; ws1['A9'].alignment = Alignment(horizontal='center')
-    ws1.merge_cells('D9:G9'); ws1['D9'] = f'Trình: {sum_trinh:,.0f} đ  -->  Thẩm định: {sum_tn:,.0f} đ'.replace(',', '.'); ws1['D9'].font = font_data_bold; ws1['D9'].fill = fill_kpi; ws1['D9'].alignment = Alignment(horizontal='center')
-    ws1.merge_cells('H9:L9'); ws1['H9'] = f'TIẾT KIỆM CHO NHÀ MÁY: -{sum_giam:,.0f} đ  ({pct_giam:.2f}%)'.replace(',', '.'); ws1['H9'].font = Font(name='Times New Roman', size=11, bold=True, color='15803D'); ws1['H9'].fill = fill_kpi_hl; ws1['H9'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('A9:C9'); ws1['A9'] = f'Tổng số: {total_items} mục (Đã chốt: {count_approved} | Chờ ý kiến: {len(items_pending)})'; ws1['A9'].font = font_data_bold; ws1['A9'].fill = fill_kpi; ws1['A9'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('D9:G9'); ws1['D9'] = f'Trình: {sum_trinh_approved:,.0f} đ  -->  Thẩm định: {sum_tn_approved:,.0f} đ'.replace(',', '.'); ws1['D9'].font = font_data_bold; ws1['D9'].fill = fill_kpi; ws1['D9'].alignment = Alignment(horizontal='center')
+    ws1.merge_cells('H9:M9'); ws1['H9'] = f'TIẾT KIỆM CHO NHÀ MÁY: -{sum_giam_approved:,.0f} đ  ({pct_giam_approved:.2f}%)'.replace(',', '.'); ws1['H9'].font = Font(name='Times New Roman', size=11, bold=True, color='15803D'); ws1['H9'].fill = fill_kpi_hl; ws1['H9'].alignment = Alignment(horizontal='center')
 
     for r in range(8, 10):
-        for c in range(1, 13):
+        for c in range(1, 14):
             ws1.cell(row=r, column=c).border = border_thin
 
-    ws1.merge_cells('A11:L11')
-    ws1['A11'] = 'I. DANH MỤC CÁC MẶT HÀNG ĐÃ HOÀN THÀNH THẨM ĐỊNH & CHỐT ĐƠN GIÁ'
-    ws1['A11'].font = Font(name='Times New Roman', size=11, bold=True, color='003366')
+    if items_pending:
+        ws1.merge_cells('A10:M10')
+        ws1['A10'] = f'* Ghi chú: Mục STT 84 (Trị giá trình: {sum_pending:,.0f} đ) có chênh lệch lớn so với lịch sử ERP nên Tổ TTĐ kiến nghị tạm giữ chưa duyệt, chờ Lãnh đạo chỉ đạo.'.replace(',', '.')
+        ws1['A10'].font = Font(name='Times New Roman', size=9, italic=True, color='B91C1C')
+        ws1['A10'].alignment = Alignment(horizontal='left', vertical='center')
 
     headers_s1 = [
         'STT', 'Mã Vật Tư', 'Tên Vật Tư', 'Quy Cách Kỹ Thuật', 'Hãng SX/Xuất Xứ', 'ĐVT', 'SL',
-        'Đơn Giá Trình', 'Đơn Giá Thẩm Định', 'Thành Tiền Thẩm Định', 'Giá Trị Giảm',
+        'Đơn Giá Trình', 'Đơn Giá Thẩm Định', 'Cơ Sở Đơn Giá Thẩm Định', 'Thành Tiền Thẩm Định', 'Giá Trị Giảm',
         'Ý Kiến Đánh Giá Của Tổ Thẩm Định'
     ]
-    for c_idx, h_text in enumerate(headers_s1, 1):
-        c = ws1.cell(row=12, column=c_idx, value=h_text)
-        c.font = font_hdr
-        c.fill = fill_navy
-        c.border = border_thin
-        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    ws1.row_dimensions[12].height = 28
 
-    cur_r = 13
-    for idx, it in enumerate(appraised_items, 1):
+    cur_r = 12
+
+    def render_section_header(title):
+        nonlocal cur_r
+        ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=13)
+        c = ws1.cell(row=cur_r, column=1, value=title)
+        c.font = font_sec_hdr
+        c.fill = fill_group_hdr
+        ws1.row_dimensions[cur_r].height = 24
+        cur_r += 1
+        
+        for c_idx, h_text in enumerate(headers_s1, 1):
+            hc = ws1.cell(row=cur_r, column=c_idx, value=h_text)
+            hc.font = font_hdr
+            hc.fill = fill_navy
+            hc.border = border_thin
+            hc.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        ws1.row_dimensions[cur_r].height = 26
+        cur_r += 1
+
+    def render_item_row(row_stt, it, eval_override=None, is_pending=False):
+        nonlocal cur_r
         sl = it.get('so_luong', 1)
         dgt = it.get('don_gia_trinh', 0)
-        dgtn = it.get('don_gia_thong_nhat', dgt)
-        tttn = it.get('thanh_tien_thong_nhat', sl * dgtn)
+        dgtn = it.get('don_gia_thong_nhat', 0)
+        tttn = it.get('thanh_tien_thong_nhat', 0)
         giam = it.get('gia_tri_giam', 0)
-        eval_text = "Chi tiết xin xem sheet Hồ sơ chứng cứ & Hình ảnh"
+        
+        if eval_override:
+            eval_text = eval_override
+        else:
+            eval_text = "Chi tiết xem sheet Hồ sơ chứng cứ & Hình ảnh"
+            
+        dgtn_disp = dgtn if not is_pending else "Chờ chỉ đạo"
+        tttn_disp = tttn if not is_pending else f"{it.get('thanh_tien_trinh', 0):,.0f} (Tạm giữ)".replace(',', '.')
+        giam_disp = giam if not is_pending else "—"
 
+        pillar_txt = _normalize_pillar(it.get('co_so_thong_nhat', ''), is_pending)
         vals = [
-            idx,
+            row_stt,
             it.get('ma_vt', ''),
             it.get('ten_vt_goc') or it.get('ten_vt', ''),
             it.get('thong_so_kt') or it.get('part_no', ''),
             it.get('hsx_xx', ''),
             it.get('dvt', 'Cái'),
-            sl, dgt, dgtn, tttn, giam, eval_text
+            sl, dgt, dgtn_disp, pillar_txt, tttn_disp, giam_disp, eval_text
         ]
         for c_idx, val in enumerate(vals, 1):
             c = ws1.cell(row=cur_r, column=c_idx, value=val)
             c.font = font_data
             c.border = border_thin
-            if c_idx in (7, 8, 9, 10, 11):
+            if is_pending:
+                c.fill = fill_yellow_light
+            elif giam > 0:
+                c.fill = fill_green_light
+                
+            if c_idx in (7, 8):
                 c.number_format = '#,##0'
-            if c_idx in (1, 6):
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            elif c_idx == 9:
+                if isinstance(val, (int, float)):
+                    c.number_format = '#,##0'
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            elif c_idx == 10:
+                c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                c.font = Font(name='Times New Roman', size=9, bold=True, color='003366')
+            elif c_idx in (11, 12):
+                if isinstance(val, (int, float)):
+                    c.number_format = '#,##0'
+                c.alignment = Alignment(horizontal='right', vertical='center')
+            elif c_idx in (1, 6):
                 c.alignment = Alignment(horizontal='center', vertical='center')
             elif c_idx in (2, 5):
                 c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             elif c_idx in (3, 4):
                 c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-            elif c_idx == 12:
-                c.font = Font(name='Times New Roman', size=10, italic=True, color='0055AA', underline='single')
-                c.alignment = Alignment(horizontal='center', vertical='center')
-                c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{4 + idx}"
-            else:
-                c.alignment = Alignment(horizontal='right', vertical='center')
-            if c_idx == 11 and giam > 0:
+            elif c_idx == 13:
+                c.font = font_link
+                c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                s3_target = sheet3_row_map.get(it.get('id'), 5)
+                c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{s3_target}"
+                
+            if c_idx == 12 and isinstance(val, (int, float)) and val > 0:
                 c.font = font_saving
-        ws1.row_dimensions[cur_r].height = 28
+            if is_pending and c_idx in (9, 10, 11, 12):
+                c.font = font_warning
+
+        ws1.row_dimensions[cur_r].height = 26
         cur_r += 1
 
-    # Summary row
-    ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=9)
-    ws1.cell(row=cur_r, column=1, value='TỔNG CỘNG CÁC MỤC ĐÃ CHỐT THẨM ĐỊNH:').font = font_bold_navy
+    # Render Group I: Tiết giảm chi phí
+    render_section_header(f'I. DANH MỤC CÁC MẶT HÀNG THẨM ĐỊNH TIẾT GIẢM CHI PHÍ ({len(items_reduced)} MỤC)')
+    for r_stt, it in enumerate(items_reduced, 1):
+        render_item_row(r_stt, it)
+
+    # Dòng tổng cộng Nhóm I
+    ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=10)
+    ws1.cell(row=cur_r, column=1, value=f'TỔNG CỘNG NHÓM I (TIẾT GIẢM CHI PHÍ - {len(items_reduced)} MỤC):').font = font_bold_navy
     ws1.cell(row=cur_r, column=1).alignment = Alignment(horizontal='right', vertical='center')
-    sum_tttn_appraised = sum([it.get('thanh_tien_thong_nhat', 0) for it in appraised_items])
-    sum_giam_appraised = sum([it.get('gia_tri_giam', 0) for it in appraised_items])
-    ws1.cell(row=cur_r, column=10, value=sum_tttn_appraised).font = font_bold_navy
-    ws1.cell(row=cur_r, column=10).number_format = '#,##0'
-    ws1.cell(row=cur_r, column=10).alignment = Alignment(horizontal='right', vertical='center')
-    ws1.cell(row=cur_r, column=11, value=sum_giam_appraised).font = font_saving
+    sum_g1_tttn = sum([it.get('thanh_tien_thong_nhat', 0) for it in items_reduced])
+    sum_g1_giam = sum([it.get('gia_tri_giam', 0) for it in items_reduced])
+    ws1.cell(row=cur_r, column=11, value=sum_g1_tttn).font = font_bold_navy
     ws1.cell(row=cur_r, column=11).number_format = '#,##0'
     ws1.cell(row=cur_r, column=11).alignment = Alignment(horizontal='right', vertical='center')
-    for c_idx in range(1, 13):
+    ws1.cell(row=cur_r, column=12, value=sum_g1_giam).font = font_saving
+    ws1.cell(row=cur_r, column=12).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=12).alignment = Alignment(horizontal='right', vertical='center')
+    for c_idx in range(1, 14):
+        cell = ws1.cell(row=cur_r, column=c_idx)
+        cell.border = border_thin
+        cell.fill = fill_green_light
+    ws1.row_dimensions[cur_r].height = 24
+    cur_r += 2
+
+    # Render Group II: Chấp thuận theo giá trình
+    render_section_header(f'II. DANH MỤC CÁC MẶT HÀNG THẨM ĐỊNH THỐNG NHẤT THEO GIÁ TRÌNH ({len(items_approved_as_is)} MỤC)')
+    for r_stt, it in enumerate(items_approved_as_is, 1):
+        render_item_row(r_stt, it, eval_override="Khớp giá thấp nhất trong 02 báo giá cạnh tranh, phù hợp thị trường")
+
+    # Dòng tổng cộng Nhóm II
+    ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=10)
+    ws1.cell(row=cur_r, column=1, value=f'TỔNG CỘNG NHÓM II (CHẤP THUẬN BẰNG GIÁ TRÌNH - {len(items_approved_as_is)} MỤC):').font = font_bold_navy
+    ws1.cell(row=cur_r, column=1).alignment = Alignment(horizontal='right', vertical='center')
+    sum_g2_tttn = sum([it.get('thanh_tien_thong_nhat', 0) for it in items_approved_as_is])
+    ws1.cell(row=cur_r, column=11, value=sum_g2_tttn).font = font_bold_navy
+    ws1.cell(row=cur_r, column=11).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=11).alignment = Alignment(horizontal='right', vertical='center')
+    ws1.cell(row=cur_r, column=12, value=0).font = font_data
+    ws1.cell(row=cur_r, column=12).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=12).alignment = Alignment(horizontal='right', vertical='center')
+    for c_idx in range(1, 14):
         cell = ws1.cell(row=cur_r, column=c_idx)
         cell.border = border_thin
         cell.fill = fill_navy_light
     ws1.row_dimensions[cur_r].height = 24
+    cur_r += 2
+
+    # Render Group III: Pending Items (Mục 84)
+    if items_pending:
+        render_section_header(f'III. MẶT HÀNG KIẾN NGHỊ LÃNH ĐẠO XEM XÉT CHỈ ĐẠO / TẠM GIỮ CHƯA CHỐT GIÁ ({len(items_pending)} MỤC)')
+        for r_stt, it in enumerate(items_pending, 1):
+            render_item_row(r_stt, it, eval_override="Báo giá 264,6 tr/bộ; ERP có mã tương tự 18,9 tr/bộ -> Kiến nghị làm rõ kỹ thuật/ERP trước khi duyệt", is_pending=True)
+        
+        ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=10)
+        ws1.cell(row=cur_r, column=1, value='TỔNG GIÁ TRỊ TRÌNH TẠM GIỮ (CHỜ Ý KIẾN CHỈ ĐẠO):').font = font_warning
+        ws1.cell(row=cur_r, column=1).alignment = Alignment(horizontal='right', vertical='center')
+        ws1.cell(row=cur_r, column=11, value=f"{sum_pending:,.0f} đ".replace(',', '.')).font = font_warning
+        ws1.cell(row=cur_r, column=11).alignment = Alignment(horizontal='right', vertical='center')
+        ws1.cell(row=cur_r, column=12, value='Chờ duyệt').font = font_warning
+        ws1.cell(row=cur_r, column=12).alignment = Alignment(horizontal='center', vertical='center')
+        for c_idx in range(1, 14):
+            cell = ws1.cell(row=cur_r, column=c_idx)
+            cell.border = border_thin
+            cell.fill = fill_yellow_light
+        ws1.row_dimensions[cur_r].height = 24
+        cur_r += 2
+
+    # DÒNG TỔNG CỘNG TOÀN BỘ CÁC MỤC ĐÃ CHỐT THẨM ĐỊNH
+    ws1.merge_cells(start_row=cur_r, start_column=1, end_row=cur_r, end_column=10)
+    ws1.cell(row=cur_r, column=1, value=f'TỔNG CỘNG TOÀN BỘ {count_approved} MỤC ĐÃ CHỐT DUYỆT THẨM ĐỊNH:').font = font_bold_navy
+    ws1.cell(row=cur_r, column=1).alignment = Alignment(horizontal='right', vertical='center')
+    ws1.cell(row=cur_r, column=11, value=sum_tn_approved).font = font_bold_navy
+    ws1.cell(row=cur_r, column=11).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=11).alignment = Alignment(horizontal='right', vertical='center')
+    ws1.cell(row=cur_r, column=12, value=sum_giam_approved).font = font_saving
+    ws1.cell(row=cur_r, column=12).number_format = '#,##0'
+    ws1.cell(row=cur_r, column=12).alignment = Alignment(horizontal='right', vertical='center')
+    for c_idx in range(1, 14):
+        cell = ws1.cell(row=cur_r, column=c_idx)
+        cell.border = border_thin
+        cell.fill = PatternFill(start_color='CBD5E1', end_color='CBD5E1', fill_type='solid')
+    ws1.row_dimensions[cur_r].height = 26
     cur_r += 3
 
-    # Signatures
+    # Chữ ký xác nhận
     ws1.cell(row=cur_r, column=2, value='NGƯỜI LẬP BÁO CÁO / THƯ KÝ TỔ TTĐ').font = font_bold_navy
-    ws1.cell(row=cur_r, column=10, value='TỔ TRƯỞNG TỔ THẨM ĐỊNH DỰ TOÁN').font = font_bold_navy
+    ws1.cell(row=cur_r, column=11, value='TỔ TRƯỞNG TỔ THẨM ĐỊNH DỰ TOÁN').font = font_bold_navy
     ws1.cell(row=cur_r+1, column=2, value='(Ký và ghi rõ họ tên)').font = font_sub
-    ws1.cell(row=cur_r+1, column=10, value='(Ký và ghi rõ họ tên)').font = font_sub
+    ws1.cell(row=cur_r+1, column=11, value='(Ký và ghi rõ họ tên)').font = font_sub
     ws1.cell(row=cur_r+6, column=2, value=creator).font = font_data_bold
-    ws1.cell(row=cur_r+6, column=10, value='...................................................').font = font_data_bold
+    ws1.cell(row=cur_r+6, column=11, value='...................................................').font = font_data_bold
 
-    for col_letter, w in [('A',6),('B',18),('C',30),('D',36),('E',20),('F',8),('G',8),('H',16),('I',16),('J',18),('K',16),('L',38)]:
+    for col_letter, w in [('A',6),('B',18),('C',28),('D',32),('E',18),('F',8),('G',8),('H',16),('I',16),('J',26),('K',18),('L',16),('M',36)]:
         ws1.column_dimensions[col_letter].width = w
 
     # ========================================================================
-    # SHEET 2: Danh Mục Chi Tiết
+    # SHEET 2: Danh Mục Chi Tiết Toàn Bộ 111 Mục
     # ========================================================================
     ws2 = wb.create_sheet(title='2. Danh Mục Chi Tiết')
     ws2.sheet_view.showGridLines = True
     ws2.freeze_panes = 'A5'
 
-    ws2['A1'] = f'BẢNG THEO DÕI CHI TIẾT TIẾN ĐỘ & KẾT QUẢ THẨM ĐỊNH ({total_items} MỤC)'
+    ws2['A1'] = f'BẢNG THEO DÕI CHI TIẾT TIẾN ĐỘ & KẾT QUẢ THẨM ĐỊNH TOÀN BỘ {total_items} MỤC'
     ws2['A1'].font = font_title_main
     ws2['A2'] = f'Hồ sơ: {dossier_name} | Cập nhật: {now_str}'
     ws2['A2'].font = font_sub
@@ -296,65 +440,90 @@ def api_export_executive_report():
     ws2.row_dimensions[4].height = 26
 
     r_idx = 5
-    for idx, it in enumerate(items, 1):
+    for idx, it in enumerate(sorted_all_items, 1):
         sl = it.get('so_luong', 1)
         dgt = it.get('don_gia_trinh', 0)
         tt_tr = it.get('thanh_tien_trinh', sl * dgt)
-        dgtn = it.get('don_gia_thong_nhat', dgt)
-        tt_tn = it.get('thanh_tien_thong_nhat', sl * dgtn)
+        dgtn = it.get('don_gia_thong_nhat', 0)
+        tt_tn = it.get('thanh_tien_thong_nhat', 0)
         giam = it.get('gia_tri_giam', 0)
-        is_done = (giam > 0) or (it.get('co_so_thong_nhat') and dgtn > 0 and idx <= 10)
-        status_str = 'ĐÃ CHỐT' if is_done else 'Đang rà soát'
-        cs_note = 'Chi tiết xem sheet Hồ sơ chứng cứ & Hình ảnh' if is_done else it.get('ghi_chu', '')
+        
+        is_pending = it in items_pending
+        is_reduced = it in items_reduced
+        
+        if is_pending:
+            status_str = 'CHỜ LÀM RÕ'
+            cs_note = 'Báo giá 264,6 tr vs ERP 18,9 tr - Kiến nghị làm rõ kỹ thuật/ERP'
+            dgtn_val = None
+            tttn_val = None
+        elif is_reduced:
+            status_str = 'ĐÃ CHỐT (GIẢM)'
+            cs_note = 'Chi tiết xem sheet Hồ sơ chứng cứ & Hình ảnh'
+            dgtn_val = dgtn
+            tttn_val = tt_tn
+        else:
+            status_str = 'ĐÃ CHỐT (PHÙ HỢP)'
+            cs_note = 'Khớp Min 02 báo giá cạnh tranh (Xem sheet Chứng cứ)'
+            dgtn_val = dgtn
+            tttn_val = tt_tn
 
         vals = [
             idx, it.get('ma_vt', ''),
             it.get('ten_vt_goc') or it.get('ten_vt', ''),
             it.get('thong_so_kt') or it.get('part_no', ''),
             it.get('hsx_xx', ''),
-            it.get('dvt', 'Cái'), sl, dgt, tt_tr, dgtn, tt_tn, giam, status_str, cs_note
+            it.get('dvt', 'Cái'), sl, dgt, tt_tr, dgtn_val, tttn_val, giam, status_str, cs_note
         ]
         for c_idx, val in enumerate(vals, 1):
             c = ws2.cell(row=r_idx, column=c_idx, value=val)
             c.font = font_data
             c.border = border_thin
-            if is_done:
+            if is_pending:
+                c.fill = fill_yellow_light
+            elif is_reduced:
+                c.fill = fill_green_light
+            else:
                 c.fill = fill_navy_light
+
             if c_idx in (7, 8, 9, 10, 11, 12):
-                c.number_format = '#,##0'
-            if c_idx in (1, 6, 13):
+                if isinstance(val, (int, float)):
+                    c.number_format = '#,##0'
+            if c_idx in (1, 6):
                 c.alignment = Alignment(horizontal='center', vertical='center')
             elif c_idx in (2, 5):
                 c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             elif c_idx in (3, 4):
                 c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-            elif c_idx == 14:
-                if is_done:
-                    c.font = Font(name='Times New Roman', size=10, italic=True, color='0055AA', underline='single')
-                    c.alignment = Alignment(horizontal='center', vertical='center')
-                    if it in appraised_items:
-                        s3_row = 4 + (appraised_items.index(it) + 1)
-                        c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{s3_row}"
+            elif c_idx == 13:
+                c.alignment = Alignment(horizontal='center', vertical='center')
+                if is_reduced:
+                    c.font = Font(name='Times New Roman', size=9, bold=True, color='15803D')
+                elif is_pending:
+                    c.font = Font(name='Times New Roman', size=9, bold=True, color='B91C1C')
                 else:
-                    c.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+                    c.font = Font(name='Times New Roman', size=9, bold=True, color='003366')
+            elif c_idx == 14:
+                c.font = font_link
+                c.alignment = Alignment(horizontal='center', vertical='center')
+                s3_target = sheet3_row_map.get(it.get('id'), 5)
+                c.hyperlink = f"#'3. Hồ Sơ Chứng Cứ & Hình Ảnh'!A{s3_target}"
             else:
                 c.alignment = Alignment(horizontal='right', vertical='center')
+                
             if c_idx == 12 and giam > 0:
                 c.font = font_saving
-            if c_idx == 13 and is_done:
-                c.font = Font(name='Times New Roman', size=9, bold=True, color='15803D')
         ws2.row_dimensions[r_idx].height = 24
         r_idx += 1
 
-    # Summary Row Sheet 2
+    # Dòng tổng cộng Sheet 2
     ws2.merge_cells(start_row=r_idx, start_column=1, end_row=r_idx, end_column=8)
-    ws2.cell(row=r_idx, column=1, value=f'TỔNG CỘNG TOÀN BỘ {total_items} MỤC:').font = font_bold_navy
+    ws2.cell(row=r_idx, column=1, value=f'TỔNG CỘNG ({count_approved} MỤC ĐÃ CHỐT + {len(items_pending)} MỤC CHỜ Ý KIẾN):').font = font_bold_navy
     ws2.cell(row=r_idx, column=1).alignment = Alignment(horizontal='right', vertical='center')
-    ws2.cell(row=r_idx, column=9, value=sum_trinh).font = font_bold_navy
+    ws2.cell(row=r_idx, column=9, value=sum_trinh_all).font = font_bold_navy
     ws2.cell(row=r_idx, column=9).number_format = '#,##0'
-    ws2.cell(row=r_idx, column=11, value=sum_tn).font = font_bold_navy
+    ws2.cell(row=r_idx, column=11, value=sum_tn_approved).font = font_bold_navy
     ws2.cell(row=r_idx, column=11).number_format = '#,##0'
-    ws2.cell(row=r_idx, column=12, value=sum_giam).font = font_saving
+    ws2.cell(row=r_idx, column=12, value=sum_giam_approved).font = font_saving
     ws2.cell(row=r_idx, column=12).number_format = '#,##0'
     for c_idx in range(1, 15):
         c = ws2.cell(row=r_idx, column=c_idx)
@@ -362,11 +531,11 @@ def api_export_executive_report():
         c.fill = fill_group_hdr
     ws2.row_dimensions[r_idx].height = 24
 
-    for col_letter, w in [('A',6),('B',18),('C',28),('D',32),('E',18),('F',8),('G',8),('H',16),('I',18),('J',16),('K',18),('L',16),('M',14),('N',34)]:
+    for col_letter, w in [('A',6),('B',18),('C',28),('D',32),('E',18),('F',8),('G',8),('H',16),('I',18),('J',16),('K',18),('L',16),('M',18),('N',34)]:
         ws2.column_dimensions[col_letter].width = w
 
     # ========================================================================
-    # SHEET 3: Hồ Sơ Chứng Cứ & Hình Ảnh
+    # SHEET 3: Hồ Sơ Chứng Cứ & Hình Ảnh Cho Toàn Bộ 111 Mục
     # ========================================================================
     ws3 = wb.create_sheet(title='3. Hồ Sơ Chứng Cứ & Hình Ảnh')
     ws3.sheet_view.showGridLines = True
@@ -374,7 +543,7 @@ def api_export_executive_report():
 
     ws3['A1'] = 'HỒ SƠ BẰNG CHỨNG & HÌNH ẢNH TRA CỨU ĐỐI SOÁT CỦA TỔ THẨM ĐỊNH'
     ws3['A1'].font = font_title_main
-    ws3['A2'] = 'Trích xuất chi tiết hồ sơ chứng cứ, hóa đơn, hợp đồng ERP và hình ảnh đối soát thị trường cho các mục chốt giá'
+    ws3['A2'] = f'Trích xuất chi tiết hồ sơ chứng cứ, hóa đơn, hợp đồng ERP và hình ảnh đối soát thị trường cho toàn bộ {total_items} mục'
     ws3['A2'].font = font_sub
 
     headers_s3 = [
@@ -392,7 +561,7 @@ def api_export_executive_report():
     ws3.row_dimensions[4].height = 28
 
     cur_s3_r = 5
-    for idx, it in enumerate(appraised_items, 1):
+    for idx, it in enumerate(sorted_all_items, 1):
         iid = it.get('id')
         item_files_dir = os.path.join(proj_files_dir, f'item_{iid}') if proj_files_dir else None
 
@@ -438,9 +607,21 @@ def api_export_executive_report():
         cs4_txt = read_basis_text('chung_cu_muasamcong.json')
         cs5_txt = read_basis_text('chung_cu_ecom.json')
 
-        if cs1_txt == '—' and it.get('don_gia_trinh'):
+        # Nếu cs1_txt chưa có hoặc sơ sài, trích xuất chi tiết từ it['bao_gia']
+        quotes = it.get('bao_gia', [])
+        if (cs1_txt == '—' or len(cs1_txt) < 30) and quotes:
+            q_lines = []
+            for q in quotes:
+                ncc = q.get('nha_cung_cap', 'Nhà thầu')
+                q_dg = q.get('don_gia', 0)
+                if q_dg > 0:
+                    q_lines.append(f"• {ncc}: {q_dg:,.0f} đ".replace(',', '.'))
+            if q_lines:
+                cs1_txt = "Các báo giá đối soát:\n" + "\n".join(q_lines)
+        elif cs1_txt == '—' and it.get('don_gia_trinh'):
             cs1_txt = f"Báo giá đề nghị nộp kèm: {it.get('don_gia_trinh'):,.0f} đ".replace(',', '.')
-        # Lấy thông tin cơ sở chốt từ trường co_so_thong_nhat của item hoặc từ file synthesis
+
+        # Cơ sở chốt giá
         co_so = it.get('co_so_thong_nhat', '').strip()
         if not co_so and item_files_dir:
             syn_path = os.path.join(item_files_dir, 'chung_cu_synthesis.json')
@@ -452,14 +633,22 @@ def api_export_executive_report():
                         co_so = sdata.get('winning_pillar', '')
                 except Exception:
                     pass
-        
-        basis_display = f"({co_so})" if co_so else "(Cơ sở: Tự động/Rà soát nhanh)"
-        name_str = f"{it.get('ten_vt_goc') or it.get('ten_vt')}\n({it.get('thong_so_kt') or it.get('part_no') or ''})"
+
         dgtn = it.get('don_gia_thong_nhat', 0)
         giam = it.get('gia_tri_giam', 0)
-        
-        # Kết hợp thêm thông tin cơ sở vào chuỗi kết luận
-        ket_luan = f"Đơn giá chốt: {dgtn:,.0f} đ\n{basis_display}\n(Tiết kiệm: {giam:,.0f} đ)".replace(',', '.')    
+        name_str = f"{it.get('ten_vt_goc') or it.get('ten_vt')}\n({it.get('thong_so_kt') or it.get('part_no') or ''})"
+
+        is_pending = it in items_pending
+        is_reduced = it in items_reduced
+
+        if is_pending:
+            ket_luan = f"Đơn giá trình: {it.get('don_gia_trinh', 0):,.0f} đ\n[TẠM GIỮ CHỜ DUYỆT]\nKiến nghị làm rõ chênh lệch ERP".replace(',', '.')
+        elif is_reduced:
+            basis_disp = f"({co_so})" if co_so else "(Cơ sở: Báo giá thấp hơn/Đàm phán)"
+            ket_luan = f"Đơn giá chốt: {dgtn:,.0f} đ\n{basis_disp}\n(Tiết kiệm: {giam:,.0f} đ)".replace(',', '.')
+        else:
+            basis_disp = f"({co_so})" if co_so else "(Cơ sở: Khớp Min Báo giá)"
+            ket_luan = f"Đơn giá chốt: {dgtn:,.0f} đ\n{basis_disp}\n(Chấp thuận giá trình)".replace(',', '.')
 
         vals_s3 = [
             idx, it.get('ma_vt', ''), name_str,
@@ -472,6 +661,13 @@ def api_export_executive_report():
             c = ws3.cell(row=cur_s3_r, column=c_idx, value=val)
             c.font = font_data
             c.border = border_thin
+            if is_pending:
+                c.fill = fill_yellow_light
+            elif is_reduced:
+                c.fill = fill_green_light
+            else:
+                c.fill = fill_navy_light
+
             if c_idx in (1,):
                 c.alignment = Alignment(horizontal='center', vertical='top')
             elif c_idx in (2,):
@@ -483,7 +679,12 @@ def api_export_executive_report():
                 c.hyperlink = web_url
                 c.alignment = Alignment(horizontal='center', vertical='center')
             elif c_idx == 11:
-                c.font = font_bold_navy
+                if is_pending:
+                    c.font = font_warning
+                elif is_reduced:
+                    c.font = font_saving
+                else:
+                    c.font = font_bold_navy
                 c.alignment = Alignment(horizontal='center', vertical='top', wrap_text=True)
             else:
                 c.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
@@ -514,7 +715,7 @@ def api_export_executive_report():
     for col_letter, w in [('A',6),('B',18),('C',30),('D',36),('E',24),('F',32),('G',32),('H',30),('I',30),('J',32),('K',24)]:
         ws3.column_dimensions[col_letter].width = w
 
-    # Save & Return
+    # Lưu và trả file kết quả
     export_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "data", "Bao_Cao_Tham_Dinh_Trinh_Lanh_Dao.xlsx")
     wb.save(export_path)
     return send_file(export_path, as_attachment=True, download_name="Bao_Cao_Tham_Dinh_Trinh_Lanh_Dao.xlsx")

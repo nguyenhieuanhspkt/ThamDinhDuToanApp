@@ -122,16 +122,16 @@ class TestRealWorldDossierAndEvidence(unittest.TestCase):
             self.skipTest("Không tìm thấy current_dossier.json")
 
         project = ProjectDossier.from_file(dossier_path)
-        self.assertEqual(project.total_items, 112)
+        self.assertEqual(project.total_items, 111)
         self.assertGreater(project.total_trinh, 0)
         self.assertGreater(project.total_thong_nhat, 0)
         self.assertGreater(project.total_savings, 0)
 
-        # Kiểm tra mục #74 trong hồ sơ thực tế không có tiết kiệm ảo
-        it_74 = project.get_item(74)
-        self.assertIsNotNone(it_74)
-        self.assertEqual(it_74.don_gia_thong_nhat, 0.0)
-        self.assertEqual(it_74.gia_tri_giam, 0.0)
+        # Kiểm tra mục #73 (cũ là #74) trong hồ sơ thực tế không có tiết kiệm ảo
+        it_73 = project.get_item(73)
+        self.assertIsNotNone(it_73)
+        self.assertEqual(it_73.don_gia_thong_nhat, 0.0)
+        self.assertEqual(it_73.gia_tri_giam, 0.0)
 
     def test_load_all_evidence_files_in_projects(self):
         """Quét và nạp toàn bộ các file chứng cứ thực tế trong thư mục projects/."""
