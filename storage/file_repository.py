@@ -52,6 +52,10 @@ class FileRepository:
             project_id = f"{project_id}.json"
         return write_json_atomic(self.active_project_file, {"active_id": project_id})
 
+    def clear_active_project_id(self) -> bool:
+        """Xóa trạng thái dự án active (đưa về trạng thái chưa lưu/dossier mới)."""
+        return write_json_atomic(self.active_project_file, {"active_id": None})
+
     def get_project_files_dir(self) -> str:
         """Lấy thư mục chứng cứ của dự án đang active (fallback sang current_dossier_files)."""
         active_id = self.get_active_project_id()

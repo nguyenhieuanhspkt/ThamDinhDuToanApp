@@ -91,25 +91,28 @@ def api_save_as_project():
     default_repo.save_dossier(dossier)
     default_repo.set_active_project_id(filename)
 
-    # Tự động sao chép thư mục tài liệu & hình ảnh chứng cứ sang dự án mới
-    try:
-        new_files_dir = os.path.join(default_repo.projects_dir, f"{safe_name}_files")
-        os.makedirs(new_files_dir, exist_ok=True)
-        cur_files_dir = default_repo.get_project_files_dir()
-        dirs_to_copy = [cur_files_dir, default_repo.current_dossier_files]
-        for s_dir in dirs_to_copy:
-            if os.path.exists(s_dir) and os.path.abspath(s_dir) != os.path.abspath(new_files_dir):
-                for root, dirs, files in os.walk(s_dir):
-                    rel = os.path.relpath(root, s_dir)
-                    target_dir = os.path.join(new_files_dir, rel)
-                    os.makedirs(target_dir, exist_ok=True)
-                    for f_n in files:
-                        sf = os.path.join(root, f_n)
-                        df = os.path.join(target_dir, f_n)
-                        if not os.path.exists(df):
-                            shutil.copy2(sf, df)
-    except Exception as e:
-        print(f"Lưu ý sao chép tài liệu dự án mới: {e}")
+    copy_evidence = req.get("copy_evidence", False)
+    new_files_dir = os.path.join(default_repo.projects_dir, f"{safe_name}_files")
+    os.makedirs(new_files_dir, exist_ok=True)
+
+    # Chỉ sao chép chứng cứ khi người dùng chủ động yêu cầu nhân bản dự án (copy_evidence=True)
+    if copy_evidence:
+        try:
+            cur_files_dir = default_repo.get_project_files_dir()
+            dirs_to_copy = [cur_files_dir]
+            for s_dir in dirs_to_copy:
+                if os.path.exists(s_dir) and os.path.abspath(s_dir) != os.path.abspath(new_files_dir):
+                    for root, dirs, files in os.walk(s_dir):
+                        rel = os.path.relpath(root, s_dir)
+                        target_dir = os.path.join(new_files_dir, rel)
+                        os.makedirs(target_dir, exist_ok=True)
+                        for f_n in files:
+                            sf = os.path.join(root, f_n)
+                            df = os.path.join(target_dir, f_n)
+                            if not os.path.exists(df):
+                                shutil.copy2(sf, df)
+        except Exception as e:
+            print(f"Lưu ý sao chép tài liệu dự án mới: {e}")
 
     return jsonify({
         "success": True,

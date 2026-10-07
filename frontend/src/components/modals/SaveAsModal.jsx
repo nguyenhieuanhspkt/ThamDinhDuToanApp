@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bookmark, X, Check, FolderPlus, Loader2 } from 'lucide-react';
 import { useToast } from '../ui/Toast.jsx';
 
@@ -6,11 +6,13 @@ export default function SaveAsModal({ isOpen, onClose, currentName, onSaveSucces
   const toast = useToast();
   const [projectName, setProjectName] = useState('');
   const [creator, setCreator] = useState('Nguyễn Anh Hiếu');
+  const [copyEvidence, setCopyEvidence] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setProjectName(currentName ? `${currentName} - Bản Mới` : '');
+      setCopyEvidence(false);
     }
   }, [isOpen, currentName]);
 
@@ -37,7 +39,8 @@ export default function SaveAsModal({ isOpen, onClose, currentName, onSaveSucces
         body: JSON.stringify({
           name: trimmed,
           creator: creator.trim() || 'Nguyễn Anh Hiếu',
-          data: dossierData
+          data: dossierData,
+          copy_evidence: copyEvidence
         })
       });
 
@@ -126,6 +129,22 @@ export default function SaveAsModal({ isOpen, onClose, currentName, onSaveSucces
               • Bằng chứng & hình ảnh tra cứu được lưu vào <code className="bg-slate-200/80 px-1 py-0.5 rounded font-mono text-[10px]">data/projects/&lt;Tên_Dự_Án&gt;_files/</code>
             </p>
           </div>
+
+          {/* Tùy chọn sao chép chứng cứ */}
+          <label className="flex items-start gap-2 p-2.5 bg-amber-50/60 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100/50 transition">
+            <input
+              type="checkbox"
+              checked={copyEvidence}
+              onChange={(e) => setCopyEvidence(e.target.checked)}
+              className="mt-0.5 rounded text-teal-600 focus:ring-teal-500 cursor-pointer"
+            />
+            <div className="text-[11px] text-slate-700">
+              <span className="font-bold text-slate-800">Sao chép kết quả tra cứu & chứng cứ từ dự án hiện tại</span>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                (Chỉ tích khi bạn muốn nhân bản dự án cũ. Khi vừa nạp Excel mới, hãy bỏ chọn để khởi tạo chứng cứ sạch 100%).
+              </p>
+            </div>
+          </label>
 
           {/* Buttons */}
           <div className="flex items-center justify-end gap-2.5 pt-2">

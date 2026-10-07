@@ -5,6 +5,7 @@ Dịch vụ xử lý nạp dữ liệu từ file Excel, xuất báo cáo thẩm 
 """
 
 import os
+import shutil
 from typing import Any, Dict, Optional
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -87,8 +88,14 @@ class ExcelService:
                     full_name = f"{ten_vt_goc} - {thong_so_kt}" if (ten_vt_goc and thong_so_kt) else (ten_vt_goc or thong_so_kt)
                     part_no = thong_so_kt or ma_erp
 
+                    try:
+                        stt_val = int(row[0]) if row[0] is not None and str(row[0]).strip().isdigit() else item_id
+                    except Exception:
+                        stt_val = item_id
+
                     items.append({
                         "id": item_id,
+                        "stt": stt_val,
                         "pycvt": pycvt,
                         "ma_vt": ma_erp,
                         "part_no": part_no,
@@ -115,6 +122,11 @@ class ExcelService:
                     if not ten_vt or ten_vt.upper() in ("TÊN QUY CÁCH", "TÊN VẬT TƯ", "TÊN QUY CÁCH KỸ THUẬT VẬT TƯ"):
                         continue
 
+                    try:
+                        stt_val = int(row[0]) if row[0] is not None and str(row[0]).strip().isdigit() else item_id
+                    except Exception:
+                        stt_val = item_id
+
                     ma_vt = str(row[1] if len(row) > 1 else "").strip()
                     dvt = str(row[3] if len(row) > 3 else "Cái").strip()
                     try:
@@ -139,6 +151,7 @@ class ExcelService:
 
                     items.append({
                         "id": item_id,
+                        "stt": stt_val,
                         "pycvt": "",
                         "ma_vt": ma_vt,
                         "part_no": ma_vt,
@@ -159,11 +172,23 @@ class ExcelService:
                     })
                 item_id += 1
 
-            # Nạp vào dossier hiện hành
-            dossier = active_repo.load_dossier()
+            # Khởi tạo dossier mới sạch sẽ thay vì kế thừa tàn dư từ hồ sơ cũ
+            dossier = ProjectDossier()
             dossier.items = [DossierItem.from_dict(it) for it in items]
             dossier_name = os.path.splitext(file_storage.filename)[0]
             dossier.dossier_name = dossier_name
+            dossier.recalculate_totals()
+
+            # Dọn dẹp thư mục chứng cứ tạm current_dossier_files để không bị lẫn chứng cứ cũ
+            if os.path.exists(active_repo.current_dossier_files):
+                try:
+                    shutil.rmtree(active_repo.current_dossier_files)
+                except Exception:
+                    pass
+            os.makedirs(active_repo.current_dossier_files, exist_ok=True)
+
+            # Xóa active_id để tránh việc save_dossier ghi đè vào file dự án cũ đang mở
+            active_repo.clear_active_project_id()
             active_repo.save_dossier(dossier)
 
             return {
