@@ -372,7 +372,21 @@ def api_msc_update_curl():
         return jsonify({"success": False, "message": err}), 400
 
     test_res = msc_matcher.test_msc_connection(sess)
-    return jsonify(test_res)
+    if test_res.get("active"):
+        msc_matcher.save_msc_session(sess)
+        return jsonify({
+            "success": True,
+            "active": True,
+            "message": test_res.get("message", "Đã kích hoạt phiên Mua Sắm Công thành công (200 OK)!"),
+            "created_at": sess.get("created_at"),
+            "age_str": test_res.get("age_str", "")
+        })
+    else:
+        return jsonify({
+            "success": False,
+            "active": False,
+            "message": test_res.get("message", "Kết nối Mua Sắm Công không thành công. Vui lòng kiểm tra lại cURL!")
+        }), 400
 
 
 @pillar_bp.route("/api/msc/status", methods=["GET"])

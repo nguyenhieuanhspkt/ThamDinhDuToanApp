@@ -48,7 +48,7 @@ export default function MSCConfigModal({ isOpen, onClose, onStatusUpdated }) {
       });
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success || data.active) {
         toast.success(data.message || 'Đã kích hoạt phiên Mua Sắm Công thành công!');
         setCurlCommand('');
         await fetchStatus();

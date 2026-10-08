@@ -64,12 +64,16 @@ def parse_curl_command(curl_str):
     if url_match:
         url = url_match.group(1)
 
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.netloc else "https://muasamcong.mpi.gov.vn"
+
     headers = {
         'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
-        'Origin': 'https://muasamcong.mpi.gov.vn',
-        'Referer': 'https://muasamcong.mpi.gov.vn/web/guest/profile-info?p_p_id=egpportalpersonalpage_WAR_egpportalpersonalpage&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_egpportalpersonalpage_WAR_egpportalpersonalpage_render=personalUrl&menu=bid-pricing',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
+        'Origin': origin,
+        'Referer': f"{origin}/web/guest/profile-info?p_p_id=egpportalpersonalpage_WAR_egpportalpersonalpage&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_egpportalpersonalpage_WAR_egpportalpersonalpage_render=personalUrl&menu=bid-pricing",
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36'
     }
 
     # Bóc tách tất cả các header -H 'Header-Name: Value'
@@ -106,8 +110,7 @@ def parse_curl_command(curl_str):
 
 def save_msc_session(session_data):
     """Lưu session Mua Sắm Công vào file cấu hình kèm mốc thời gian."""
-    if "created_at" not in session_data:
-        session_data["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    session_data["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(MSC_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(session_data, f, ensure_ascii=False, indent=2)
 
